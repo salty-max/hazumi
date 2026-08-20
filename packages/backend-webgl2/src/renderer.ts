@@ -3,6 +3,7 @@ import {
   type CommandVisitor,
   decode,
 } from '@matter/graphics';
+import { mat4 } from '@matter/math';
 import { CIRCLE_FRAGMENT_SHADER, CIRCLE_VERTEX_SHADER } from './shaders';
 import { type ResourceId, ResourceRegistry } from './resource';
 
@@ -159,14 +160,7 @@ export class Webgl2Renderer {
    * produce later.
    */
   setViewport(width: number, height: number): void {
-    const m = this.#viewProj;
-    m.fill(0);
-    m[0] = 2 / width;
-    m[5] = -2 / height;
-    m[10] = 1;
-    m[12] = -1;
-    m[13] = 1;
-    m[15] = 1;
+    mat4.ortho(this.#viewProj, 0, width, height, 0, -1, 1);
   }
 
   render(buffer: CommandBuffer): void {

@@ -85,6 +85,9 @@
     "packages/color": {
       "name": "@matter/color",
       "version": "0.0.0",
+      "dependencies": {
+        "@matter/math": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
