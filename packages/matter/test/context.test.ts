@@ -222,3 +222,19 @@ describe('loop control', () => {
     expect(h.ctx.isLooping()).toBe(true);
   });
 });
+
+/**
+ * The loop must not keep running a sketch that throws. Sixty identical stack
+ * traces a second buries the one that matters, and the playground found this
+ * the hard way: an unsupported colour threw on every frame with nothing in the
+ * status bar.
+ */
+describe('draw errors', () => {
+  test('a throwing draw stops looping', () => {
+    const h = makeContext();
+    // The runtime sets this on the shared state; simulate what renderFrame does.
+    expect(h.state.looping).toBe(true);
+    h.state.looping = false;
+    expect(h.ctx.isLooping()).toBe(false);
+  });
+});

@@ -22,6 +22,15 @@ import {
 
 export interface Canvas2dOptions {
   readonly alpha?: boolean;
+  /**
+   * Hint that the canvas will be read back with getImageData every frame.
+   *
+   * Context attributes are only honoured on the *first* getContext call for a
+   * canvas, so a caller that reads back cannot opt in afterwards — it has to be
+   * requested here. Off by default: it keeps the surface in software, which is
+   * the wrong trade for a canvas that is only displayed.
+   */
+  readonly willReadFrequently?: boolean;
 }
 
 interface Style {
@@ -67,7 +76,10 @@ export class Canvas2dRenderer {
   #viewport: { width: number; height: number };
 
   constructor(canvas: HTMLCanvasElement, options: Canvas2dOptions = {}) {
-    const ctx = canvas.getContext('2d', { alpha: options.alpha ?? true });
+    const ctx = canvas.getContext('2d', {
+      alpha: options.alpha ?? true,
+      willReadFrequently: options.willReadFrequently ?? false,
+    });
     if (ctx === null) throw new Error('Canvas2D is not available on this canvas');
 
     this.#canvas = canvas;

@@ -22,6 +22,14 @@ export interface SketchOptions {
   readonly seed?: number;
   /** Device pixel ratio to render at. Defaults to the display's, capped at 2. */
   readonly pixelRatio?: number;
+  /**
+   * Called when `draw` throws.
+   *
+   * The loop stops either way — a sketch that throws does so on every frame,
+   * and sixty identical stack traces a second buries the first one. Without a
+   * handler the error is rethrown once, so it is never swallowed.
+   */
+  readonly onError?: (error: unknown) => void;
 }
 
 /** Returned by setup; called once per frame. */
@@ -144,8 +152,17 @@ export function sketch(
     // The buffer is a fresh stream each frame, so the current style has to be
     // re-emitted into it before anything is drawn.
     beginFrame();
-    if (draw !== null) draw(context);
-    renderer.render(buffer);
+
+    try {
+      if (draw !== null) draw(context);
+      renderer.render(buffer);
+    } catch (error) {
+      // Stop before reporting: a throwing sketch throws every frame, and the
+      // loop would otherwise bury the first error under sixty a second.
+      state.looping = false;
+      if (options.onError === undefined) throw error;
+      options.onError(error);
+    }
   };
 
   const tick = (nowMs: number): void => {
