@@ -1,12 +1,35 @@
 import { Blend } from '@matter/graphics';
 
+/**
+ * Which program a batch draws with.
+ *
+ * Shapes and glyphs cannot share a draw call: glyphs sample the atlas texture
+ * and shapes evaluate an analytic distance, and their instance layouts differ.
+ * Adding text is what turned the pipeline key from "blend mode" into a pair.
+ */
+export const Pipeline = {
+  Shape: 0,
+  Glyph: 1,
+} as const;
+
+export type Pipeline = (typeof Pipeline)[keyof typeof Pipeline];
+
 /** A run of instances that can be drawn with one call. */
 export interface Batch {
-  /** First instance index. */
+  /** First instance index, within that pipeline's own instance array. */
   readonly start: number;
   /** Number of instances. */
   readonly count: number;
   readonly blend: Blend;
+  readonly pipeline: Pipeline;
+  /**
+   * Texture bound for this batch, or -1 when it needs none.
+   *
+   * Part of the key, not just cargo: two fonts in one frame use two atlases,
+   * and merging across them would draw the first font's glyphs with the
+   * second font's texture.
+   */
+  readonly texture: number;
 }
 
 /**
@@ -17,14 +40,17 @@ export interface Batch {
  * obvious optimisation — silently reorders overlapping transparent shapes and
  * changes the image. See the performance rules in AGENTS.md.
  *
- * Opaque geometry could be sorted freely under a depth test; that is a P7
+ * Opaque geometry could be sorted freely under a depth test; that is a later
  * concern and deliberately not done here.
  */
 export class BatchList {
   #batches: Batch[] = [];
-  #currentBlend: Blend | null = null;
-  #start = 0;
+  #blend: Blend | null = null;
+  #pipeline: Pipeline | null = null;
+  #texture = -1;
   #count = 0;
+  // Each pipeline indexes its own instance array, so starts advance separately.
+  #starts: Record<Pipeline, number> = { [Pipeline.Shape]: 0, [Pipeline.Glyph]: 0 };
 
   get batches(): readonly Batch[] {
     return this.#batches;
@@ -36,29 +62,36 @@ export class BatchList {
 
   reset(): void {
     this.#batches.length = 0;
-    this.#currentBlend = null;
-    this.#start = 0;
+    this.#blend = null;
+    this.#pipeline = null;
+    this.#texture = -1;
     this.#count = 0;
+    this.#starts[Pipeline.Shape] = 0;
+    this.#starts[Pipeline.Glyph] = 0;
   }
 
   /**
-   * Record one instance drawn with `blend`. Extends the open batch when the
-   * pipeline matches, and starts a new one when it does not.
+   * Record one instance. Extends the open batch when both the pipeline and the
+   * blend mode match, and starts a new one when either differs.
    */
-  push(blend: Blend): void {
-    if (this.#currentBlend === null) {
-      this.#currentBlend = blend;
+  push(blend: Blend, pipeline: Pipeline = Pipeline.Shape, texture = -1): void {
+    if (this.#pipeline === null) {
+      this.#blend = blend;
+      this.#pipeline = pipeline;
+      this.#texture = texture;
       this.#count = 1;
       return;
     }
 
-    if (blend === this.#currentBlend) {
+    if (blend === this.#blend && pipeline === this.#pipeline && texture === this.#texture) {
       this.#count++;
       return;
     }
 
     this.#flush();
-    this.#currentBlend = blend;
+    this.#blend = blend;
+    this.#pipeline = pipeline;
+    this.#texture = texture;
     this.#count = 1;
   }
 
@@ -69,12 +102,16 @@ export class BatchList {
   }
 
   #flush(): void {
+    const pipeline = this.#pipeline ?? Pipeline.Shape;
+    const start = this.#starts[pipeline];
     this.#batches.push({
-      start: this.#start,
+      start,
       count: this.#count,
-      blend: this.#currentBlend ?? Blend.Normal,
+      blend: this.#blend ?? Blend.Normal,
+      pipeline,
+      texture: this.#texture,
     });
-    this.#start += this.#count;
+    this.#starts[pipeline] = start + this.#count;
     this.#count = 0;
   }
 }

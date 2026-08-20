@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Blend } from '@matter/graphics';
-import { BatchList } from '../src/index';
+import { BatchList, Pipeline } from '../src/index';
 
 describe('BatchList', () => {
   test('merges a uniform run into a single batch', () => {
@@ -9,7 +9,7 @@ describe('BatchList', () => {
     const batches = list.finish();
 
     expect(batches).toHaveLength(1);
-    expect(batches[0]).toEqual({ start: 0, count: 1000, blend: Blend.Normal });
+    expect(batches[0]).toEqual({ start: 0, count: 1000, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1 });
   });
 
   test('splits when the pipeline changes', () => {
@@ -20,9 +20,9 @@ describe('BatchList', () => {
     list.push(Blend.Normal);
 
     expect(list.finish()).toEqual([
-      { start: 0, count: 2, blend: Blend.Normal },
-      { start: 2, count: 1, blend: Blend.Add },
-      { start: 3, count: 1, blend: Blend.Normal },
+      { start: 0, count: 2, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1 },
+      { start: 2, count: 1, blend: Blend.Add, pipeline: Pipeline.Shape, texture: -1 },
+      { start: 3, count: 1, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1 },
     ]);
   });
 
@@ -73,6 +73,53 @@ describe('BatchList', () => {
     const total = batches.reduce((sum, b) => sum + b.count, 0);
     expect(total).toBe(modes.length);
     expect(batches[0]?.start).toBe(0);
+  });
+
+  test('a pipeline change splits a batch even when blend matches', () => {
+    const list = new BatchList();
+    list.push(Blend.Normal, Pipeline.Shape);
+    list.push(Blend.Normal, Pipeline.Glyph);
+    list.push(Blend.Normal, Pipeline.Shape);
+
+    const batches = list.finish();
+    expect(batches).toHaveLength(3);
+    expect(batches.map((b) => b.pipeline)).toEqual([
+      Pipeline.Shape, Pipeline.Glyph, Pipeline.Shape,
+    ]);
+  });
+
+  test('each pipeline indexes its own instance array', () => {
+    const list = new BatchList();
+    list.push(Blend.Normal, Pipeline.Shape);
+    list.push(Blend.Normal, Pipeline.Shape);
+    list.push(Blend.Normal, Pipeline.Glyph);
+    list.push(Blend.Normal, Pipeline.Shape);
+
+    const batches = list.finish();
+    // Shapes: 0..2 then 2..3. Glyphs restart at 0 — they are a separate array.
+    expect(batches[0]).toMatchObject({ start: 0, count: 2, pipeline: Pipeline.Shape });
+    expect(batches[1]).toMatchObject({ start: 0, count: 1, pipeline: Pipeline.Glyph });
+    expect(batches[2]).toMatchObject({ start: 2, count: 1, pipeline: Pipeline.Shape });
+  });
+
+  test('a texture change splits a batch even when pipeline and blend match', () => {
+    // Two fonts in one frame. Merging these would draw the first font's
+    // glyphs with the second font's atlas.
+    const list = new BatchList();
+    list.push(Blend.Normal, Pipeline.Glyph, 7);
+    list.push(Blend.Normal, Pipeline.Glyph, 7);
+    list.push(Blend.Normal, Pipeline.Glyph, 9);
+
+    const batches = list.finish();
+    expect(batches).toHaveLength(2);
+    expect(batches[0]).toMatchObject({ count: 2, texture: 7 });
+    expect(batches[1]).toMatchObject({ count: 1, texture: 9 });
+  });
+
+  test('shapes report no texture', () => {
+    const list = new BatchList();
+    list.push(Blend.Normal);
+    expect(list.finish()[0]?.texture).toBe(-1);
   });
 
   test('an empty list produces no batches', () => {

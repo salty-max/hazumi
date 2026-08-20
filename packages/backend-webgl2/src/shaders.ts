@@ -105,3 +105,65 @@ void main() {
   fragColor = vec4(v_color.rgb * a, a);
 }
 `;
+
+/**
+ * Glyph pipeline.
+ *
+ * A glyph is a textured quad sampling the SDF atlas. The distance is read from
+ * the texture rather than evaluated analytically, which is why it cannot share
+ * a program — or a draw call — with the shape pipeline.
+ */
+export const GLYPH_VERTEX_SHADER: string = `#version 300 es
+
+layout(location = 0) in vec2 a_corner;
+layout(location = 1) in vec4 a_xform;        // a, b, c, d
+layout(location = 2) in vec2 a_offset;       // tx, ty
+layout(location = 3) in vec4 a_uv;           // u0, v0, u1, v1
+layout(location = 4) in vec4 a_color;
+
+uniform mat4 u_viewProj;
+
+out vec2 v_uv;
+out vec4 v_color;
+
+void main() {
+  // Corner is -1..1; remap to 0..1 to index the glyph's atlas rect.
+  vec2 t = a_corner * 0.5 + 0.5;
+  v_uv = mix(a_uv.xy, a_uv.zw, t);
+  v_color = a_color;
+
+  vec2 world = vec2(
+    a_xform.x * a_corner.x + a_xform.z * a_corner.y + a_offset.x,
+    a_xform.y * a_corner.x + a_xform.w * a_corner.y + a_offset.y
+  );
+
+  gl_Position = u_viewProj * vec4(world, 0.0, 1.0);
+}
+`;
+
+export const GLYPH_FRAGMENT_SHADER: string = `#version 300 es
+precision highp float;
+
+in vec2 v_uv;
+in vec4 v_color;
+
+uniform sampler2D u_atlas;
+
+out vec4 fragColor;
+
+void main() {
+  // The atlas stores distance with 0.5 at the glyph edge and larger values
+  // inside, so this is positive within the glyph.
+  float d = texture(u_atlas, v_uv).r - 0.5;
+
+  // Screen-space derivative, so the edge stays one pixel wide at any size.
+  // This is what SDF buys over a plain coverage atlas.
+  float aa = fwidth(d);
+  float alpha = smoothstep(-aa, aa, d);
+
+  if (alpha <= 0.0) discard;
+
+  float a = v_color.a * alpha;
+  fragColor = vec4(v_color.rgb * a, a);
+}
+`;

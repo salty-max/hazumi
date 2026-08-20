@@ -23,7 +23,18 @@ export interface ProgramDescriptor {
   readonly fragment: string;
 }
 
-export type ResourceDescriptor = BufferDescriptor | ProgramDescriptor;
+export interface TextureDescriptor {
+  readonly kind: 'texture';
+  readonly width: number;
+  readonly height: number;
+  /** Single-channel data; the atlas stores distance, not colour. */
+  readonly data: Uint8Array;
+}
+
+export type ResourceDescriptor =
+  | BufferDescriptor
+  | ProgramDescriptor
+  | TextureDescriptor;
 
 /** Minimal slice of WebGL2 the registry needs, so it can be tested with a fake. */
 export interface GlLike {
@@ -37,6 +48,16 @@ export interface GlLike {
   getShaderParameter(shader: WebGLShader, pname: number): unknown;
   getShaderInfoLog(shader: WebGLShader): string | null;
   deleteShader(shader: WebGLShader | null): void;
+  createTexture(): WebGLTexture | null;
+  bindTexture(target: number, texture: WebGLTexture | null): void;
+  texImage2D(
+    target: number, level: number, internalformat: number,
+    width: number, height: number, border: number,
+    format: number, type: number, pixels: ArrayBufferView | null,
+  ): void;
+  texParameteri(target: number, pname: number, param: number): void;
+  pixelStorei(pname: number, param: number): void;
+  deleteTexture(texture: WebGLTexture | null): void;
   createProgram(): WebGLProgram | null;
   attachShader(program: WebGLProgram, shader: WebGLShader): void;
   linkProgram(program: WebGLProgram): void;
@@ -47,6 +68,17 @@ export interface GlLike {
   readonly FRAGMENT_SHADER: number;
   readonly COMPILE_STATUS: number;
   readonly LINK_STATUS: number;
+  readonly TEXTURE_2D: number;
+  readonly R8: number;
+  readonly RED: number;
+  readonly UNSIGNED_BYTE: number;
+  readonly TEXTURE_MIN_FILTER: number;
+  readonly TEXTURE_MAG_FILTER: number;
+  readonly TEXTURE_WRAP_S: number;
+  readonly TEXTURE_WRAP_T: number;
+  readonly LINEAR: number;
+  readonly CLAMP_TO_EDGE: number;
+  readonly UNPACK_ALIGNMENT: number;
 }
 
 export class ShaderCompileError extends Error {
@@ -71,6 +103,7 @@ export class ResourceRegistry {
   #descriptors: ResourceDescriptor[] = [];
   #buffers = new Map<ResourceId, WebGLBuffer>();
   #programs = new Map<ResourceId, WebGLProgram>();
+  #textures = new Map<ResourceId, WebGLTexture>();
   #realizations = 0;
 
   /** How many times resources have been built. Increments on each restore. */
@@ -106,6 +139,12 @@ export class ResourceRegistry {
     return p;
   }
 
+  texture(id: ResourceId): WebGLTexture {
+    const t = this.#textures.get(id);
+    if (t === undefined) throw new Error(`Texture ${id} is not realized`);
+    return t;
+  }
+
   /**
    * Forget every GPU object without deleting it. This is the context-loss path:
    * the driver has already destroyed the objects, so deleting them is both
@@ -116,6 +155,7 @@ export class ResourceRegistry {
   invalidate(): void {
     this.#buffers.clear();
     this.#programs.clear();
+    this.#textures.clear();
   }
 
   /**
@@ -127,7 +167,23 @@ export class ResourceRegistry {
   destroy(gl: GlLike): void {
     for (const buffer of this.#buffers.values()) gl.deleteBuffer(buffer);
     for (const program of this.#programs.values()) gl.deleteProgram(program);
+    for (const texture of this.#textures.values()) gl.deleteTexture(texture);
     this.invalidate();
+  }
+
+  /**
+   * Register a resource and realize just that one.
+   *
+   * For things discovered mid-run — a font atlas built the first time a family
+   * is used. The descriptor is still stored, so a context restore rebuilds it
+   * with everything else and the invariant holds.
+   */
+  add(gl: GlLike, descriptor: ResourceDescriptor): ResourceId {
+    const id = this.register(descriptor);
+    if (descriptor.kind === 'buffer') this.#buffers.set(id, createBuffer(gl, descriptor));
+    else if (descriptor.kind === 'texture') this.#textures.set(id, createTexture(gl, descriptor));
+    else this.#programs.set(id, createProgram(gl, descriptor));
+    return id;
   }
 
   /**
@@ -143,6 +199,8 @@ export class ResourceRegistry {
       const desc = this.#descriptors[id] as ResourceDescriptor;
       if (desc.kind === 'buffer') {
         this.#buffers.set(id, createBuffer(gl, desc));
+      } else if (desc.kind === 'texture') {
+        this.#textures.set(id, createTexture(gl, desc));
       } else {
         this.#programs.set(id, createProgram(gl, desc));
       }
@@ -158,6 +216,25 @@ function createBuffer(gl: GlLike, desc: BufferDescriptor): WebGLBuffer {
   gl.bindBuffer(desc.target, buffer);
   gl.bufferData(desc.target, desc.byteLength, desc.usage);
   return buffer;
+}
+
+function createTexture(gl: GlLike, desc: TextureDescriptor): WebGLTexture {
+  const texture = gl.createTexture();
+  if (texture === null) throw new Error('gl.createTexture() returned null');
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  // Single-channel rows are not 4-byte aligned; without this the atlas skews.
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(
+    gl.TEXTURE_2D, 0, gl.R8,
+    desc.width, desc.height, 0,
+    gl.RED, gl.UNSIGNED_BYTE, desc.data,
+  );
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return texture;
 }
 
 function createProgram(gl: GlLike, desc: ProgramDescriptor): WebGLProgram {

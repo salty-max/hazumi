@@ -8,8 +8,11 @@
 
 export { Webgl2Renderer } from './renderer';
 export type { Webgl2Options, FrameStats } from './renderer';
-export { BatchList } from './batch';
+export { BatchList, Pipeline } from './batch';
 export type { Batch } from './batch';
+export { SdfAtlas } from './text/atlas';
+export type { Glyph, AtlasOptions } from './text/atlas';
+export { edt1d, edt2d, signedDistanceField } from './text/edt';
 export { GlStateCache } from './state';
 export type { BlendCapableGl } from './state';
 export {

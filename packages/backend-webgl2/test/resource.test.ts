@@ -12,20 +12,47 @@ import {
  * calls made, which a real context cannot.
  */
 function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): GlLike & {
-  created: { buffers: number; programs: number; shaders: number };
-  deleted: { buffers: number; programs: number; shaders: number };
+  created: { buffers: number; programs: number; shaders: number; textures: number };
+  deleted: { buffers: number; programs: number; shaders: number; textures: number };
+  unpackAlignment: number;
 } {
   let nextId = 1;
-  const created = { buffers: 0, programs: 0, shaders: 0 };
-  const deleted = { buffers: 0, programs: 0, shaders: 0 };
+  const created = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
+  const deleted = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
+  const state = { unpackAlignment: 4 };
 
   return {
     created,
     deleted,
+    get unpackAlignment() {
+      return state.unpackAlignment;
+    },
     VERTEX_SHADER: 35633,
     FRAGMENT_SHADER: 35632,
     COMPILE_STATUS: 35713,
     LINK_STATUS: 35714,
+    TEXTURE_2D: 3553,
+    R8: 33321,
+    RED: 6403,
+    UNSIGNED_BYTE: 5121,
+    TEXTURE_MIN_FILTER: 10241,
+    TEXTURE_MAG_FILTER: 10240,
+    TEXTURE_WRAP_S: 10242,
+    TEXTURE_WRAP_T: 10243,
+    LINEAR: 9729,
+    CLAMP_TO_EDGE: 33071,
+    UNPACK_ALIGNMENT: 3317,
+    createTexture: () => {
+      created.textures++;
+      return { id: nextId++ } as unknown as WebGLTexture;
+    },
+    bindTexture: () => {},
+    texImage2D: () => {},
+    texParameteri: () => {},
+    pixelStorei: (_pname: number, param: number) => {
+      state.unpackAlignment = param;
+    },
+    deleteTexture: () => void deleted.textures++,
     createBuffer: () => {
       created.buffers++;
       return { id: nextId++ } as unknown as WebGLBuffer;
@@ -140,6 +167,35 @@ describe('ResourceRegistry', () => {
 
     expect(registry.realizations).toBe(5);
     expect(gl.created.buffers).toBe(5);
+  });
+
+  test('realizes and releases textures', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    const id = registry.register({
+      kind: 'texture',
+      width: 4,
+      height: 4,
+      data: new Uint8Array(16),
+    });
+
+    registry.realize(gl);
+    expect(registry.texture(id)).toBeDefined();
+    expect(gl.created.textures).toBe(1);
+
+    registry.destroy(gl);
+    expect(gl.deleted.textures).toBe(1);
+    expect(() => registry.texture(id)).toThrow(/not realized/);
+  });
+
+  test('sets unpack alignment for single-channel rows', () => {
+    // A one-byte-per-texel atlas has rows that are not 4-byte aligned; leaving
+    // the default in place skews every row after the first.
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({ kind: 'texture', width: 3, height: 3, data: new Uint8Array(9) });
+    registry.realize(gl);
+    expect(gl.unpackAlignment).toBe(1);
   });
 
   test('reports which shader stage failed to compile', () => {

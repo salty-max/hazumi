@@ -1,5 +1,7 @@
 import {
   type Affine,
+  Align,
+  Baseline,
   Blend,
   type CommandBuffer,
   type CommandVisitor,
@@ -11,9 +13,15 @@ import {
   translateAffine,
 } from '@matter/graphics';
 import { mat4 } from '@matter/math';
-import { BatchList } from './batch';
+import { BatchList, Pipeline } from './batch';
 import { GlStateCache } from './state';
-import { SDF_FRAGMENT_SHADER, SDF_VERTEX_SHADER } from './shaders';
+import {
+  GLYPH_FRAGMENT_SHADER,
+  GLYPH_VERTEX_SHADER,
+  SDF_FRAGMENT_SHADER,
+  SDF_VERTEX_SHADER,
+} from './shaders';
+import { SdfAtlas } from './text/atlas';
 import { type ResourceId, ResourceRegistry } from './resource';
 
 /** a, b, c, d | tx, ty, hx, hy | r, g, b, alpha | edge, shape. */
@@ -25,6 +33,13 @@ const SHAPE_BOX = 1;
 const SHAPE_ELLIPSE = 2;
 
 const INITIAL_INSTANCES = 1024;
+
+/** Distinct font families a single renderer will build atlases for. */
+const MAX_ATLASES = 8;
+
+/** a, b, c, d | tx, ty | u0, v0, u1, v1 | r, g, b, alpha. */
+const GLYPH_FLOATS = 14;
+const GLYPH_BYTES = GLYPH_FLOATS * 4;
 
 export interface Webgl2Options {
   readonly samples?: number;
@@ -101,6 +116,26 @@ export class Webgl2Renderer {
   #viewWidth = 0;
   #viewHeight = 0;
 
+  #glyphProgramId: ResourceId;
+  #glyphBufferId: ResourceId;
+  #glyphVao: WebGLVertexArrayObject | null = null;
+  #glyphViewProjLocation: WebGLUniformLocation | null = null;
+  #glyphAtlasLocation: WebGLUniformLocation | null = null;
+
+  #glyphs: Float32Array;
+  #glyphCapacity: number;
+  #glyphCount = 0;
+
+  // One atlas per family, built on first use and reused thereafter. Capped:
+  // every entry costs a texture and a full rasterisation pass, so a family
+  // string built from a variable would be far more expensive than the colour
+  // cache equivalent. Failing loudly beats degrading silently.
+  #atlases = new Map<string, { atlas: SdfAtlas; textureId: ResourceId }>();
+  #fontFamily = 'sans-serif';
+  #textSize = 16;
+  #align: Align = Align.Left;
+  #baseline: Baseline = Baseline.Alphabetic;
+
   #style: Style = defaultStyle();
   #styleStack: Style[] = [];
   #xform: Affine = identityAffine();
@@ -131,6 +166,20 @@ export class Webgl2Renderer {
       kind: 'program',
       vertex: SDF_VERTEX_SHADER,
       fragment: SDF_FRAGMENT_SHADER,
+    });
+
+    this.#glyphCapacity = INITIAL_INSTANCES;
+    this.#glyphs = new Float32Array(INITIAL_INSTANCES * GLYPH_FLOATS);
+    this.#glyphBufferId = this.#registry.register({
+      kind: 'buffer',
+      target: WebGL2RenderingContext.ARRAY_BUFFER,
+      usage: WebGL2RenderingContext.DYNAMIC_DRAW,
+      byteLength: this.#glyphs.byteLength,
+    });
+    this.#glyphProgramId = this.#registry.register({
+      kind: 'program',
+      vertex: GLYPH_VERTEX_SHADER,
+      fragment: GLYPH_FRAGMENT_SHADER,
     });
 
     this.#visitor = this.#makeVisitor();
@@ -196,6 +245,7 @@ export class Webgl2Renderer {
     const gl = this.#gl;
     this.#drawCalls = 0;
     this.#count = 0;
+    this.#glyphCount = 0;
     this.#batches.reset();
     this.#state?.resetCounters();
 
@@ -224,21 +274,42 @@ export class Webgl2Renderer {
       gl.clear(gl.COLOR_BUFFER_BIT);
     }
 
-    if (this.#count === 0) return;
+    if (this.#count === 0 && this.#glyphCount === 0) return;
 
     const state = this.#state as GlStateCache;
-    state.useProgram(this.#registry.program(this.#programId));
-    state.bindVertexArray(this.#vao as WebGLVertexArrayObject);
-    gl.uniformMatrix4fv(this.#viewProjLocation, false, this.#viewProj);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#instances, 0, this.#count * INSTANCE_FLOATS);
+    if (this.#count > 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#instances, 0, this.#count * INSTANCE_FLOATS);
+    }
+    if (this.#glyphCount > 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#glyphs, 0, this.#glyphCount * GLYPH_FLOATS);
+    }
 
     for (const batch of batches) {
       state.setBlend(batch.blend);
-      // baseInstance is not available in WebGL2, so the offset is applied by
-      // re-pointing the instance attributes rather than passed to the draw.
-      this.#setInstanceOffset(gl, batch.start);
+
+      if (batch.pipeline === Pipeline.Glyph) {
+        if (batch.texture < 0) continue;
+        state.useProgram(this.#registry.program(this.#glyphProgramId));
+        state.bindVertexArray(this.#glyphVao as WebGLVertexArrayObject);
+        gl.uniformMatrix4fv(this.#glyphViewProjLocation, false, this.#viewProj);
+        gl.activeTexture(gl.TEXTURE0);
+        // From the batch, not from "whichever font was used last": two fonts
+        // in one frame would otherwise share the second one's atlas.
+        gl.bindTexture(gl.TEXTURE_2D, this.#registry.texture(batch.texture));
+        gl.uniform1i(this.#glyphAtlasLocation, 0);
+        this.#setGlyphOffset(gl, batch.start);
+      } else {
+        state.useProgram(this.#registry.program(this.#programId));
+        state.bindVertexArray(this.#vao as WebGLVertexArrayObject);
+        gl.uniformMatrix4fv(this.#viewProjLocation, false, this.#viewProj);
+        // baseInstance is not available in WebGL2, so the offset is applied by
+        // re-pointing the instance attributes rather than passed to the draw.
+        this.#setInstanceOffset(gl, batch.start);
+      }
+
       gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, batch.count);
       this.#drawCalls++;
     }
@@ -251,6 +322,7 @@ export class Webgl2Renderer {
     const gl = this.#gl;
     if (gl !== null) {
       if (this.#vao !== null) gl.deleteVertexArray(this.#vao);
+      if (this.#glyphVao !== null) gl.deleteVertexArray(this.#glyphVao);
       // destroy, not invalidate: the context is still alive here, so the GPU
       // objects have to be deleted explicitly or they leak.
       this.#registry.destroy(gl);
@@ -259,6 +331,7 @@ export class Webgl2Renderer {
     }
 
     this.#vao = null;
+    this.#glyphVao = null;
     this.#gl = null;
   }
 
@@ -303,6 +376,7 @@ export class Webgl2Renderer {
           // Opaque: everything queued is about to be hidden, so discarding it
           // and clearing is both correct and far cheaper than overpainting.
           this.#count = 0;
+          this.#glyphCount = 0;
           this.#batches.reset();
           this.#clearRequested = [r, g, b, a];
           return;
@@ -336,6 +410,20 @@ export class Webgl2Renderer {
       rect: (x: number, y: number, width: number, height: number): void => {
         // The unit box spans -1..1, so half-extents are the scale.
         this.#emitShape(SHAPE_BOX, x + width / 2, y + height / 2, width / 2, height / 2, 0);
+      },
+
+      setTextSize: (size: number): void => {
+        this.#textSize = size;
+      },
+      setTextAlign: (horizontal: Align, vertical: Baseline): void => {
+        this.#align = horizontal;
+        this.#baseline = vertical;
+      },
+      setFont: (family: string): void => {
+        this.#fontFamily = family;
+      },
+      text: (x: number, y: number, content: string): void => {
+        this.#emitText(x, y, content);
       },
 
       line: (x1: number, y1: number, x2: number, y2: number): void => {
@@ -440,6 +528,118 @@ export class Webgl2Renderer {
     this.#count++;
   }
 
+  /** Build the atlas for a family on first use, then reuse it. */
+  #atlasFor(family: string): { atlas: SdfAtlas; textureId: ResourceId } | null {
+    const gl = this.#gl;
+    if (gl === null) return null;
+
+    const existing = this.#atlases.get(family);
+    if (existing !== undefined) return existing;
+
+    if (this.#atlases.size >= MAX_ATLASES) {
+      throw new Error(
+        `Refusing to build more than ${MAX_ATLASES} font atlases (asked for ` +
+          `${JSON.stringify(family)}). A font family built from a variable is ` +
+          `the usual cause; hoist it to a constant.`,
+      );
+    }
+
+    const atlas = new SdfAtlas(family);
+    const textureId = this.#registry.add(gl, {
+      kind: 'texture',
+      width: atlas.width,
+      height: atlas.height,
+      data: atlas.data,
+    });
+    const entry = { atlas, textureId };
+    this.#atlases.set(family, entry);
+    return entry;
+  }
+
+  #emitText(x: number, y: number, content: string): void {
+    const entry = this.#atlasFor(this.#fontFamily);
+    if (entry === null) return;
+
+    const { atlas } = entry;
+    const style = this.#style;
+    if (style.fillA <= 0) return;
+
+    const size = this.#textSize;
+    const width = atlas.measure(content, size);
+
+    let penX = x;
+    if (this.#align === Align.Center) penX -= width / 2;
+    else if (this.#align === Align.Right) penX -= width;
+
+    let penY = y;
+    if (this.#baseline === Baseline.Top) penY += atlas.ascent * size;
+    else if (this.#baseline === Baseline.Middle) penY += ((atlas.ascent - atlas.descent) / 2) * size;
+    else if (this.#baseline === Baseline.Bottom) penY -= atlas.descent * size;
+
+    for (const char of content) {
+      const glyph = atlas.glyph(char);
+      if (glyph === undefined) continue;
+
+      const w = glyph.width * size;
+      const h = glyph.height * size;
+      if (w > 0 && h > 0) {
+        const cx = penX + glyph.left * size + w / 2;
+        const cy = penY + glyph.top * size + h / 2;
+
+        const m = identityAffine();
+        copyAffine(m, this.#xform);
+        translateAffine(m, cx, cy);
+        scaleAffine(m, w / 2, h / 2);
+
+        this.#pushGlyph(m, glyph.u0, glyph.v0, glyph.u1, glyph.v1, entry.textureId);
+      }
+      penX += glyph.advance * size;
+    }
+  }
+
+  #pushGlyph(
+    m: Affine,
+    u0: number, v0: number, u1: number, v1: number,
+    textureId: ResourceId,
+  ): void {
+    if (this.#glyphCount === this.#glyphCapacity) this.#growGlyphs();
+
+    const i = this.#glyphCount * GLYPH_FLOATS;
+    const arr = this.#glyphs;
+    const style = this.#style;
+    arr[i] = m.a; arr[i + 1] = m.b; arr[i + 2] = m.c; arr[i + 3] = m.d;
+    arr[i + 4] = m.tx; arr[i + 5] = m.ty;
+    arr[i + 6] = u0; arr[i + 7] = v0; arr[i + 8] = u1; arr[i + 9] = v1;
+    arr[i + 10] = style.fillR; arr[i + 11] = style.fillG;
+    arr[i + 12] = style.fillB; arr[i + 13] = style.fillA;
+
+    this.#batches.push(style.blend, Pipeline.Glyph, textureId);
+    this.#glyphCount++;
+  }
+
+  #growGlyphs(): void {
+    this.#glyphCapacity *= 2;
+    const next = new Float32Array(this.#glyphCapacity * GLYPH_FLOATS);
+    next.set(this.#glyphs);
+    this.#glyphs = next;
+    this.#growths++;
+
+    const gl = this.#gl;
+    if (gl !== null) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
+      gl.bufferData(gl.ARRAY_BUFFER, next.byteLength, gl.DYNAMIC_DRAW);
+    }
+  }
+
+  #setGlyphOffset(gl: WebGL2RenderingContext, instance: number): void {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
+    const base = instance * GLYPH_BYTES;
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, GLYPH_BYTES, base);
+    gl.vertexAttribPointer(2, 2, gl.FLOAT, false, GLYPH_BYTES, base + 16);
+    gl.vertexAttribPointer(3, 4, gl.FLOAT, false, GLYPH_BYTES, base + 24);
+    gl.vertexAttribPointer(4, 4, gl.FLOAT, false, GLYPH_BYTES, base + 40);
+  }
+
   #growInstances(): void {
     this.#instanceCapacity *= 2;
     const next = new Float32Array(this.#instanceCapacity * INSTANCE_FLOATS);
@@ -457,6 +657,10 @@ export class Webgl2Renderer {
   // --- GL setup ---
 
   #setInstanceOffset(gl: WebGL2RenderingContext, instance: number): void {
+    // vertexAttribPointer captures the currently bound ARRAY_BUFFER, not the
+    // one this VAO was built with. Without this bind, a frame that uploaded
+    // glyphs last would re-point the shape attributes at the glyph buffer.
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
     const base = instance * INSTANCE_BYTES;
     gl.vertexAttribPointer(1, 4, gl.FLOAT, false, INSTANCE_BYTES, base);
     gl.vertexAttribPointer(2, 4, gl.FLOAT, false, INSTANCE_BYTES, base + 16);
@@ -482,6 +686,10 @@ export class Webgl2Renderer {
     this.#registry.realize(gl);
     this.#state = new GlStateCache(gl);
     this.#buildVao(gl);
+    this.#buildGlyphVao(gl);
+    // Atlases are keyed to textures that died with the context; drop them so
+    // the next draw rebuilds both together.
+    this.#atlases.clear();
   }
 
   #buildVao(gl: WebGL2RenderingContext): void {
@@ -512,5 +720,30 @@ export class Webgl2Renderer {
 
     gl.bindVertexArray(null);
     this.#vao = vao;
+  }
+
+  #buildGlyphVao(gl: WebGL2RenderingContext): void {
+    const program = this.#registry.program(this.#glyphProgramId);
+    this.#glyphViewProjLocation = gl.getUniformLocation(program, 'u_viewProj');
+    this.#glyphAtlasLocation = gl.getUniformLocation(program, 'u_atlas');
+
+    const vao = gl.createVertexArray();
+    if (vao === null) throw new Error('gl.createVertexArray() returned null');
+    gl.bindVertexArray(vao);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#quadId));
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
+    gl.bufferData(gl.ARRAY_BUFFER, this.#glyphs.byteLength, gl.DYNAMIC_DRAW);
+    for (const location of [1, 2, 3, 4]) {
+      gl.enableVertexAttribArray(location);
+      gl.vertexAttribDivisor(location, 1);
+    }
+    this.#setGlyphOffset(gl, 0);
+
+    gl.bindVertexArray(null);
+    this.#glyphVao = vao;
   }
 }
