@@ -20,6 +20,41 @@ fix(math): correct Mat4 inversion for singular matrices
 chore(repo): bump turbo
 ```
 
+### Self-review before every commit
+
+`bun run build && bun run typecheck && bun run test && bun run lint` passing is
+the floor, not the review. Green checks say the code compiles; they say nothing
+about whether it is correct or whether the tests cover the risk. Before staging,
+read the actual diff and work the list below.
+
+**Exports** — is every new value exported as a *value*? A class or function
+re-exported through `export type` disappears at runtime while still
+typechecking, so `bun run build` and `tsc` both stay green and the failure only
+shows up when someone imports it. Check the umbrella package too: adding to
+`@matter/graphics` does not add to `matter`. Import from the built package and
+confirm.
+
+**Resource lifecycle** — does anything that acquires a GPU object have a path
+that releases it? `dispose()`, double-`realize()`, and context loss are three
+different paths and each needs its own answer.
+
+**Silent-failure defaults** — would forgetting to call this leave a blank canvas
+rather than an error? Prefer a working default over a zero value that renders
+nothing.
+
+**Format invariants** — if the change touches opcodes or buffer layout, is the
+new width pinned by a test? A mismatch between an encoder method and `OP_SIZE`
+desyncs the whole stream and no type checks it.
+
+**Test honesty** — do the tests exercise the failure, or only the happy path? An
+exported error type with no test asserting it throws is not covered.
+
+**Measurement honesty** — if the commit quotes numbers, do the benchmarks
+actually measure the same workload they claim, and does the message describe
+everything in the diff rather than just the interesting part?
+
+Fix what the review finds before committing, not after.
+
 ## The two rules that must not bend
 
 **1. Tessellation belongs to the backend, never the encoder.**
@@ -89,7 +124,7 @@ consequences you will hit immediately:
   return types on exports are an error. This is what makes Oxc-side declaration
   generation fast and reliable.
 - **No `enum`, `namespace`, or parameter properties.** Use a frozen object plus a
-  derived type instead — see `Op` in `packages/graphics/src/index.ts` for the
+  derived type instead — see `Op` in `packages/graphics/src/op.ts` for the
   pattern.
 
 Also on: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
