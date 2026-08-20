@@ -1,0 +1,21 @@
+{
+  "name": "@matter/core",
+  "version": "0.0.0",
+  "description": "Sketch lifecycle, clock, and the typed plugin registry.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  }
+}

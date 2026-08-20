@@ -1,0 +1,4 @@
+[install]
+# Isolated linking keeps the layer rule in AGENTS.md enforceable: a package can
+# only import what it actually declares as a dependency.
+linker = "isolated"

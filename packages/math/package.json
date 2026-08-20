@@ -1,0 +1,21 @@
+{
+  "name": "@matter/math",
+  "version": "0.0.0",
+  "description": "Vectors, 4x4 matrices, seeded PRNG, noise, and easing.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  }
+}

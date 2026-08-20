@@ -1,0 +1,55 @@
+{
+  "name": "matter",
+  "version": "0.0.0",
+  "description": "A creative-coding library with a WebGL2-first renderer.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./math": {
+      "types": "./dist/math.d.ts",
+      "default": "./dist/math.js"
+    },
+    "./color": {
+      "types": "./dist/color.d.ts",
+      "default": "./dist/color.js"
+    },
+    "./backends/webgl2": {
+      "types": "./dist/backends/webgl2.d.ts",
+      "default": "./dist/backends/webgl2.js"
+    },
+    "./backends/canvas2d": {
+      "types": "./dist/backends/canvas2d.d.ts",
+      "default": "./dist/backends/canvas2d.js"
+    },
+    "./backends/svg": {
+      "types": "./dist/backends/svg.d.ts",
+      "default": "./dist/backends/svg.js"
+    },
+    "./backends/headless": {
+      "types": "./dist/backends/headless.d.ts",
+      "default": "./dist/backends/headless.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@matter/core": "workspace:*",
+    "@matter/math": "workspace:*",
+    "@matter/color": "workspace:*",
+    "@matter/graphics": "workspace:*",
+    "@matter/backend-webgl2": "workspace:*",
+    "@matter/backend-canvas2d": "workspace:*",
+    "@matter/backend-svg": "workspace:*",
+    "@matter/backend-headless": "workspace:*"
+  }
+}

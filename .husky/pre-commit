@@ -1,0 +1,4 @@
+# oxlint and the Go-native tsc are both fast enough to run repo-wide, and turbo
+# caches unchanged packages, so there is no need for lint-staged here.
+bun run lint
+bun run typecheck
