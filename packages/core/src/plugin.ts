@@ -1,0 +1,144 @@
+/**
+ * The plugin system.
+ *
+ * p5 2.x unified extension behind `registerAddon(p5, fn, lifecycles)`, where
+ * `fn` is `p5.prototype` and addons attach to it. That works, but a prototype
+ * mutation is invisible to the type system: plugin authors have to hand-write
+ * declaration merging to describe what they added, and it is never checked
+ * against the implementation.
+ *
+ * Here a plugin *returns* what it contributes, so `use()` can accumulate the
+ * contributions into the sketch type. No declaration merging, no ambient .d.ts,
+ * and the types cannot drift from the runtime because they are derived from it.
+ */
+
+/** Lifecycle hooks a plugin may implement. All optional. */
+export interface PluginLifecycle {
+  /** Before setup runs. May be async. */
+  presetup?: () => void | Promise<void>;
+  /** After setup runs. May be async. */
+  postsetup?: () => void | Promise<void>;
+  /** Before each draw. */
+  predraw?: (dt: number) => void;
+  /** After each draw. */
+  postdraw?: (dt: number) => void;
+  /** On teardown. */
+  dispose?: () => void;
+}
+
+/** What every plugin receives when it is set up. */
+export interface PluginHost {
+  readonly name: string;
+}
+
+export interface Plugin<Contributes extends object = Record<never, never>>
+  extends PluginLifecycle {
+  readonly name: string;
+  /** Returns the API this plugin adds to the sketch. */
+  setup?: (host: PluginHost) => Contributes;
+}
+
+/**
+ * Identity function that pins `Contributes` from the `setup` return type, so
+ * callers get inference without writing the type parameter.
+ */
+export function definePlugin<Contributes extends object>(
+  plugin: Plugin<Contributes>,
+): Plugin<Contributes> {
+  return plugin;
+}
+
+export class DuplicatePluginError extends Error {
+  readonly pluginName: string;
+
+  constructor(name: string) {
+    super(`A plugin named ${JSON.stringify(name)} is already registered`);
+    this.name = 'DuplicatePluginError';
+    this.pluginName = name;
+  }
+}
+
+/** The assembled sketch: lifecycle dispatch plus everything plugins added. */
+export interface SketchCore {
+  readonly plugins: readonly string[];
+  presetup: () => Promise<void>;
+  postsetup: () => Promise<void>;
+  predraw: (dt: number) => void;
+  postdraw: (dt: number) => void;
+  dispose: () => void;
+}
+
+/**
+ * Accumulates plugin contributions into the resulting sketch type.
+ *
+ * Each `use` widens the parameter, so after
+ * `.use(physics).use(audio)` the built value is
+ * `SketchCore & PhysicsApi & AudioApi` — inferred, never declared.
+ */
+export interface SketchBuilder<Api extends object> {
+  use: <Contributes extends object>(
+    plugin: Plugin<Contributes>,
+  ) => SketchBuilder<Api & Contributes>;
+  build: () => SketchCore & Api;
+}
+
+export function createSketch(): SketchBuilder<Record<never, never>> {
+  return builder([]);
+}
+
+function builder<Api extends object>(
+  plugins: readonly Plugin<never>[],
+): SketchBuilder<Api> {
+  return {
+    use<Contributes extends object>(
+      plugin: Plugin<Contributes>,
+    ): SketchBuilder<Api & Contributes> {
+      if (plugins.some((p) => p.name === plugin.name)) {
+        throw new DuplicatePluginError(plugin.name);
+      }
+      return builder<Api & Contributes>([
+        ...plugins,
+        plugin as unknown as Plugin<never>,
+      ]);
+    },
+
+    build(): SketchCore & Api {
+      const api: Record<string, unknown> = {};
+
+      for (const plugin of plugins) {
+        const contributed = plugin.setup?.({ name: plugin.name });
+        if (contributed === undefined) continue;
+        for (const [key, value] of Object.entries(contributed)) {
+          api[key] = value;
+        }
+      }
+
+      const core: SketchCore = {
+        plugins: plugins.map((p) => p.name),
+        // Sequential on purpose: a plugin's setup may depend on an earlier
+        // one having finished. Promise.all would run them concurrently and
+        // silently break that ordering.
+        presetup: async (): Promise<void> => {
+          // oxlint-disable-next-line no-await-in-loop
+          for (const p of plugins) await p.presetup?.();
+        },
+        postsetup: async (): Promise<void> => {
+          // oxlint-disable-next-line no-await-in-loop
+          for (const p of plugins) await p.postsetup?.();
+        },
+        predraw: (dt: number): void => {
+          for (const p of plugins) p.predraw?.(dt);
+        },
+        postdraw: (dt: number): void => {
+          for (const p of plugins) p.postdraw?.(dt);
+        },
+        // Reverse order, so a plugin tears down before anything it depends on.
+        dispose: (): void => {
+          for (let i = plugins.length - 1; i >= 0; i--) plugins[i]?.dispose?.();
+        },
+      };
+
+      return Object.assign(api, core) as SketchCore & Api;
+    },
+  };
+}
