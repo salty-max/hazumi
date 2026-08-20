@@ -36,10 +36,16 @@ export type SetupFunction = (context: SketchContext) => DrawFunction | void;
 export interface SketchHandle {
   readonly context: SketchContext;
   readonly canvas: HTMLCanvasElement;
-  /** Draw exactly one frame. Useful when the loop is stopped. */
+  /** Draw exactly one frame. Useful when the loop is stopped. No-op after stop(). */
   redraw: () => void;
-  /** Stop the loop and release the backend. */
+  /**
+   * Stop the loop and release everything the sketch acquired: the frame
+   * request, the input listeners, the backend, and the canvas itself if the
+   * sketch created it.
+   */
   stop: () => void;
+  /** True once stop() has run. */
+  readonly stopped: boolean;
 }
 
 const MAX_PIXEL_RATIO = 2;
@@ -125,6 +131,8 @@ export function sketch(
   const draw = setup(context) ?? null;
   let frameHandle = 0;
   let stopped = false;
+  // Only reclaim the canvas if we put it in the document.
+  const ownsCanvas = options.canvas === undefined;
 
   const renderFrame = (nowMs: number): void => {
     clock.advance(nowMs / 1000);
@@ -157,14 +165,26 @@ export function sketch(
   return {
     context,
     canvas,
-    redraw: (): void => renderFrame(performance.now()),
+    get stopped(): boolean {
+      return stopped;
+    },
+    redraw: (): void => {
+      // Drawing through a disposed renderer is at best a silent no-op and at
+      // worst a use-after-free, so refuse rather than half-work.
+      if (stopped) return;
+      renderFrame(performance.now());
+    },
     stop: (): void => {
+      if (stopped) return;
       stopped = true;
       cancelAnimationFrame(frameHandle);
       canvas.removeEventListener('mousemove', onMove);
       canvas.removeEventListener('mousedown', onDown);
       globalThis.removeEventListener('mouseup', onUp);
       renderer.dispose();
+      // A sketch that created its canvas has to take it away again, or
+      // repeatedly starting and stopping one leaves orphaned canvases behind.
+      if (ownsCanvas) canvas.remove();
     },
   };
 }
