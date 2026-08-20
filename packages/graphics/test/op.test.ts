@@ -1,18 +1,27 @@
 import { describe, expect, test } from 'bun:test';
-import { CommandBuffer, Op, OP_SIZE } from '../src/index';
+import { Blend, CommandBuffer, Op, OP_SIZE } from '../src/index';
 
 describe('Op', () => {
-  // Opcodes are written into the command buffer as raw numbers, so renumbering
-  // them silently invalidates any recorded stream. AGENTS.md states the rule;
-  // this test enforces it.
+  /**
+   * Opcodes are written into the command buffer as raw numbers, so renumbering
+   * one silently invalidates any recorded stream. Names may change; values may
+   * not. AGENTS.md states the rule; this enforces it.
+   */
   test('opcode values are stable', () => {
     expect(Op.Circle).toBe(0);
     expect(Op.Rect).toBe(1);
     expect(Op.Path).toBe(2);
-    expect(Op.Stroke).toBe(3);
-    expect(Op.PushStyle).toBe(4);
-    expect(Op.PopStyle).toBe(5);
+    expect(Op.StrokePath).toBe(3);
+    expect(Op.Push).toBe(4);
+    expect(Op.Pop).toBe(5);
     expect(Op.SetFill).toBe(6);
+    expect(Op.SetStroke).toBe(7);
+    expect(Op.SetStrokeWidth).toBe(8);
+    expect(Op.SetBlend).toBe(9);
+    expect(Op.Translate).toBe(10);
+    expect(Op.Rotate).toBe(11);
+    expect(Op.Scale).toBe(12);
+    expect(Op.Line).toBe(13);
   });
 
   test('no duplicate opcode values', () => {
@@ -24,6 +33,11 @@ describe('Op', () => {
     for (const value of Object.values(Op)) {
       expect(OP_SIZE[value]).toBeGreaterThan(0);
     }
+  });
+
+  test('blend modes are stable', () => {
+    expect(Blend.Normal).toBe(0);
+    expect(Blend.Add).toBe(1);
   });
 });
 
@@ -39,7 +53,16 @@ describe('encoder width matches OP_SIZE', () => {
   const cases: ReadonlyArray<[string, Op, (b: CommandBuffer) => void]> = [
     ['circle', Op.Circle, (b) => b.circle(1, 2, 3)],
     ['rect', Op.Rect, (b) => b.rect(1, 2, 3, 4)],
+    ['line', Op.Line, (b) => b.line(1, 2, 3, 4)],
+    ['push', Op.Push, (b) => b.push()],
+    ['pop', Op.Pop, (b) => b.pop()],
     ['setFill', Op.SetFill, (b) => b.setFill(1, 2, 3, 4)],
+    ['setStroke', Op.SetStroke, (b) => b.setStroke(1, 2, 3, 4)],
+    ['setStrokeWidth', Op.SetStrokeWidth, (b) => b.setStrokeWidth(2)],
+    ['setBlend', Op.SetBlend, (b) => b.setBlend(Blend.Add)],
+    ['translate', Op.Translate, (b) => b.translate(1, 2)],
+    ['rotate', Op.Rotate, (b) => b.rotate(1)],
+    ['scale', Op.Scale, (b) => b.scale(2, 3)],
   ];
 
   for (const [name, op, encode] of cases) {
@@ -53,17 +76,12 @@ describe('encoder width matches OP_SIZE', () => {
 
   test('every opcode an encoder can emit is covered above', () => {
     const covered = new Set(cases.map(([, op]) => op));
-    // Opcodes with no encoder yet are placeholders; they must stay unencodable
-    // until both the writer and OP_SIZE are updated together.
-    const placeholders = new Set<number>([
-      Op.Path,
-      Op.Stroke,
-      Op.PushStyle,
-      Op.PopStyle,
-    ]);
+    // Reserved for P5; they must stay unencodable until both the writer and
+    // OP_SIZE are updated together.
+    const reserved = new Set<number>([Op.Path, Op.StrokePath]);
 
     for (const op of Object.values(Op)) {
-      expect(covered.has(op) || placeholders.has(op)).toBe(true);
+      expect(covered.has(op) || reserved.has(op)).toBe(true);
     }
   });
 });

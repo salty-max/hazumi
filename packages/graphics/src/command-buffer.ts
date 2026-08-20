@@ -1,4 +1,4 @@
-import { Op } from './op';
+import { Blend, Op } from './op';
 
 /** Words (4 bytes each) reserved on first allocation. */
 const INITIAL_WORDS = 1024;
@@ -63,33 +63,86 @@ export class CommandBuffer {
     this.#length = 0;
   }
 
+  // --- state ---
+
   setFill(r: number, g: number, b: number, a: number): void {
-    const i = this.#reserve(5);
-    const f = this.#f32;
-    this.#u32[i] = Op.SetFill;
-    f[i + 1] = r;
-    f[i + 2] = g;
-    f[i + 3] = b;
-    f[i + 4] = a;
+    this.#write4(Op.SetFill, r, g, b, a);
   }
+
+  setStroke(r: number, g: number, b: number, a: number): void {
+    this.#write4(Op.SetStroke, r, g, b, a);
+  }
+
+  setStrokeWidth(width: number): void {
+    const i = this.#reserve(2);
+    this.#u32[i] = Op.SetStrokeWidth;
+    this.#f32[i + 1] = width;
+  }
+
+  setBlend(mode: Blend): void {
+    const i = this.#reserve(2);
+    this.#u32[i] = Op.SetBlend;
+    // Written as an integer: it is an enum tag, not a measurement.
+    this.#u32[i + 1] = mode;
+  }
+
+  /** Saves style and transform together, like p5's push(). */
+  push(): void {
+    this.#u32[this.#reserve(1)] = Op.Push;
+  }
+
+  pop(): void {
+    this.#u32[this.#reserve(1)] = Op.Pop;
+  }
+
+  // --- transform ---
+
+  translate(x: number, y: number): void {
+    const i = this.#reserve(3);
+    this.#u32[i] = Op.Translate;
+    this.#f32[i + 1] = x;
+    this.#f32[i + 2] = y;
+  }
+
+  rotate(radians: number): void {
+    const i = this.#reserve(2);
+    this.#u32[i] = Op.Rotate;
+    this.#f32[i + 1] = radians;
+  }
+
+  scale(x: number, y: number): void {
+    const i = this.#reserve(3);
+    this.#u32[i] = Op.Scale;
+    this.#f32[i + 1] = x;
+    this.#f32[i + 2] = y;
+  }
+
+  // --- primitives ---
 
   circle(x: number, y: number, radius: number): void {
     const i = this.#reserve(4);
-    const f = this.#f32;
     this.#u32[i] = Op.Circle;
-    f[i + 1] = x;
-    f[i + 2] = y;
-    f[i + 3] = radius;
+    this.#f32[i + 1] = x;
+    this.#f32[i + 2] = y;
+    this.#f32[i + 3] = radius;
   }
 
   rect(x: number, y: number, width: number, height: number): void {
+    this.#write4(Op.Rect, x, y, width, height);
+  }
+
+  line(x1: number, y1: number, x2: number, y2: number): void {
+    this.#write4(Op.Line, x1, y1, x2, y2);
+  }
+
+  #write4(op: Op, a: number, b: number, c: number, d: number): void {
     const i = this.#reserve(5);
     const f = this.#f32;
-    this.#u32[i] = Op.Rect;
-    f[i + 1] = x;
-    f[i + 2] = y;
-    f[i + 3] = width;
-    f[i + 4] = height;
+    this.#u32[i] = op;
+    f[i + 1] = a;
+    f[i + 2] = b;
+    f[i + 3] = c;
+    f[i + 4] = d;
   }
 
   #reserve(words: number): number {
