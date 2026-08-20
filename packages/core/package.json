@@ -1,11 +1,13 @@
 {
   "name": "@matter/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Sketch lifecycle, clock, and the typed plugin registry.",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

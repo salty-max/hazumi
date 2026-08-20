@@ -1,11 +1,13 @@
 {
   "name": "@matter/vite-plugin",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Optional auto-import plugin for global-style sketches.",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

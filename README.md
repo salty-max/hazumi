@@ -4,9 +4,9 @@ A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
 retained command buffer, with WebGL2 as the default renderer rather than the
 fallback.
 
-> **Status: pre-alpha.** Phases 1–3 are complete: the command buffer, a batched
-> WebGL2 renderer verified against a Canvas2D reference, and the
-> core/math/colour layers. The public `sketch()` API arrives in phase 4.
+> **Status: 0.1.0, pre-alpha.** The drawing API works and five example sketches
+> run on it. Not published to npm — text, paths, and SVG export are still to
+> come.
 
 ## Why
 
@@ -15,6 +15,41 @@ its weakest area — sketches that need real GPU throughput tend to leave for
 Three.js and lose the friendly API on the way out. Matter aims at that gap:
 p5-style ergonomics with a renderer that does not fall over at a hundred
 thousand objects, and where shaders are not an escape hatch.
+
+## A sketch
+
+```ts
+import { sketch } from 'matter';
+import { webgl2 } from 'matter/backends/webgl2';
+
+sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
+  return ({ background, circle, fill, width, height, t }) => {
+    background('oklch(0.15 0.02 260)');
+    fill('oklch(0.7 0.18 250)');
+    circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
+  };
+});
+```
+
+The context is destructured in the draw callback rather than injected onto
+`window`. That recovers nearly all of p5 global mode's terseness while staying
+fully typed — and because the same object is mutated in place, reading `t` or
+`width` costs nothing per frame.
+
+Style can be scoped instead of pushed and popped:
+
+```ts
+with({ fill: 'red', stroke: null }, () => {
+  drawPetals();
+});
+```
+
+It restores on exit *including when the body throws*, which is the failure
+`push()`/`pop()` cannot protect you from.
+
+Run `bun run bench/serve.ts` and open
+http://localhost:5199/examples/gallery.html to see the five sketches in
+`examples/`.
 
 ## Design in one page
 
@@ -52,7 +87,7 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 | P1 ✅ | Command buffer + minimal instanced WebGL2 path | **Met** — see measurements below |
 | P2 ✅ | core, math, color | **Met** — 253 tests; plugin types verified at compile time |
 | P3 ✅ | Renderer subsystems + Canvas2D oracle | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255 |
-| P4 | First vertical slice, `0.1.0` | A real p5 sketch ports without an escape hatch |
+| P4 ✅ | First vertical slice, `0.1.0` | **Met** — five sketches in `examples/`, no escape hatches |
 | P5 | MSDF text, then SVG backend | Every example renders to WebGL2 and exports valid SVG |
 | P6 | Docs + playground | A stranger reaches a running sketch without reading source |
 | P7 | Breadth: images, user shaders, input, addons | The addon API has been used by someone who didn't write it |
