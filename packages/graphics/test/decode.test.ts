@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { CommandBuffer, decode, type CommandVisitor } from '../src/index';
+import {
+  CommandBuffer,
+  decode,
+  UnknownOpcodeError,
+  type CommandVisitor,
+} from '../src/index';
 
 describe('decode', () => {
   test('dispatches commands in stream order', () => {
@@ -51,6 +56,31 @@ describe('decode', () => {
     let calls = 0;
     decode(buf, { circle: (): void => void calls++ });
     expect(calls).toBe(0);
+  });
+
+  test('rejects an opcode this build does not know', () => {
+    const buf = new CommandBuffer();
+    buf.circle(1, 2, 3);
+    // Corrupt the opcode in place, simulating a stream from a newer build.
+    buf.u32[0] = 999;
+
+    expect(() => decode(buf, {})).toThrow(UnknownOpcodeError);
+  });
+
+  test('the unknown-opcode error reports what and where', () => {
+    const buf = new CommandBuffer();
+    buf.circle(1, 2, 3);
+    buf.circle(4, 5, 6);
+    buf.u32[4] = 999;
+
+    try {
+      decode(buf, {});
+      throw new Error('expected decode to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(UnknownOpcodeError);
+      expect((error as UnknownOpcodeError).opcode).toBe(999);
+      expect((error as UnknownOpcodeError).offset).toBe(4);
+    }
   });
 
   test('a reset buffer decodes as empty', () => {
