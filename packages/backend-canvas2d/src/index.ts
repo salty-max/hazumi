@@ -1,4 +1,6 @@
 import {
+  Align,
+  Baseline,
   Blend,
   type CommandBuffer,
   type CommandVisitor,
@@ -27,7 +29,24 @@ interface Style {
   stroke: readonly [number, number, number, number];
   strokeWidth: number;
   blend: Blend;
+  fontFamily: string;
+  textSize: number;
+  align: Align;
+  baseline: Baseline;
 }
+
+const ALIGN_TO_CSS: Readonly<Record<Align, CanvasTextAlign>> = {
+  [Align.Left]: 'left',
+  [Align.Center]: 'center',
+  [Align.Right]: 'right',
+};
+
+const BASELINE_TO_CSS: Readonly<Record<Baseline, CanvasTextBaseline>> = {
+  [Baseline.Alphabetic]: 'alphabetic',
+  [Baseline.Top]: 'top',
+  [Baseline.Middle]: 'middle',
+  [Baseline.Bottom]: 'bottom',
+};
 
 function channel(v: number): number {
   return Math.round(Math.min(Math.max(v, 0), 1) * 255);
@@ -69,6 +88,10 @@ export class Canvas2dRenderer {
       stroke: [0, 0, 0, 1],
       strokeWidth: 0,
       blend: Blend.Normal,
+      fontFamily: 'sans-serif',
+      textSize: 16,
+      align: Align.Left,
+      baseline: Baseline.Alphabetic,
     };
   }
 
@@ -203,6 +226,30 @@ export class Canvas2dRenderer {
           ctx.beginPath();
           ctx.rect(x, y, width, height);
         });
+      },
+
+      setTextSize: (size: number): void => {
+        this.#style = { ...this.#style, textSize: size };
+      },
+      setTextAlign: (horizontal: Align, vertical: Baseline): void => {
+        this.#style = { ...this.#style, align: horizontal, baseline: vertical };
+      },
+      setFont: (family: string): void => {
+        this.#style = { ...this.#style, fontFamily: family };
+      },
+      text: (x: number, y: number, content: string): void => {
+        const style = this.#style;
+        if (style.fill[3] <= 0) return;
+        this.#applyBlend();
+        // Native text, not SDF. This backend is the reference for shapes; for
+        // text the two paths rasterise differently by construction and are not
+        // expected to match pixel for pixel.
+        ctx.font = `${style.textSize}px ${style.fontFamily}`;
+        ctx.textAlign = ALIGN_TO_CSS[style.align];
+        ctx.textBaseline = BASELINE_TO_CSS[style.baseline];
+        ctx.fillStyle = toCss(style.fill);
+        ctx.fillText(content, x, y);
+        this.#drawCalls++;
       },
 
       line: (x1: number, y1: number, x2: number, y2: number): void => {

@@ -14,6 +14,8 @@ import {
 export interface RecordedCommand {
   readonly op: string;
   readonly args: readonly number[];
+  /** Present for text commands, whose payload is not numeric. */
+  readonly text?: string;
 }
 
 export interface RecordedCircle {
@@ -66,6 +68,18 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     },
     line: (x1: number, y1: number, x2: number, y2: number): void => {
       out.push({ op: 'line', args: [x1, y1, x2, y2] });
+    },
+    setTextSize: (size: number): void => {
+      out.push({ op: 'setTextSize', args: [size] });
+    },
+    setTextAlign: (h: number, v: number): void => {
+      out.push({ op: 'setTextAlign', args: [h, v] });
+    },
+    setFont: (family: string): void => {
+      out.push({ op: 'setFont', args: [], text: family });
+    },
+    text: (x: number, y: number, content: string): void => {
+      out.push({ op: 'text', args: [x, y], text: content });
     },
   };
 

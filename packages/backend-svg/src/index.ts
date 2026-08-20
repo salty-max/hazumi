@@ -1,5 +1,7 @@
 import {
   type Affine,
+  Align,
+  Baseline,
   Blend,
   type CommandBuffer,
   type CommandVisitor,
@@ -39,7 +41,24 @@ interface Style {
   stroke: readonly [number, number, number, number];
   strokeWidth: number;
   blend: Blend;
+  fontFamily: string;
+  textSize: number;
+  align: Align;
+  baseline: Baseline;
 }
+
+const ALIGN_TO_SVG: Readonly<Record<Align, string>> = {
+  [Align.Left]: 'start',
+  [Align.Center]: 'middle',
+  [Align.Right]: 'end',
+};
+
+const BASELINE_TO_SVG: Readonly<Record<Baseline, string>> = {
+  [Baseline.Alphabetic]: 'alphabetic',
+  [Baseline.Top]: 'hanging',
+  [Baseline.Middle]: 'middle',
+  [Baseline.Bottom]: 'text-after-edge',
+};
 
 function defaultStyle(): Style {
   return {
@@ -47,6 +66,10 @@ function defaultStyle(): Style {
     stroke: [0, 0, 0, 1],
     strokeWidth: 0,
     blend: Blend.Normal,
+    fontFamily: 'sans-serif',
+    textSize: 16,
+    align: Align.Left,
+    baseline: Baseline.Alphabetic,
   };
 }
 
@@ -212,6 +235,25 @@ export class SvgRenderer {
       rect: (x, y, width, height): void => {
         this.#elements.push(
           `<rect x="${this.#n(x)}" y="${this.#n(y)}" width="${this.#n(width)}" height="${this.#n(height)}"${this.#paintAttrs()}${this.#transformAttr()}/>`,
+        );
+      },
+
+      setTextSize: (size): void => {
+        this.#style = { ...this.#style, textSize: size };
+      },
+      setTextAlign: (horizontal, vertical): void => {
+        this.#style = { ...this.#style, align: horizontal, baseline: vertical };
+      },
+      setFont: (family): void => {
+        this.#style = { ...this.#style, fontFamily: family };
+      },
+      text: (x, y, content): void => {
+        const s = this.#style;
+        if (s.fill[3] <= 0) return;
+        // Real <text>, so the export stays editable and the glyphs stay
+        // selectable — the reason to export vector in the first place.
+        this.#elements.push(
+          `<text x="${this.#n(x)}" y="${this.#n(y)}" font-family="${escapeXml(s.fontFamily)}" font-size="${this.#n(s.textSize)}" text-anchor="${ALIGN_TO_SVG[s.align]}" dominant-baseline="${BASELINE_TO_SVG[s.baseline]}" fill="${toHex(s.fill)}"${s.fill[3] < 1 ? ` fill-opacity="${this.#n(s.fill[3])}"` : ''}${this.#transformAttr()}>${escapeXml(content)}</text>`,
         );
       },
 
