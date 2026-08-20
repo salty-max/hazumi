@@ -59,14 +59,16 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 
 ## P1 measurements
 
-Encode path, Bun, 100k circles per frame over 200 frames:
+Encode path, Bun, 100k circles per frame over 200 frames. Two workloads, because
+a single shared fill and a fill per shape are different amounts of work — the GPU
+bench below uses the second:
 
-| Metric | Result |
-| --- | --- |
-| Encode time per frame | 0.98 ms (5.9% of the 16.67 ms budget) |
-| Throughput | 102M shapes/second |
-| Buffer growths in steady state | 0 |
-| Heap delta over 200 frames | 0.0 KB |
+| Metric | Flat fill | Fill per shape |
+| --- | --- | --- |
+| Encode time per frame | 0.97 ms (5.8%) | 1.84 ms (11.0%) |
+| Throughput | 103M shapes/sec | 54M shapes/sec |
+| Buffer growths in steady state | 0 | 0 |
+| Heap delta over 200 frames | 0.0 KB | 0.0 KB |
 
 GPU path, Chrome, 100k circles per frame over 120 frames, each frame forced to
 complete with a 1×1 `readPixels`:

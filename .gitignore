@@ -13,4 +13,3 @@ coverage/
 # Local env
 .env
 .env.local
-bench/dist/
