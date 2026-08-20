@@ -63,6 +63,24 @@ everything in the diff rather than just the interesting part?
 commit rejected by commitlint leaves its files staged, so the next `git add`
 sweeps them into an unrelated commit.
 
+**No suppressions** — `oxlint-disable`, `@ts-ignore` and friends are not
+allowed in this repo. A warning is either a real problem, in which case fix it,
+or the code wants restructuring so the rule stops firing. Every suppression
+this repo has carried turned out to be the second: sequential awaits became a
+promise chain, `new Function` became a module import that also gave user code
+real stack traces. The one exception is `no-console` for `bench/`, `examples/`
+and the docs build script, which are programs whose output *is* the product;
+it is scoped in `.oxlintrc.json` rather than sprinkled through the source.
+
+**Benchmark contamination** — never read `process.memoryUsage()` inside or
+before a timed region. In Bun it makes the following loop roughly five times
+slower, which is enough to turn a 0.95ms frame into 4.9ms and look exactly like
+a performance regression. Time in one pass, measure allocation in another.
+
+**Stale console buffers** — the browser console keeps messages across
+navigations, so a warning you already fixed will keep appearing in a tab that
+saw it once. Confirm in a fresh tab before chasing it.
+
 Fix what the review finds before committing, not after.
 
 ## The two rules that must not bend
