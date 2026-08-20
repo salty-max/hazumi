@@ -10,11 +10,19 @@
 import { CommandBuffer } from '@matter/graphics';
 import { Webgl2Renderer } from '@matter/backend-webgl2';
 import { Canvas2dRenderer } from '@matter/backend-canvas2d';
+import { toSvg } from '@matter/backend-svg';
 import { SCENES } from './scenes';
 
 const W = 400;
 const H = 400;
 const DEFAULT_TOLERANCE = 3.0;
+/**
+ * Tighter than the GPU tolerance, not looser: SVG and Canvas2D are rasterised
+ * by the same engine, so they agree to a fraction of a level — several scenes
+ * come out pixel-identical. Worst observed is 0.31, so this leaves headroom
+ * without letting a real regression through.
+ */
+const SVG_TOLERANCE = 2.0;
 const BAD_PIXEL_THRESHOLD = 48;
 
 const out = document.getElementById('out') as HTMLElement;
@@ -37,11 +45,39 @@ const buffer = new CommandBuffer();
 interface Result {
   name: string;
   mean: number;
-  max: number;
-  badPixels: number;
+  svgMean: number;
   drawCalls: number;
   instances: number;
   pass: boolean;
+}
+
+/**
+ * Rasterise an SVG document through the browser's own renderer.
+ *
+ * This is what makes the export claim meaningful: a document can be perfectly
+ * well-formed and still draw the wrong picture, and only a rasteriser that did
+ * not write it can tell the difference.
+ */
+async function rasterizeSvg(svg: string): Promise<Uint8ClampedArray> {
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.width = W;
+    img.height = H;
+    await new Promise<void>((resolve, reject) => {
+      img.addEventListener('load', () => resolve());
+      img.addEventListener('error', () => reject(new Error('SVG failed to load')));
+      img.src = url;
+    });
+
+    const canvas = makeCanvas();
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    ctx.drawImage(img, 0, 0, W, H);
+    return ctx.getImageData(0, 0, W, H).data;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function readPixels(canvas: HTMLCanvasElement, webgl: boolean): Uint8ClampedArray {
@@ -82,6 +118,25 @@ function overBlack(
   return [r * a, g * a, b * a];
 }
 
+/** Both inputs unpremultiplied — used for SVG against Canvas2D. */
+function compare2(
+  a: Uint8ClampedArray,
+  b: Uint8ClampedArray,
+): { mean: number; max: number; bad: number } {
+  let total = 0;
+  let max = 0;
+  let bad = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    const [ar, ag, ab] = overBlack(a, i, false);
+    const [br, bg, bb] = overBlack(b, i, false);
+    const d = Math.max(Math.abs(ar - br), Math.abs(ag - bg), Math.abs(ab - bb));
+    total += d;
+    if (d > max) max = d;
+    if (d > BAD_PIXEL_THRESHOLD) bad++;
+  }
+  return { mean: total / (a.length / 4), max, bad: (bad / (a.length / 4)) * 100 };
+}
+
 function compare(
   gpuPixels: Uint8ClampedArray,
   refPixels: Uint8ClampedArray,
@@ -115,18 +170,26 @@ for (const scene of SCENES) {
   gpu.render(buffer);
   ref.render(buffer);
 
-  const diff = compare(readPixels(glCanvas, true), readPixels(c2dCanvas, false));
+  const refPixels = readPixels(c2dCanvas, false);
+  const diff = compare(readPixels(glCanvas, true), refPixels);
+
+  // Both the SVG and the reference are unpremultiplied, so compare them as such.
+  // Sequential on purpose: every scene reuses the same canvas pair, so
+  // rasterising them concurrently would race over shared state.
+  // oxlint-disable-next-line no-await-in-loop
+  const svgPixels = await rasterizeSvg(toSvg(buffer, W, H));
+  const svgDiff = compare2(svgPixels, refPixels);
+
   const tolerance = scene.tolerance ?? DEFAULT_TOLERANCE;
   const stats = gpu.stats;
 
   results.push({
     name: scene.name,
     mean: diff.mean,
-    max: diff.max,
-    badPixels: diff.bad,
+    svgMean: svgDiff.mean,
     drawCalls: stats.drawCalls,
     instances: stats.instances,
-    pass: diff.mean <= tolerance,
+    pass: diff.mean <= tolerance && svgDiff.mean <= SVG_TOLERANCE,
   });
 
   // Keep a visual copy of each pair for eyeballing.
@@ -143,20 +206,24 @@ for (const scene of SCENES) {
     copy.title = `${scene.name} — ${tag}`;
     row.append(copy);
   }
+  const svgCopy = makeCanvas();
+  const svgCtx = svgCopy.getContext('2d') as CanvasRenderingContext2D;
+  svgCtx.putImageData(new ImageData(svgPixels, W, H), 0, 0);
+  svgCopy.title = `${scene.name} — svg`;
+  row.append(svgCopy);
   strip.append(row);
 }
 
 const failures = results.filter((r) => !r.pass);
 const lines = [
-  'scene'.padEnd(28) + 'mean'.padStart(7) + 'max'.padStart(6) + 'bad%'.padStart(8) + 'calls'.padStart(7) + 'inst'.padStart(6) + '  ',
+  'scene'.padEnd(30) + 'gl/2d'.padStart(8) + 'svg/2d'.padStart(9) + 'calls'.padStart(7) + 'inst'.padStart(6) + '  ',
   '-'.repeat(70),
 ];
 for (const r of results) {
   lines.push(
-    r.name.padEnd(28) +
-      r.mean.toFixed(2).padStart(7) +
-      r.max.toFixed(0).padStart(6) +
-      r.badPixels.toFixed(2).padStart(8) +
+    r.name.padEnd(30) +
+      r.mean.toFixed(2).padStart(8) +
+      r.svgMean.toFixed(2).padStart(9) +
       String(r.drawCalls).padStart(7) +
       String(r.instances).padStart(6) +
       (r.pass ? '  OK' : '  FAIL'),
