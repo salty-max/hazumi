@@ -22,6 +22,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: 'filled circles',
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(0.9, 0.2, 0.3, 1);
       b.circle(150, 150, 90);
       b.setFill(0.2, 0.5, 0.9, 1);
@@ -33,6 +34,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: 'filled rects',
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(0.85, 0.6, 0.1, 1);
       b.rect(40, 40, 180, 100);
       b.setFill(0.3, 0.3, 0.8, 1);
@@ -46,6 +48,7 @@ export const SCENES: readonly Scene[] = [
     // The case that fails if half-extents are folded into the affine: the
     // stroke comes out thicker on two sides than the other two.
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(0.2, 0.2, 0.25, 1);
       b.setStroke(1, 0.85, 0.2, 1);
       b.setStrokeWidth(10);
@@ -57,6 +60,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: 'circle strokes',
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(0.15, 0.35, 0.6, 1);
       b.setStroke(1, 1, 1, 1);
       b.setStrokeWidth(8);
@@ -70,6 +74,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: 'lines',
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setStroke(0.95, 0.4, 0.7, 1);
       for (let i = 0; i < 12; i++) {
         b.setStrokeWidth(1 + i);
@@ -81,6 +86,7 @@ export const SCENES: readonly Scene[] = [
     name: 'overlapping transparency',
     // Painter order is the whole point: any reordering changes the result.
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(1, 0.2, 0.2, 0.5);
       b.circle(160, 180, 90);
       b.setFill(0.2, 1, 0.2, 0.5);
@@ -93,6 +99,7 @@ export const SCENES: readonly Scene[] = [
     name: 'interleaved blend modes',
     // Alternating pipelines: merging non-adjacent instances would reorder these.
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       for (let i = 0; i < 10; i++) {
         b.setBlend(i % 2 === 0 ? Blend.Normal : Blend.Add);
         b.setFill(0.3 + i * 0.06, 0.4, 0.9 - i * 0.05, 0.55);
@@ -103,6 +110,7 @@ export const SCENES: readonly Scene[] = [
   {
     name: 'transform stack',
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(0.9, 0.5, 0.1, 1);
       b.push();
       b.translate(200, 200);
@@ -124,6 +132,7 @@ export const SCENES: readonly Scene[] = [
     // Stroke width is in user units, so it scales with the transform in both
     // backends. Anisotropic scale is a documented divergence and not tested.
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(0.25, 0.25, 0.3, 1);
       b.setStroke(0.9, 0.9, 0.3, 1);
       b.setStrokeWidth(6);
@@ -136,8 +145,39 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
+    name: 'ellipses',
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      b.setFill(0.9, 0.45, 0.2, 1);
+      b.ellipse(140, 140, 100, 55);
+      b.setFill(0.3, 0.7, 0.95, 1);
+      b.ellipse(290, 200, 45, 110);
+      b.setStroke(1, 1, 1, 1);
+      b.setStrokeWidth(6);
+      b.ellipse(200, 310, 130, 70);
+    },
+    // The ellipse SDF is an approximation, but it still clears the default
+    // tolerance — no override, so a regression here fails like anything else.
+  },
+  {
+    name: 'translucent background over content',
+    // The trail idiom: a translucent background must blend over what is
+    // already there rather than clear it.
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      b.setFill(1, 0.3, 0.2, 1);
+      b.circle(160, 200, 90);
+      b.setFill(0.2, 0.9, 0.4, 1);
+      b.circle(260, 200, 90);
+      b.background(0.05, 0.05, 0.15, 0.6);
+      b.setFill(1, 1, 1, 1);
+      b.circle(200, 300, 50);
+    },
+  },
+  {
     name: 'push/pop restores style',
     draw: (b) => {
+      b.background(0, 0, 0, 1);
       b.setFill(0.9, 0.3, 0.3, 1);
       b.push();
       b.setFill(0.3, 0.9, 0.3, 1);

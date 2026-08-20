@@ -34,6 +34,7 @@ const buffer = new CommandBuffer();
 
 function encodeFrame(t: number): void {
   buffer.reset();
+  buffer.background(0, 0, 0, 1);
   for (let i = 0; i < SHAPES; i++) {
     const a = i * 0.0007 + t;
     const r = 40 + (i % 300);
