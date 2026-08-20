@@ -11,6 +11,9 @@ const scopes = [
   'graphics',
   'webgl2',
   'canvas2d',
+  // Cross-cutting changes to the backend contract, which no single package
+  // scope describes honestly.
+  'backends',
   'svg',
   'headless',
   'matter',
