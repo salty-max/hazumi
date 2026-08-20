@@ -16,7 +16,7 @@
   "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/.turbo/**"],
   "overrides": [
     {
-      "files": ["bench/**", "examples/**"],
+      "files": ["bench/**", "examples/**", "apps/docs/src/build.ts"],
       "rules": {
         "no-console": "off"
       }

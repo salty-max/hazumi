@@ -13,3 +13,4 @@ coverage/
 # Local env
 .env
 .env.local
+apps/*/dist/

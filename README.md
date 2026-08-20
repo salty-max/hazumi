@@ -89,7 +89,7 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 | P3 ✅ | Renderer subsystems + Canvas2D oracle | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255 |
 | P4 ✅ | First vertical slice, `0.1.0` | **Met** — five sketches in `examples/`, no escape hatches |
 | P5 ✅ | Text, then SVG backend | **Met** — 12 scenes export and rasterise to within 0.31/255 |
-| P6 | Docs + playground | A stranger reaches a running sketch without reading source |
+| P6 ✅ | Docs + playground | **Met** — landing page, live editor, 184-symbol reference |
 | P7 | Breadth: images, user shaders, input, addons | The addon API has been used by someone who didn't write it |
 
 ## P1 measurements
@@ -182,6 +182,26 @@ bun install
 bun run build
 bun run test
 ```
+
+Then serve the repo and open http://localhost:5199:
+
+```bash
+bun run bench/serve.ts
+```
+
+| Page | What it is |
+| --- | --- |
+| `/index.html` | Landing page |
+| `/apps/playground/index.html` | Live editor, five starters, SVG export |
+| `/apps/docs/dist/index.html` | API reference, 184 symbols |
+| `/examples/gallery.html` | The six example sketches |
+| `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
+| `/bench/gpu.html` | 100k-shape GPU benchmark |
+
+The reference is generated from the emitted `.d.ts` files rather than by
+TypeDoc, which runs on the TypeScript compiler API that TS 7.0 does not
+stabilise until 7.1 — the same constraint that keeps linting on oxlint. Rebuild
+it with `bun run apps/docs/src/build.ts`.
 
 See [AGENTS.md](AGENTS.md) for conventions, the toolchain rationale, and the
 rules that matter.

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Matter — a creative-coding library</title>
+<link rel="stylesheet" href="./apps/docs/dist/style.css" />
+<style>
+  body { display: block; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 72px 24px 120px; }
+  .hero { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 36px; }
+  .hero h1 { font-size: clamp(38px, 7vw, 58px); letter-spacing: -.035em; margin: 0 0 12px; line-height: 1.02; }
+  .hero p { font-size: 18px; color: var(--ink-soft); margin: 0; max-width: 60ch; }
+  .status { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); margin: 0 0 14px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 0 0 44px; }
+  .card { display: block; border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; background: var(--panel); color: var(--ink); text-decoration: none; }
+  .card:hover { border-color: var(--accent); text-decoration: none; }
+  .card h2 { margin: 0 0 5px; font-size: 16px; letter-spacing: -.01em; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--ink-mute); line-height: 1.5; }
+  section h2.head { font-size: 21px; letter-spacing: -.015em; margin: 40px 0 12px; }
+  p.body { color: var(--ink-soft); max-width: 68ch; }
+  table.facts { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 8px; }
+  table.facts td { padding: 7px 0; border-bottom: 1px solid var(--rule); color: var(--ink-soft); vertical-align: top; }
+  table.facts td:first-child { width: 190px; font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <p class="status">0.1.0 · pre-alpha</p>
+    <h1>Matter</h1>
+    <p>A creative-coding library in the p5.js tradition, rebuilt on a typed core
+    and a retained command buffer — with WebGL2 as the default renderer rather
+    than the fallback.</p>
+  </header>
+
+  <div class="cards">
+    <a class="card" href="./apps/playground/index.html">
+      <h2>Playground →</h2>
+      <p>Edit a sketch and see it run. Five starters, no install.</p>
+    </a>
+    <a class="card" href="./apps/docs/dist/index.html">
+      <h2>Reference →</h2>
+      <p>Every exported symbol, generated from the shipped type declarations.</p>
+    </a>
+    <a class="card" href="./examples/gallery.html">
+      <h2>Examples →</h2>
+      <p>Six sketches, from a noise flow field to a type specimen.</p>
+    </a>
+  </div>
+
+  <section>
+    <h2 class="head">A sketch</h2>
+    <pre><code>import { sketch } from 'matter';
+import { webgl2 } from 'matter/backends/webgl2';
+
+sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
+  return ({ background, circle, fill, width, height, t }) => {
+    background('oklch(0.15 0.02 260)');
+    fill('oklch(0.72 0.18 250)');
+    circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
+  };
+});</code></pre>
+    <p class="body">The context is destructured in the draw callback rather than
+    injected onto <code>window</code>. That keeps almost all of p5 global mode's
+    terseness while staying fully typed, and because the same object is mutated
+    in place, reading <code>t</code> or <code>width</code> costs nothing per
+    frame.</p>
+  </section>
+
+  <section>
+    <h2 class="head">Why it exists</h2>
+    <p class="body">p5.js is excellent, and this is not a replacement for it.
+    But its WebGL mode is its weakest area — sketches that need real GPU
+    throughput tend to leave for Three.js and lose the friendly API on the way
+    out. Matter aims at that gap.</p>
+    <table class="facts">
+      <tr><td>100k shapes</td><td>10.0 ms per frame, one draw call — 60% of the 60fps budget</td></tr>
+      <tr><td>Allocation</td><td>Zero in steady state: 0.0 kB heap delta over 200 frames</td></tr>
+      <tr><td>Backends</td><td>WebGL2, Canvas2D, SVG and a headless recorder, from one command stream</td></tr>
+      <tr><td>Agreement</td><td>12 scenes verified pixel-by-pixel across backends</td></tr>
+      <tr><td>Colour</td><td>OKLCH throughout, so blends stay perceptually even</td></tr>
+      <tr><td>Randomness</td><td>Seeded by default — a sketch renders identically every run</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2 class="head">Not there yet</h2>
+    <p class="body">Bezier paths, images and pixel access, and a WebGPU backend.
+    Text renders from a runtime SDF rather than MSDF, so corners soften well
+    above the atlas resolution. Not published to npm.</p>
+  </section>
+</div>
+</body>
+</html>
