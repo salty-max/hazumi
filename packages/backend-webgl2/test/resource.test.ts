@@ -160,6 +160,51 @@ describe('ResourceRegistry', () => {
     );
   });
 
+  test('destroy deletes GPU objects, invalidate does not', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({ kind: 'buffer', target: 34962, usage: 35044, byteLength: 4 });
+    registry.register({ kind: 'program', vertex: 'v', fragment: 'f' });
+    registry.realize(gl);
+
+    // Context-loss path: the driver already freed them, so nothing is deleted.
+    registry.invalidate();
+    expect(gl.deleted.buffers).toBe(0);
+    expect(gl.deleted.programs).toBe(0);
+
+    // Teardown path on a live context: objects must actually be released.
+    registry.realize(gl);
+    registry.destroy(gl);
+    expect(gl.deleted.buffers).toBe(1);
+    expect(gl.deleted.programs).toBe(1);
+  });
+
+  test('realizing twice on a live context replaces rather than orphans', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({ kind: 'buffer', target: 34962, usage: 35044, byteLength: 4 });
+
+    registry.realize(gl);
+    registry.realize(gl);
+
+    // Two created, and the first was deleted rather than leaked.
+    expect(gl.created.buffers).toBe(2);
+    expect(gl.deleted.buffers).toBe(1);
+  });
+
+  test('destroy on a lost context degrades to invalidate', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({ kind: 'buffer', target: 34962, usage: 35044, byteLength: 4 });
+    registry.realize(gl);
+
+    registry.invalidate(); // context lost
+    registry.destroy(gl); // teardown after the fact
+
+    expect(gl.deleted.buffers).toBe(0);
+    expect(() => registry.buffer(0)).toThrow(/not realized/);
+  });
+
   test('deletes shaders after linking so they are not leaked', () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();

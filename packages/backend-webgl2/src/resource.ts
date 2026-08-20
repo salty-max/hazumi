@@ -106,15 +106,38 @@ export class ResourceRegistry {
     return p;
   }
 
-  /** Forget every GPU object without forgetting how to rebuild it. */
+  /**
+   * Forget every GPU object without deleting it. This is the context-loss path:
+   * the driver has already destroyed the objects, so deleting them is both
+   * impossible and unnecessary.
+   *
+   * Use `destroy` when the context is still alive, or the objects leak.
+   */
   invalidate(): void {
     this.#buffers.clear();
     this.#programs.clear();
   }
 
-  /** (Re)create every registered resource against `gl`. */
-  realize(gl: GlLike): void {
+  /**
+   * Delete every GPU object and forget it. This is the teardown path.
+   *
+   * Safe to call on a lost context: WebGL ignores delete calls there, so it
+   * degrades to `invalidate`.
+   */
+  destroy(gl: GlLike): void {
+    for (const buffer of this.#buffers.values()) gl.deleteBuffer(buffer);
+    for (const program of this.#programs.values()) gl.deleteProgram(program);
     this.invalidate();
+  }
+
+  /**
+   * (Re)create every registered resource against `gl`.
+   *
+   * Deletes anything currently realized first, so calling this twice on a live
+   * context replaces objects rather than orphaning them.
+   */
+  realize(gl: GlLike): void {
+    this.destroy(gl);
 
     for (let id = 0; id < this.#descriptors.length; id++) {
       const desc = this.#descriptors[id] as ResourceDescriptor;

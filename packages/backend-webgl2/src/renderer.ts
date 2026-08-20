@@ -123,6 +123,11 @@ export class Webgl2Renderer {
     canvas.addEventListener('webglcontextlost', this.#onLost as EventListener);
     canvas.addEventListener('webglcontextrestored', this.#onRestored);
 
+    // Default to the canvas dimensions. An unset viewport is a zero matrix,
+    // which collapses every vertex and renders a silently blank canvas — a
+    // working default beats a value that fails without saying so.
+    this.setViewport(canvas.width, canvas.height);
+
     this.#acquireContext(options);
   }
 
@@ -146,6 +151,9 @@ export class Webgl2Renderer {
   /**
    * Orthographic projection mapping (0,0)-(width,height) to clip space with the
    * origin top-left, written in place so no matrix is allocated per frame.
+   *
+   * Defaulted to the canvas size at construction; call this again after
+   * resizing the canvas.
    *
    * Column-major 4x4, matching what GL expects and what the 3D camera will
    * produce later.
@@ -206,7 +214,18 @@ export class Webgl2Renderer {
       this.#onLost as EventListener,
     );
     this.#canvas.removeEventListener('webglcontextrestored', this.#onRestored);
-    this.#registry.invalidate();
+
+    const gl = this.#gl;
+    if (gl !== null) {
+      if (this.#vao !== null) gl.deleteVertexArray(this.#vao);
+      // destroy, not invalidate: the context is still alive here, so the GPU
+      // objects have to be deleted explicitly or they leak.
+      this.#registry.destroy(gl);
+    } else {
+      this.#registry.invalidate();
+    }
+
+    this.#vao = null;
     this.#gl = null;
   }
 
