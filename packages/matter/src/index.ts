@@ -13,6 +13,18 @@
  * packages is a conflict here rather than a silent shadow.
  */
 
+// --- the sketch API ---
+export { sketch } from './sketch';
+export type {
+  SketchOptions,
+  SketchHandle,
+  SetupFunction,
+  DrawFunction,
+} from './sketch';
+export type { SketchContext, StyleOverrides } from './context';
+export { ColorCache } from './color-cache';
+export type { ColorLike, Rgba } from './color-cache';
+
 // --- L0 core ---
 export { SketchClock, createSketch, definePlugin, DuplicatePluginError } from '@matter/core';
 export type {
@@ -69,8 +81,5 @@ export {
 export type { Oklch, Oklab, Srgb, LinearRgb } from '@matter/color';
 
 // --- L3 graphics ---
-export { CommandBuffer, decode, Op, OP_SIZE, UnknownOpcodeError } from '@matter/graphics';
-export type { CommandVisitor } from '@matter/graphics';
-
-// TODO(P4): sketch(), the context object, and the ~20 drawing functions that
-// make up the first vertical slice.
+export { CommandBuffer, decode, Op, OP_SIZE, Blend, UnknownOpcodeError } from '@matter/graphics';
+export type { CommandVisitor, Renderer, BackendFactory, Affine } from '@matter/graphics';
