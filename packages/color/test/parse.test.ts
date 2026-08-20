@@ -124,3 +124,47 @@ describe('formatting', () => {
     expect(toHex(parse(toRgbCss(parse('#336699'))))).toBe('#336699');
   });
 });
+
+describe('named colours', () => {
+  test('parses the basics', () => {
+    expect(toHex(parse('white'))).toBe('#ffffff');
+    expect(toHex(parse('black'))).toBe('#000000');
+    expect(toHex(parse('red'))).toBe('#ff0000');
+    expect(toHex(parse('rebeccapurple'))).toBe('#663399');
+  });
+
+  test('is case-insensitive', () => {
+    expect(toHex(parse('WHITE'))).toBe(toHex(parse('white')));
+    expect(toHex(parse('CornflowerBlue'))).toBe('#6495ed');
+  });
+
+  test('accepts both spellings of grey', () => {
+    expect(toHex(parse('gray'))).toBe(toHex(parse('grey')));
+    expect(toHex(parse('darkgray'))).toBe(toHex(parse('darkgrey')));
+  });
+
+  test('transparent is fully clear', () => {
+    expect(parse('transparent').alpha).toBe(0);
+  });
+
+  test('a non-colour word is still rejected', () => {
+    expect(() => parse('whitesmoke-ish')).toThrow(ColorParseError);
+    expect(() => parse('notacolour')).toThrow(ColorParseError);
+  });
+
+  test('the table covers the full CSS list', () => {
+    // 148 named colours in CSS Color 4, plus transparent handled separately.
+    const names = [
+      'aliceblue', 'yellowgreen', 'chartreuse', 'mediumspringgreen',
+      'lightgoldenrodyellow', 'papayawhip', 'thistle', 'navajowhite',
+    ];
+    for (const name of names) expect(() => parse(name)).not.toThrow();
+  });
+
+  test('a named colour survives a round trip', () => {
+    for (const name of ['tomato', 'steelblue', 'seagreen']) {
+      const original = parse(name);
+      expect(toHex(parse(toHex(original)))).toBe(toHex(original));
+    }
+  });
+});

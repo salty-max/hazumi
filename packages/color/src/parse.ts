@@ -1,4 +1,5 @@
 import { oklch, type Oklch, fromSrgb } from './oklch';
+import { namedColorHex, TRANSPARENT_HEX } from './named';
 
 /** Thrown when a colour string cannot be understood. */
 export class ColorParseError extends Error {
@@ -83,15 +84,18 @@ function alphaOf(tokens: string[], index: number, input: string): number {
 /**
  * Parse a CSS colour string into OKLCH.
  *
- * Supports hex (3/4/6/8 digit), `rgb()`, and `oklch()`, with either
- * space-separated or comma-separated components. Named colours are not
- * supported yet.
+ * Supports CSS named colours, hex (3/4/6/8 digit), `rgb()`, and `oklch()`,
+ * with either space-separated or comma-separated components.
  */
 export function parse(input: string): Oklch {
   const text = input.trim().toLowerCase();
 
   const hex = HEX.exec(text);
   if (hex !== null) return parseHex(hex[1] as string, input);
+
+  if (text === 'transparent') return parseHex(TRANSPARENT_HEX, input);
+  const named = namedColorHex(text);
+  if (named !== undefined) return parseHex(named, input);
 
   const func = FUNC.exec(text);
   if (func === null) throw new ColorParseError(input);

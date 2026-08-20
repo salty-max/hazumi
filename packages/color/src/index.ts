@@ -13,5 +13,6 @@ export { linearize, delinearize, toLinear, fromLinear } from './srgb';
 export type { Srgb, LinearRgb } from './srgb';
 
 export { parse, tryParse, ColorParseError } from './parse';
+export { namedColorHex } from './named';
 export { toCss, toHex, toRgbCss } from './format';
 export { mix, gradient, lighten, darken, withAlpha, rotateHue } from './mix';
