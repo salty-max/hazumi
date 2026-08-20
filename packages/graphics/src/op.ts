@@ -25,6 +25,8 @@ export const Op = {
   Rotate: 11,
   Scale: 12,
   Line: 13,
+  Background: 14,
+  Ellipse: 15,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -45,6 +47,8 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.Rotate]: 2, // op, radians
   [Op.Scale]: 3, // op, x, y
   [Op.Line]: 5, // op, x1, y1, x2, y2
+  [Op.Background]: 5, // op, r, g, b, a
+  [Op.Ellipse]: 5, // op, x, y, rx, ry
 };
 
 /**

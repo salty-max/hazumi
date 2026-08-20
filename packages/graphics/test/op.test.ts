@@ -22,6 +22,8 @@ describe('Op', () => {
     expect(Op.Rotate).toBe(11);
     expect(Op.Scale).toBe(12);
     expect(Op.Line).toBe(13);
+    expect(Op.Background).toBe(14);
+    expect(Op.Ellipse).toBe(15);
   });
 
   test('no duplicate opcode values', () => {
@@ -52,6 +54,8 @@ describe('Op', () => {
 describe('encoder width matches OP_SIZE', () => {
   const cases: ReadonlyArray<[string, Op, (b: CommandBuffer) => void]> = [
     ['circle', Op.Circle, (b) => b.circle(1, 2, 3)],
+    ['ellipse', Op.Ellipse, (b) => b.ellipse(1, 2, 3, 4)],
+    ['background', Op.Background, (b) => b.background(1, 2, 3, 4)],
     ['rect', Op.Rect, (b) => b.rect(1, 2, 3, 4)],
     ['line', Op.Line, (b) => b.line(1, 2, 3, 4)],
     ['push', Op.Push, (b) => b.push()],

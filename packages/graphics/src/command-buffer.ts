@@ -119,6 +119,20 @@ export class CommandBuffer {
 
   // --- primitives ---
 
+  /**
+   * Clear everything drawn so far to this colour.
+   *
+   * Backends may discard the commands preceding it rather than actually
+   * painting over them — the result is identical and much cheaper.
+   */
+  background(r: number, g: number, b: number, a: number): void {
+    this.#write4(Op.Background, r, g, b, a);
+  }
+
+  ellipse(x: number, y: number, radiusX: number, radiusY: number): void {
+    this.#write4(Op.Ellipse, x, y, radiusX, radiusY);
+  }
+
   circle(x: number, y: number, radius: number): void {
     const i = this.#reserve(4);
     this.#u32[i] = Op.Circle;

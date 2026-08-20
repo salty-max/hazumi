@@ -15,7 +15,9 @@ export interface CommandVisitor {
   translate?: (x: number, y: number) => void;
   rotate?: (radians: number) => void;
   scale?: (x: number, y: number) => void;
+  background?: (r: number, g: number, b: number, a: number) => void;
   circle?: (x: number, y: number, radius: number) => void;
+  ellipse?: (x: number, y: number, radiusX: number, radiusY: number) => void;
   rect?: (x: number, y: number, width: number, height: number) => void;
   line?: (x1: number, y1: number, x2: number, y2: number) => void;
 }
@@ -76,8 +78,14 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
       case Op.Scale:
         visitor.scale?.(f32[i + 1] as number, f32[i + 2] as number);
         break;
+      case Op.Background:
+        visitor.background?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        break;
       case Op.Circle:
         visitor.circle?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number);
+        break;
+      case Op.Ellipse:
+        visitor.ellipse?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
         break;
       case Op.Rect:
         visitor.rect?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
