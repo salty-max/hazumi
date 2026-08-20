@@ -70,3 +70,51 @@ describe('ColorCache', () => {
     expect(() => new ColorCache(1)).toThrow(/at least 2/);
   });
 });
+
+/**
+ * The buffer stores display-referred sRGB, not linear light. Getting this
+ * wrong is invisible to a backend-agreement test — both backends would display
+ * the same wrong colour — so it is pinned against known values here.
+ */
+const channel = (v: number): number => Math.round(v * 255);
+
+describe('colour space', () => {
+
+  test('mid-grey survives the round trip', () => {
+    const cache = new ColorCache();
+    const [r, g, b] = cache.resolve('#808080');
+    // Linear-light would give 55 here, and every backend would show it.
+    expect(channel(r)).toBe(128);
+    expect(channel(g)).toBe(128);
+    expect(channel(b)).toBe(128);
+  });
+
+  test('a mid-tone colour keeps its channels', () => {
+    const [r, g, b] = new ColorCache().resolve('#3366cc');
+    expect(channel(r)).toBeCloseTo(51, 0);
+    expect(channel(g)).toBeCloseTo(102, 0);
+    expect(channel(b)).toBeCloseTo(204, 0);
+  });
+
+  test('primaries are unchanged, which is why this hid for so long', () => {
+    const cache = new ColorCache();
+    // linearize(0) and linearize(1) are identity, so #ff0000 looks correct
+    // under either interpretation.
+    const [r, g, b] = cache.resolve('#ff0000');
+    expect(channel(r)).toBe(255);
+    expect(channel(g)).toBe(0);
+    expect(channel(b)).toBe(0);
+  });
+
+  test('a grey ramp is evenly spaced in display space', () => {
+    const cache = new ColorCache();
+    const values = ['#000000', '#404040', '#808080', '#c0c0c0', '#ffffff'].map(
+      (hex) => channel(cache.resolve(hex)[0]),
+    );
+    expect(values).toEqual([0, 64, 128, 192, 255]);
+  });
+
+  test('alpha passes through untouched', () => {
+    expect(new ColorCache().resolve('#80808080')[3]).toBeCloseTo(128 / 255, 3);
+  });
+});

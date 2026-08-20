@@ -1,9 +1,21 @@
-import { type Oklch, parse, toLinearRgb } from '@matter/color';
+import { type Oklch, parse, toSrgb } from '@matter/color';
 
 /** Anything the drawing API accepts as a colour. */
 export type ColorLike = string | Oklch;
 
-/** Linear-light RGBA, the form the command buffer stores. */
+/**
+ * Display-referred sRGB RGBA, 0-1 — the form the command buffer stores.
+ *
+ * sRGB rather than linear-light on purpose. Every backend composites in the
+ * space it is handed: Canvas2D blends in sRGB, SVG colours are sRGB, and the
+ * GPU path writes to a non-sRGB framebuffer. Storing linear values would mean
+ * each backend displaying them uncorrected — mid-grey #808080 would render as
+ * rgb(55, 55, 55).
+ *
+ * Physically correct linear-space blending needs an sRGB framebuffer and a
+ * matching change in Canvas2D, which cannot follow. Matching the web — and p5 —
+ * is the right trade here.
+ */
 export type Rgba = readonly [number, number, number, number];
 
 /** Entries retained before the cache evicts. */
@@ -85,7 +97,9 @@ export class ColorCache {
   }
 
   static #convert(color: Oklch): Rgba {
-    const rgb = toLinearRgb(color);
+    // toSrgb gamut-maps by reducing chroma, so an out-of-gamut OKLCH value
+    // keeps its hue instead of clipping toward a different one.
+    const rgb = toSrgb(color);
     return [rgb.r, rgb.g, rgb.b, rgb.alpha];
   }
 }
