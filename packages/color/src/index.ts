@@ -1,17 +1,17 @@
 /**
- * L2 — color as a real type, interpolated in OKLCH rather than sRGB so
- * gradients stay perceptually even instead of muddying through grey.
+ * L2 — colour as a real type.
+ *
+ * Stored and interpolated in OKLCH so blends stay perceptually even instead of
+ * dipping through grey, and gamut-mapped by reducing chroma rather than
+ * clipping RGB, which would shift the hue the author asked for.
  */
 
-export interface Oklch {
-  /** Perceptual lightness, 0–1. */
-  readonly l: number;
-  /** Chroma, 0–~0.4. */
-  readonly c: number;
-  /** Hue in degrees, 0–360. */
-  readonly h: number;
-  /** Alpha, 0–1. */
-  readonly alpha: number;
-}
+export { oklch, toSrgb, fromSrgb, toLinearRgb, fromLinearRgb, inGamut, clampToGamut, oklabToOklch, oklchToOklab, linearRgbToOklab, oklabToLinearRgb } from './oklch';
+export type { Oklch, Oklab } from './oklch';
 
-// TODO(P2): CSS Color 4 parsing, OKLCH<->sRGB conversion, gamut mapping, mix().
+export { linearize, delinearize, toLinear, fromLinear } from './srgb';
+export type { Srgb, LinearRgb } from './srgb';
+
+export { parse, tryParse, ColorParseError } from './parse';
+export { toCss, toHex, toRgbCss } from './format';
+export { mix, gradient, lighten, darken, withAlpha, rotateHue } from './mix';
