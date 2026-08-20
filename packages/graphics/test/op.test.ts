@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { Op } from '../src/index';
+import { Op, OP_SIZE } from '../src/index';
 
 describe('Op', () => {
   // Opcodes are written into the command buffer as raw numbers, so renumbering
@@ -12,10 +12,17 @@ describe('Op', () => {
     expect(Op.Stroke).toBe(3);
     expect(Op.PushStyle).toBe(4);
     expect(Op.PopStyle).toBe(5);
+    expect(Op.SetFill).toBe(6);
   });
 
   test('no duplicate opcode values', () => {
     const values = Object.values(Op);
     expect(new Set(values).size).toBe(values.length);
+  });
+
+  test('every opcode declares a size', () => {
+    for (const value of Object.values(Op)) {
+      expect(OP_SIZE[value]).toBeGreaterThan(0);
+    }
   });
 });
