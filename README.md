@@ -4,8 +4,9 @@ A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
 retained command buffer, with WebGL2 as the default renderer rather than the
 fallback.
 
-> **Status: pre-alpha.** The workspace is scaffolded; the renderer is not built
-> yet. See the build order below.
+> **Status: pre-alpha.** Phase 1 is complete and measured — the command buffer
+> and an instanced WebGL2 circle path both hit their targets. Everything above
+> that (the `sketch()` API, styles, transforms) is not built yet.
 
 ## Why
 
@@ -48,13 +49,43 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 
 | Phase | Work | Done when |
 | --- | --- | --- |
-| P1 | Command buffer + minimal instanced WebGL2 path | 100k shapes at 60fps, one draw call, zero steady-state allocation, context loss recovers |
+| P1 ✅ | Command buffer + minimal instanced WebGL2 path | **Met** — see measurements below |
 | P2 | core, math, color | Plugin builder infers composed types; math fully covered |
 | P3 | Renderer subsystems + Canvas2D oracle | WebGL2 and Canvas2D agree on every primitive |
 | P4 | First vertical slice, `0.1.0` | A real p5 sketch ports without an escape hatch |
 | P5 | MSDF text, then SVG backend | Every example renders to WebGL2 and exports valid SVG |
 | P6 | Docs + playground | A stranger reaches a running sketch without reading source |
 | P7 | Breadth: images, user shaders, input, addons | The addon API has been used by someone who didn't write it |
+
+## P1 measurements
+
+Encode path, Bun, 100k circles per frame over 200 frames:
+
+| Metric | Result |
+| --- | --- |
+| Encode time per frame | 0.98 ms (5.9% of the 16.67 ms budget) |
+| Throughput | 102M shapes/second |
+| Buffer growths in steady state | 0 |
+| Heap delta over 200 frames | 0.0 KB |
+
+GPU path, Chrome, 100k circles per frame over 120 frames, each frame forced to
+complete with a 1×1 `readPixels`:
+
+| Metric | Result |
+| --- | --- |
+| Frame time (median) | 7.50 ms (45% of the 16.67 ms budget) |
+| Frame time (p95) | 7.80 ms |
+| Draw calls per frame | 1 |
+| Instance-array growths in steady state | 0 |
+| Forced context loss | Recovered without reload, 1 draw call after restore |
+
+Reproduce with:
+
+```bash
+bun run bench/encode.ts
+```
+
+For the GPU bench, run `bun run bench/serve.ts` and open http://localhost:5199.
 
 ## Development
 
