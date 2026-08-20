@@ -86,6 +86,24 @@ export function createSketch(): SketchBuilder<Record<never, never>> {
   return builder([]);
 }
 
+/**
+ * Await each hook before starting the next.
+ *
+ * Sequential is the contract, not an implementation detail: a plugin's setup
+ * may depend on an earlier one having finished. Built as a promise chain
+ * rather than a loop of awaits so the ordering is the shape of the code.
+ * Promise.all here would be a silent behaviour change.
+ */
+function runInOrder(
+  plugins: readonly Plugin<never>[],
+  pick: (plugin: Plugin<never>) => (() => void | Promise<void>) | undefined,
+): Promise<void> {
+  return plugins.reduce<Promise<void>>(
+    (chain, plugin) => chain.then(() => pick(plugin)?.()),
+    Promise.resolve(),
+  );
+}
+
 function builder<Api extends object>(
   plugins: readonly Plugin<never>[],
 ): SketchBuilder<Api> {
@@ -115,17 +133,8 @@ function builder<Api extends object>(
 
       const core: SketchCore = {
         plugins: plugins.map((p) => p.name),
-        // Sequential on purpose: a plugin's setup may depend on an earlier
-        // one having finished. Promise.all would run them concurrently and
-        // silently break that ordering.
-        presetup: async (): Promise<void> => {
-          // oxlint-disable-next-line no-await-in-loop
-          for (const p of plugins) await p.presetup?.();
-        },
-        postsetup: async (): Promise<void> => {
-          // oxlint-disable-next-line no-await-in-loop
-          for (const p of plugins) await p.postsetup?.();
-        },
+        presetup: (): Promise<void> => runInOrder(plugins, (p) => p.presetup),
+        postsetup: (): Promise<void> => runInOrder(plugins, (p) => p.postsetup),
         predraw: (dt: number): void => {
           for (const p of plugins) p.predraw?.(dt);
         },

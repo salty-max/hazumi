@@ -98,20 +98,25 @@ function renderNav(modules: ReadonlyArray<[DocModule, string]>): string {
     .join('');
 }
 
+// Read every declaration file at once, then assemble in declared order — the
+// reference reads top-down as the layer stack, so order is part of the output.
+const sources = await Promise.all(
+  PACKAGES.map(async ([name, relative, blurb]) => {
+    const file = Bun.file(ROOT + relative);
+    const exists = await file.exists();
+    return { name, relative, blurb, text: exists ? await file.text() : null };
+  }),
+);
+
 const modules: Array<[DocModule, string]> = [];
 let total = 0;
 
-// Sequential on purpose: the loop reports skipped packages in declared order,
-// and nine small file reads are not worth parallelising.
-for (const [name, relative, blurb] of PACKAGES) {
-  const file = Bun.file(ROOT + relative);
-  // oxlint-disable-next-line no-await-in-loop
-  if (!(await file.exists())) {
+for (const { name, relative, blurb, text } of sources) {
+  if (text === null) {
     console.warn(`skipping ${name}: ${relative} not built`);
     continue;
   }
-  // oxlint-disable-next-line no-await-in-loop
-  const mod = extractModule(name, await file.text());
+  const mod = extractModule(name, text);
   total += mod.entries.length;
   modules.push([mod, blurb]);
 }

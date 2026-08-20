@@ -39,7 +39,9 @@ const glCanvas = makeCanvas();
 const c2dCanvas = makeCanvas();
 
 const gpu = new Webgl2Renderer(glCanvas);
-const ref = new Canvas2dRenderer(c2dCanvas);
+// This harness reads the reference canvas back on every scene, and context
+// attributes only apply at creation, so the hint has to be set here.
+const ref = new Canvas2dRenderer(c2dCanvas, { willReadFrequently: true });
 const buffer = new CommandBuffer();
 
 interface Result {
@@ -163,7 +165,23 @@ function compare(
   };
 }
 
-const results: Result[] = [];
+/**
+ * Pass one, synchronous: render each scene through both canvas backends and
+ * read the pixels back before the next scene overwrites them. The two
+ * renderers share one canvas pair, so this part cannot be reordered.
+ */
+interface Captured {
+  readonly scene: (typeof SCENES)[number];
+  readonly gpuPixels: Uint8ClampedArray;
+  readonly refPixels: Uint8ClampedArray;
+  readonly svg: string;
+  readonly drawCalls: number;
+  readonly instances: number;
+  readonly glImage: ImageData;
+  readonly refImage: ImageData;
+}
+
+const captured: Captured[] = [];
 
 for (const scene of SCENES) {
   buffer.reset();
@@ -172,47 +190,63 @@ for (const scene of SCENES) {
   gpu.render(buffer);
   ref.render(buffer);
 
-  const refPixels = readPixels(c2dCanvas, false);
-  const diff = compare(readPixels(glCanvas, true), refPixels);
-
-  // Both the SVG and the reference are unpremultiplied, so compare them as such.
-  // Sequential on purpose: every scene reuses the same canvas pair, so
-  // rasterising them concurrently would race over shared state.
-  // oxlint-disable-next-line no-await-in-loop
-  const svgPixels = await rasterizeSvg(toSvg(buffer, W, H));
-  const svgDiff = compare2(svgPixels, refPixels);
-
-  const tolerance = scene.tolerance ?? DEFAULT_TOLERANCE;
   const stats = gpu.stats;
+  const gpuPixels = readPixels(glCanvas, true);
+  const refPixels = readPixels(c2dCanvas, false);
 
-  results.push({
-    name: scene.name,
-    mean: diff.mean,
-    svgMean: svgDiff.mean,
+  captured.push({
+    scene,
+    gpuPixels,
+    refPixels,
+    svg: toSvg(buffer, W, H),
     drawCalls: stats.drawCalls,
     instances: stats.instances,
+    glImage: new ImageData(new Uint8ClampedArray(gpuPixels), W, H),
+    refImage: new ImageData(new Uint8ClampedArray(refPixels), W, H),
+  });
+}
+
+// Pass two: every SVG rasterises into its own canvas, so these are independent
+// and run together.
+const rasterized = await Promise.all(captured.map((c) => rasterizeSvg(c.svg)));
+
+const results: Result[] = [];
+
+for (const [index, item] of captured.entries()) {
+  const svgPixels = rasterized[index] as Uint8ClampedArray;
+  const diff = compare(item.gpuPixels, item.refPixels);
+  const svgDiff = compare2(svgPixels, item.refPixels);
+  const tolerance = item.scene.tolerance ?? DEFAULT_TOLERANCE;
+
+  results.push({
+    name: item.scene.name,
+    mean: diff.mean,
+    svgMean: svgDiff.mean,
+    drawCalls: item.drawCalls,
+    instances: item.instances,
     pass: diff.mean <= tolerance && svgDiff.mean <= SVG_TOLERANCE,
   });
 
-  // Keep a visual copy of each pair for eyeballing.
+  // Keep a visual copy of each triple for eyeballing.
   const row = document.createElement('div');
   row.className = 'row';
   const label = document.createElement('div');
   label.className = 'label';
-  label.textContent = scene.name;
+  label.textContent = item.scene.name;
   row.append(label);
-  for (const [tag, src] of [['webgl2', glCanvas], ['canvas2d', c2dCanvas]] as const) {
+
+  for (const [tag, image] of [
+    ['webgl2', item.glImage],
+    ['canvas2d', item.refImage],
+    ['svg', new ImageData(svgPixels, W, H)],
+  ] as const) {
     const copy = makeCanvas();
     const ctx = copy.getContext('2d') as CanvasRenderingContext2D;
-    ctx.drawImage(src, 0, 0);
-    copy.title = `${scene.name} — ${tag}`;
+    ctx.putImageData(image, 0, 0);
+    copy.title = `${item.scene.name} — ${tag}`;
     row.append(copy);
   }
-  const svgCopy = makeCanvas();
-  const svgCtx = svgCopy.getContext('2d') as CanvasRenderingContext2D;
-  svgCtx.putImageData(new ImageData(svgPixels, W, H), 0, 0);
-  svgCopy.title = `${scene.name} — svg`;
-  row.append(svgCopy);
+
   strip.append(row);
 }
 
