@@ -2,28 +2,37 @@
  * L1 — pure, stateless math.
  *
  * Matrices are 4x4 from day one: 2D is a constrained use of Mat4 so the 3D
- * addon does not require a migration later. See the "Shipping 2D, staying
- * 3D-capable" note in the architecture doc.
+ * addon does not require a migration later. See the "2D now, 3D later" section
+ * of AGENTS.md.
+ *
+ * Vector modules are namespaced (`vec2.add`, `vec3.add`) because the operation
+ * names collide by design.
  */
 
-export interface Vec2 {
-  readonly x: number;
-  readonly y: number;
-}
+export * as vec2 from './vec2';
+export * as vec3 from './vec3';
+export * as mat4 from './mat4';
+export * as easing from './easing';
 
-export interface Vec3 {
-  readonly x: number;
-  readonly y: number;
-  readonly z: number;
-}
+export type { Vec2 } from './vec2';
+export type { Vec3 } from './vec3';
+export type { Mat4 } from './mat4';
+export type { Easing } from './easing';
 
-/** Column-major 4x4, matching the layout uploaded to GL. */
-export type Mat4 = Float32Array;
+export { seeded } from './rng';
+export type { Rng } from './rng';
 
-/** A seeded, reproducible source of randomness. */
-export interface Rng {
-  next: () => number;
-  readonly seed: number;
-}
+export { createNoise } from './noise';
+export type { Noise } from './noise';
 
-// TODO(P2): vec/mat ops, seeded PRNG, simplex noise, easing, remap.
+export {
+  lerp,
+  clamp,
+  norm,
+  remap,
+  degrees,
+  radians,
+  wrap,
+  angleDelta,
+  smoothstep,
+} from './scalar';
