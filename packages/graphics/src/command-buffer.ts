@@ -1,4 +1,4 @@
-import { Blend, Op } from './op';
+import { type Align, type Baseline, Blend, Op } from './op';
 
 /** Words (4 bytes each) reserved on first allocation. */
 const INITIAL_WORDS = 1024;
@@ -24,6 +24,12 @@ export class CommandBuffer {
   #u32: Uint32Array;
   #length = 0;
   #growths = 0;
+  /**
+   * Strings cannot live in a Float32Array, so text commands store an index
+   * into this table. Cleared on reset alongside the numeric stream, which is
+   * what keeps the two from drifting apart.
+   */
+  #strings: string[] = [];
 
   constructor(initialWords: number = INITIAL_WORDS) {
     this.#data = new ArrayBuffer(initialWords * 4);
@@ -58,9 +64,17 @@ export class CommandBuffer {
     return this.#u32;
   }
 
+  /** Strings referenced by text commands, indexed by the id each one carries. */
+  get strings(): readonly string[] {
+    return this.#strings;
+  }
+
   /** Rewind the write cursor. Does not release memory — that is the point. */
   reset(): void {
     this.#length = 0;
+    // Length assignment rather than a new array: no allocation, and the
+    // backing store is reused next frame.
+    this.#strings.length = 0;
   }
 
   // --- state ---
@@ -147,6 +161,40 @@ export class CommandBuffer {
 
   line(x1: number, y1: number, x2: number, y2: number): void {
     this.#write4(Op.Line, x1, y1, x2, y2);
+  }
+
+  setTextSize(size: number): void {
+    const i = this.#reserve(2);
+    this.#u32[i] = Op.SetTextSize;
+    this.#f32[i + 1] = size;
+  }
+
+  setTextAlign(horizontal: Align, vertical: Baseline): void {
+    const i = this.#reserve(3);
+    this.#u32[i] = Op.SetTextAlign;
+    // Enum tags, written as integers.
+    this.#u32[i + 1] = horizontal;
+    this.#u32[i + 2] = vertical;
+  }
+
+  setFont(family: string): void {
+    const i = this.#reserve(2);
+    this.#u32[i] = Op.SetFont;
+    this.#u32[i + 1] = this.#intern(family);
+  }
+
+  text(x: number, y: number, content: string): void {
+    const i = this.#reserve(4);
+    this.#u32[i] = Op.Text;
+    this.#f32[i + 1] = x;
+    this.#f32[i + 2] = y;
+    this.#u32[i + 3] = this.#intern(content);
+  }
+
+  #intern(value: string): number {
+    const id = this.#strings.length;
+    this.#strings.push(value);
+    return id;
   }
 
   #write4(op: Op, a: number, b: number, c: number, d: number): void {

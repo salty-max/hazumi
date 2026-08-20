@@ -27,6 +27,10 @@ export const Op = {
   Line: 13,
   Background: 14,
   Ellipse: 15,
+  Text: 16,
+  SetTextSize: 17,
+  SetTextAlign: 18,
+  SetFont: 19,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -49,7 +53,30 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.Line]: 5, // op, x1, y1, x2, y2
   [Op.Background]: 5, // op, r, g, b, a
   [Op.Ellipse]: 5, // op, x, y, rx, ry
+  [Op.Text]: 4, // op, x, y, stringId
+  [Op.SetTextSize]: 2, // op, size
+  [Op.SetTextAlign]: 3, // op, horizontal, vertical
+  [Op.SetFont]: 2, // op, stringId
 };
+
+/** Horizontal text anchor. */
+export const Align = {
+  Left: 0,
+  Center: 1,
+  Right: 2,
+} as const;
+
+export type Align = (typeof Align)[keyof typeof Align];
+
+/** Vertical text anchor. */
+export const Baseline = {
+  Alphabetic: 0,
+  Top: 1,
+  Middle: 2,
+  Bottom: 3,
+} as const;
+
+export type Baseline = (typeof Baseline)[keyof typeof Baseline];
 
 /**
  * Blend modes. This is the pipeline key: it maps to actual GL blend state, so

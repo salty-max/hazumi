@@ -93,3 +93,60 @@ describe('decode', () => {
     expect(calls).toBe(0);
   });
 });
+
+describe('text decoding', () => {
+  test('resolves string ids so backends never see the table', () => {
+    const buf = new CommandBuffer();
+    buf.setFont('Georgia');
+    buf.setTextSize(24);
+    buf.text(10, 20, 'hello');
+
+    let font = '';
+    let size = 0;
+    let content = '';
+    let position: number[] = [];
+
+    decode(buf, {
+      setFont: (family: string): void => {
+        font = family;
+      },
+      setTextSize: (value: number): void => {
+        size = value;
+      },
+      text: (x: number, y: number, value: string): void => {
+        position = [x, y];
+        content = value;
+      },
+    });
+
+    expect(font).toBe('Georgia');
+    expect(size).toBe(24);
+    expect(content).toBe('hello');
+    expect(position).toEqual([10, 20]);
+  });
+
+  test('text commands interleave correctly with shapes', () => {
+    const buf = new CommandBuffer();
+    buf.circle(0, 0, 1);
+    buf.text(0, 0, 'a');
+    buf.rect(0, 0, 1, 1);
+
+    const seen: string[] = [];
+    decode(buf, {
+      circle: (): void => void seen.push('circle'),
+      text: (): void => void seen.push('text'),
+      rect: (): void => void seen.push('rect'),
+    });
+    expect(seen).toEqual(['circle', 'text', 'rect']);
+  });
+
+  test('an unresolvable string id degrades to empty rather than undefined', () => {
+    const buf = new CommandBuffer();
+    buf.text(0, 0, 'x');
+    buf.u32[3] = 99; // point past the table
+
+    let content = 'unset';
+    decode(buf, { text: (_x, _y, value: string): void => void (content = value) });
+    expect(content).toBe('');
+  });
+});

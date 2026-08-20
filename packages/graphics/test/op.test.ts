@@ -24,6 +24,10 @@ describe('Op', () => {
     expect(Op.Line).toBe(13);
     expect(Op.Background).toBe(14);
     expect(Op.Ellipse).toBe(15);
+    expect(Op.Text).toBe(16);
+    expect(Op.SetTextSize).toBe(17);
+    expect(Op.SetTextAlign).toBe(18);
+    expect(Op.SetFont).toBe(19);
   });
 
   test('no duplicate opcode values', () => {
@@ -56,6 +60,10 @@ describe('encoder width matches OP_SIZE', () => {
     ['circle', Op.Circle, (b) => b.circle(1, 2, 3)],
     ['ellipse', Op.Ellipse, (b) => b.ellipse(1, 2, 3, 4)],
     ['background', Op.Background, (b) => b.background(1, 2, 3, 4)],
+    ['text', Op.Text, (b) => b.text(1, 2, 'hi')],
+    ['setTextSize', Op.SetTextSize, (b) => b.setTextSize(24)],
+    ['setTextAlign', Op.SetTextAlign, (b) => b.setTextAlign(1, 2)],
+    ['setFont', Op.SetFont, (b) => b.setFont('serif')],
     ['rect', Op.Rect, (b) => b.rect(1, 2, 3, 4)],
     ['line', Op.Line, (b) => b.line(1, 2, 3, 4)],
     ['push', Op.Push, (b) => b.push()],

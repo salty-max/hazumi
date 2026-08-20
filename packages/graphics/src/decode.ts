@@ -1,5 +1,5 @@
 import type { CommandBuffer } from './command-buffer';
-import { type Blend, Op, OP_SIZE } from './op';
+import { type Align, type Baseline, type Blend, Op, OP_SIZE } from './op';
 
 /**
  * Backends implement this to consume a command stream. Every method takes
@@ -20,6 +20,11 @@ export interface CommandVisitor {
   ellipse?: (x: number, y: number, radiusX: number, radiusY: number) => void;
   rect?: (x: number, y: number, width: number, height: number) => void;
   line?: (x1: number, y1: number, x2: number, y2: number) => void;
+  setTextSize?: (size: number) => void;
+  setTextAlign?: (horizontal: Align, vertical: Baseline) => void;
+  /** The resolved string, not its id — backends never see the table. */
+  setFont?: (family: string) => void;
+  text?: (x: number, y: number, content: string) => void;
 }
 
 /** Thrown when the stream contains an opcode this build does not know. */
@@ -43,6 +48,7 @@ export class UnknownOpcodeError extends Error {
 export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
   const u32 = buffer.u32;
   const f32 = buffer.f32;
+  const strings = buffer.strings;
   const end = buffer.length;
 
   let i = 0;
@@ -92,6 +98,22 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
         break;
       case Op.Line:
         visitor.line?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        break;
+      case Op.SetTextSize:
+        visitor.setTextSize?.(f32[i + 1] as number);
+        break;
+      case Op.SetTextAlign:
+        visitor.setTextAlign?.(u32[i + 1] as Align, u32[i + 2] as Baseline);
+        break;
+      case Op.SetFont:
+        visitor.setFont?.(strings[u32[i + 1] as number] ?? 'sans-serif');
+        break;
+      case Op.Text:
+        visitor.text?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          strings[u32[i + 3] as number] ?? '',
+        );
         break;
       default: {
         const size = OP_SIZE[op] as number | undefined;

@@ -62,3 +62,48 @@ describe('CommandBuffer', () => {
     expect(buf.f32[3]).toBe(3);
   });
 });
+
+/**
+ * Strings cannot live in a Float32Array, so text commands carry an index into
+ * a side table. The two have to stay in step: a table that outlived a reset
+ * would leave text commands pointing at the wrong strings.
+ */
+describe('string table', () => {
+  test('text commands reference interned strings', () => {
+    const buf = new CommandBuffer();
+    buf.text(1, 2, 'hello');
+    expect(buf.strings).toEqual(['hello']);
+    expect(buf.u32[3]).toBe(0);
+  });
+
+  test('each call interns separately, preserving order', () => {
+    const buf = new CommandBuffer();
+    buf.text(0, 0, 'a');
+    buf.setFont('serif');
+    buf.text(0, 0, 'b');
+    expect(buf.strings).toEqual(['a', 'serif', 'b']);
+  });
+
+  test('reset clears the table alongside the numeric stream', () => {
+    const buf = new CommandBuffer();
+    buf.text(0, 0, 'stale');
+    buf.reset();
+
+    expect(buf.length).toBe(0);
+    expect(buf.strings).toEqual([]);
+
+    // Ids restart from zero, matching the rewound stream.
+    buf.text(0, 0, 'fresh');
+    expect(buf.strings).toEqual(['fresh']);
+    expect(buf.u32[3]).toBe(0);
+  });
+
+  test('repeated identical strings are interned per call, not deduplicated', () => {
+    // Deduplication would need a lookup on every text call; sketches emit few
+    // enough strings per frame that the map would cost more than it saved.
+    const buf = new CommandBuffer();
+    buf.text(0, 0, 'same');
+    buf.text(1, 1, 'same');
+    expect(buf.strings).toEqual(['same', 'same']);
+  });
+});
