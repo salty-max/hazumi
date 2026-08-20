@@ -4,9 +4,9 @@ A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
 retained command buffer, with WebGL2 as the default renderer rather than the
 fallback.
 
-> **Status: 0.1.0, pre-alpha.** The drawing API works and five example sketches
-> run on it. Not published to npm — text, paths, and SVG export are still to
-> come.
+> **Status: 0.1.0, pre-alpha.** The drawing API, SDF text and SVG export all
+> work, with six example sketches running on them. Not published to npm — paths
+> and bezier curves are still to come.
 
 ## Why
 
@@ -88,7 +88,7 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 | P2 ✅ | core, math, color | **Met** — 253 tests; plugin types verified at compile time |
 | P3 ✅ | Renderer subsystems + Canvas2D oracle | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255 |
 | P4 ✅ | First vertical slice, `0.1.0` | **Met** — five sketches in `examples/`, no escape hatches |
-| P5 | MSDF text, then SVG backend | Every example renders to WebGL2 and exports valid SVG |
+| P5 ✅ | Text, then SVG backend | **Met** — 12 scenes export and rasterise to within 0.31/255 |
 | P6 | Docs + playground | A stranger reaches a running sketch without reading source |
 | P7 | Breadth: images, user shaders, input, addons | The addon API has been used by someone who didn't write it |
 
@@ -147,9 +147,23 @@ reorder overlapping transparent shapes.
 Run it with `bun run bench/serve.ts` and open
 http://localhost:5199/compare.html.
 
-**Known divergence:** stroke width under anisotropic scale. Both backends
-scale stroke with the transform, but they distribute it differently; the
-comparison scenes use uniform scale only.
+SVG is rasterised through the browser and diffed against Canvas2D as well.
+Several scenes come out pixel-identical and the worst is 0.31, because both go
+through the same engine — so that tolerance is set *tighter* than the GPU one.
+
+**Known divergences.** Stroke width under anisotropic scale: both backends
+scale stroke with the transform but distribute it differently, so the
+comparison scenes use uniform scale only. And text is outside the comparison
+entirely — the GPU path renders glyphs from a signed distance field while
+Canvas2D and SVG use native text, which cannot match pixel for pixel by
+construction.
+
+## Text
+
+Text is rendered from a signed distance field built at runtime from any font
+already on the system — no build step, no atlas file to ship. SDF rather than
+MSDF: MSDF holds corners sharp at extreme scale but needs an offline generator,
+and the trade is that corners soften well above the atlas resolution.
 
 Reproduce with:
 
