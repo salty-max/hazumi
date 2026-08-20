@@ -4,9 +4,9 @@ A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
 retained command buffer, with WebGL2 as the default renderer rather than the
 fallback.
 
-> **Status: pre-alpha.** Phase 1 is complete and measured — the command buffer
-> and an instanced WebGL2 circle path both hit their targets. Everything above
-> that (the `sketch()` API, styles, transforms) is not built yet.
+> **Status: pre-alpha.** Phases 1 and 2 are complete: the command buffer, an
+> instanced WebGL2 circle path, and the core/math/colour layers. The public
+> `sketch()` API arrives in phase 4.
 
 ## Why
 
@@ -50,7 +50,7 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 | Phase | Work | Done when |
 | --- | --- | --- |
 | P1 ✅ | Command buffer + minimal instanced WebGL2 path | **Met** — see measurements below |
-| P2 | core, math, color | Plugin builder infers composed types; math fully covered |
+| P2 ✅ | core, math, color | **Met** — 253 tests; plugin types verified at compile time |
 | P3 | Renderer subsystems + Canvas2D oracle | WebGL2 and Canvas2D agree on every primitive |
 | P4 | First vertical slice, `0.1.0` | A real p5 sketch ports without an escape hatch |
 | P5 | MSDF text, then SVG backend | Every example renders to WebGL2 and exports valid SVG |
