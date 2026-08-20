@@ -81,5 +81,5 @@ export {
 export type { Oklch, Oklab, Srgb, LinearRgb } from '@matter/color';
 
 // --- L3 graphics ---
-export { CommandBuffer, decode, Op, OP_SIZE, Blend, UnknownOpcodeError } from '@matter/graphics';
+export { CommandBuffer, decode, Op, OP_SIZE, Blend, Align, Baseline, UnknownOpcodeError } from '@matter/graphics';
 export type { CommandVisitor, Renderer, BackendFactory, Affine } from '@matter/graphics';

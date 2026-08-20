@@ -3,6 +3,7 @@ import { gridWaves } from './grid-waves';
 import { mouseTrail } from './mouse-trail';
 import { orbits } from './orbits';
 import { staticPoster } from './static-poster';
+import { typeSpecimen } from './type-specimen';
 
 const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => void]> = [
   ['flow field', flowField],
@@ -10,6 +11,7 @@ const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => void]> = [
   ['mouse trail', mouseTrail],
   ['grid waves', gridWaves],
   ['static poster', staticPoster],
+  ['type specimen', typeSpecimen],
 ];
 
 const root = document.getElementById('root') as HTMLElement;

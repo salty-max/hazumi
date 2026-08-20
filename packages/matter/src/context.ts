@@ -1,4 +1,4 @@
-import { Blend, CommandBuffer } from '@matter/graphics';
+import { Align, Baseline, Blend, CommandBuffer } from '@matter/graphics';
 import { createNoise, type Noise, type Rng, seeded } from '@matter/math';
 import { type ColorCache, type ColorLike } from './color-cache';
 
@@ -47,6 +47,13 @@ export interface SketchContext {
   noStroke: () => void;
   strokeWeight: (weight: number) => void;
   blendMode: (mode: Blend) => void;
+
+  // --- text ---
+  /** Font family, as in CSS. Defaults to sans-serif. */
+  textFont: (family: string) => void;
+  textSize: (size: number) => void;
+  textAlign: (horizontal: Align, vertical?: Baseline) => void;
+  text: (content: string, x: number, y: number) => void;
 
   // --- drawing ---
   circle: (x: number, y: number, diameter: number) => void;
@@ -176,6 +183,13 @@ export function createContext(deps: ContextDeps): ContextBundle {
       blend = mode;
       buffer.setBlend(mode);
     },
+
+    textFont: (family: string): void => buffer.setFont(family),
+    textSize: (size: number): void => buffer.setTextSize(size),
+    textAlign: (horizontal: Align, vertical: Baseline = Baseline.Alphabetic): void =>
+      buffer.setTextAlign(horizontal, vertical),
+    // Argument order follows p5: content first, then position.
+    text: (content: string, x: number, y: number): void => buffer.text(x, y, content),
 
     // p5 takes a diameter, and so does this — a library in that tradition
     // silently halving every ported circle would be a nasty way to differ.
