@@ -1,13 +1,241 @@
+import {
+  type Affine,
+  Blend,
+  type CommandBuffer,
+  type CommandVisitor,
+  copyAffine,
+  decode,
+  identityAffine,
+  rotateAffine,
+  scaleAffine,
+  translateAffine,
+} from '@matter/graphics';
+
 /**
  * L4 — vector export.
  *
- * Doubles as the cheapest possible test that the command buffer stayed
- * high-level: if tessellation ever leaks into the encoder, this backend is
- * where it fails loudly.
+ * This backend is also the abstraction test. It can only exist because the
+ * command buffer stores high-level primitives: a circle is still a circle here,
+ * not a fan of triangles. If tessellation ever leaks into the encoder, this is
+ * where it fails loudly, while the GPU backend carries on looking fine.
+ *
+ * Transforms are baked into each element rather than emitted as nested <g>
+ * elements. The stream's push/pop nesting does not always correspond to
+ * document nesting — a pop can cross a background, for instance — and a flat
+ * document with explicit matrices is both simpler and unambiguous.
  */
 
 export interface SvgOptions {
+  /** Decimal places kept in the output. */
   readonly precision?: number;
+  /** Emit newlines between elements. */
+  readonly pretty?: boolean;
 }
 
-// TODO(P5): serialize the command buffer to SVG.
+const DEFAULT_PRECISION = 3;
+
+interface Style {
+  fill: readonly [number, number, number, number];
+  stroke: readonly [number, number, number, number];
+  strokeWidth: number;
+  blend: Blend;
+}
+
+function defaultStyle(): Style {
+  return {
+    fill: [0, 0, 0, 1],
+    stroke: [0, 0, 0, 1],
+    strokeWidth: 0,
+    blend: Blend.Normal,
+  };
+}
+
+function channel(v: number): number {
+  return Math.round(Math.min(Math.max(v, 0), 1) * 255);
+}
+
+function toHex(c: readonly [number, number, number, number]): string {
+  const hex = (v: number): string => channel(v).toString(16).padStart(2, '0');
+  return `#${hex(c[0])}${hex(c[1])}${hex(c[2])}`;
+}
+
+/** SVG is XML, so anything interpolated into it has to be escaped. */
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export class SvgRenderer {
+  #width: number;
+  #height: number;
+  #precision: number;
+  #pretty: boolean;
+
+  #elements: string[] = [];
+  #style: Style = defaultStyle();
+  #styleStack: Style[] = [];
+  #xform: Affine = identityAffine();
+  #xformStack: Affine[] = [];
+  #visitor: CommandVisitor;
+
+  constructor(width: number, height: number, options: SvgOptions = {}) {
+    this.#width = width;
+    this.#height = height;
+    this.#precision = options.precision ?? DEFAULT_PRECISION;
+    this.#pretty = options.pretty ?? true;
+    this.#visitor = this.#makeVisitor();
+  }
+
+  /** The document produced by the last render. */
+  get svg(): string {
+    const separator = this.#pretty ? '\n  ' : '';
+    const tail = this.#pretty ? '\n' : '';
+    return [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${this.#width}" height="${this.#height}" viewBox="0 0 ${this.#width} ${this.#height}">`,
+      ...this.#elements,
+      `</svg>`,
+    ].join(separator === '' ? '' : separator).replace('</svg>', `${tail}</svg>`);
+  }
+
+  setViewport(width: number, height: number): void {
+    this.#width = width;
+    this.#height = height;
+  }
+
+  dispose(): void {
+    this.#elements.length = 0;
+  }
+
+  render(buffer: CommandBuffer): void {
+    this.#elements.length = 0;
+    this.#style = defaultStyle();
+    this.#styleStack.length = 0;
+    this.#xform = identityAffine();
+    this.#xformStack.length = 0;
+
+    decode(buffer, this.#visitor);
+  }
+
+  #n(value: number): string {
+    // Trim trailing zeros: 10.000 is noise in a vector file.
+    return Number.parseFloat(value.toFixed(this.#precision)).toString();
+  }
+
+  /** Baked transform, omitted entirely when it is the identity. */
+  #transformAttr(): string {
+    const m = this.#xform;
+    if (m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.tx === 0 && m.ty === 0) {
+      return '';
+    }
+    return ` transform="matrix(${this.#n(m.a)} ${this.#n(m.b)} ${this.#n(m.c)} ${this.#n(m.d)} ${this.#n(m.tx)} ${this.#n(m.ty)})"`;
+  }
+
+  #paintAttrs(strokeOnly = false): string {
+    const s = this.#style;
+    const parts: string[] = [];
+
+    if (strokeOnly || s.fill[3] <= 0) parts.push('fill="none"');
+    else {
+      parts.push(`fill="${toHex(s.fill)}"`);
+      if (s.fill[3] < 1) parts.push(`fill-opacity="${this.#n(s.fill[3])}"`);
+    }
+
+    if (s.strokeWidth > 0 && s.stroke[3] > 0) {
+      parts.push(`stroke="${toHex(s.stroke)}"`);
+      parts.push(`stroke-width="${this.#n(s.strokeWidth)}"`);
+      if (s.stroke[3] < 1) parts.push(`stroke-opacity="${this.#n(s.stroke[3])}"`);
+    }
+
+    // Additive blending has a direct CSS equivalent; normal is the default.
+    if (s.blend === Blend.Add) parts.push('style="mix-blend-mode:plus-lighter"');
+
+    return parts.length === 0 ? '' : ` ${parts.join(' ')}`;
+  }
+
+  #makeVisitor(): CommandVisitor {
+    return {
+      setFill: (r, g, b, a): void => {
+        this.#style = { ...this.#style, fill: [r, g, b, a] };
+      },
+      setStroke: (r, g, b, a): void => {
+        this.#style = { ...this.#style, stroke: [r, g, b, a] };
+      },
+      setStrokeWidth: (width): void => {
+        this.#style = { ...this.#style, strokeWidth: width };
+      },
+      setBlend: (mode): void => {
+        this.#style = { ...this.#style, blend: mode };
+      },
+
+      push: (): void => {
+        this.#styleStack.push(this.#style);
+        const saved = identityAffine();
+        copyAffine(saved, this.#xform);
+        this.#xformStack.push(saved);
+      },
+      pop: (): void => {
+        const style = this.#styleStack.pop();
+        if (style !== undefined) this.#style = style;
+        const xform = this.#xformStack.pop();
+        if (xform !== undefined) this.#xform = xform;
+      },
+
+      translate: (x, y): void => translateAffine(this.#xform, x, y),
+      rotate: (radians): void => rotateAffine(this.#xform, radians),
+      scale: (x, y): void => scaleAffine(this.#xform, x, y),
+
+      background: (r, g, b, a): void => {
+        if (a >= 1) {
+          // Opaque: everything before it is hidden, so drop it.
+          this.#elements.length = 0;
+        }
+        this.#elements.push(
+          `<rect x="0" y="0" width="${this.#width}" height="${this.#height}" fill="${toHex([r, g, b, a])}"${a < 1 ? ` fill-opacity="${this.#n(a)}"` : ''}/>`,
+        );
+      },
+
+      circle: (x, y, radius): void => {
+        this.#elements.push(
+          `<circle cx="${this.#n(x)}" cy="${this.#n(y)}" r="${this.#n(radius)}"${this.#paintAttrs()}${this.#transformAttr()}/>`,
+        );
+      },
+
+      ellipse: (x, y, rx, ry): void => {
+        this.#elements.push(
+          `<ellipse cx="${this.#n(x)}" cy="${this.#n(y)}" rx="${this.#n(rx)}" ry="${this.#n(ry)}"${this.#paintAttrs()}${this.#transformAttr()}/>`,
+        );
+      },
+
+      rect: (x, y, width, height): void => {
+        this.#elements.push(
+          `<rect x="${this.#n(x)}" y="${this.#n(y)}" width="${this.#n(width)}" height="${this.#n(height)}"${this.#paintAttrs()}${this.#transformAttr()}/>`,
+        );
+      },
+
+      line: (x1, y1, x2, y2): void => {
+        const s = this.#style;
+        if (s.strokeWidth <= 0 || s.stroke[3] <= 0) return;
+        this.#elements.push(
+          `<line x1="${this.#n(x1)}" y1="${this.#n(y1)}" x2="${this.#n(x2)}" y2="${this.#n(y2)}"${this.#paintAttrs(true)}${this.#transformAttr()}/>`,
+        );
+      },
+    };
+  }
+}
+
+/** One-shot convenience: buffer in, SVG document out. */
+export function toSvg(
+  buffer: CommandBuffer,
+  width: number,
+  height: number,
+  options: SvgOptions = {},
+): string {
+  const renderer = new SvgRenderer(width, height, options);
+  renderer.render(buffer);
+  return renderer.svg;
+}
+
+export { escapeXml };
