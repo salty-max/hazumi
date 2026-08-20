@@ -47,11 +47,21 @@ new width pinned by a test? A mismatch between an encoder method and `OP_SIZE`
 desyncs the whole stream and no type checks it.
 
 **Test honesty** — do the tests exercise the failure, or only the happy path? An
-exported error type with no test asserting it throws is not covered.
+exported error type with no test asserting it throws is not covered. Grep for
+the module name to find what is untested, then confirm a test actually imports
+it — matching the word is not the same as covering the file.
+
+**Unbounded growth** — does anything cache, append, or retain per frame? A Map
+keyed by a value the sketch computes will grow for as long as the sketch runs.
+Ask what happens after an hour, not after one frame.
 
 **Measurement honesty** — if the commit quotes numbers, do the benchmarks
 actually measure the same workload they claim, and does the message describe
 everything in the diff rather than just the interesting part?
+
+**Staging** — `git status` before every commit, and `git show --stat` after. A
+commit rejected by commitlint leaves its files staged, so the next `git add`
+sweeps them into an unrelated commit.
 
 Fix what the review finds before committing, not after.
 
