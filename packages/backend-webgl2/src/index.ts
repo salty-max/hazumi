@@ -1,14 +1,17 @@
 /**
  * L4 — the primary renderer.
  *
- * P1 scope: instanced SDF circles through a single draw call, with GPU
- * resources owned by descriptors so context loss is recoverable. Batching by
- * pipeline key, stroke expansion, fill tessellation, and the framebuffer chain
- * arrive in P3.
+ * Instanced SDF primitives batched by pipeline, with GPU resources owned by
+ * descriptors so context loss is recoverable. Text (MSDF) and the framebuffer
+ * chain arrive in later phases.
  */
 
 export { Webgl2Renderer } from './renderer';
 export type { Webgl2Options, FrameStats } from './renderer';
+export { BatchList } from './batch';
+export type { Batch } from './batch';
+export { GlStateCache } from './state';
+export type { BlendCapableGl } from './state';
 export {
   ResourceRegistry,
   ShaderCompileError,
@@ -21,4 +24,4 @@ export type {
   BufferDescriptor,
   ProgramDescriptor,
 } from './resource';
-export { CIRCLE_VERTEX_SHADER, CIRCLE_FRAGMENT_SHADER } from './shaders';
+export { SDF_VERTEX_SHADER, SDF_FRAGMENT_SHADER } from './shaders';

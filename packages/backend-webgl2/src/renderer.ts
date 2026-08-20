@@ -1,48 +1,84 @@
 import {
+  type Affine,
+  Blend,
   type CommandBuffer,
   type CommandVisitor,
+  copyAffine,
   decode,
+  identityAffine,
+  rotateAffine,
+  scaleAffine,
+  translateAffine,
 } from '@matter/graphics';
 import { mat4 } from '@matter/math';
-import { CIRCLE_FRAGMENT_SHADER, CIRCLE_VERTEX_SHADER } from './shaders';
+import { BatchList } from './batch';
+import { GlStateCache } from './state';
+import { SDF_FRAGMENT_SHADER, SDF_VERTEX_SHADER } from './shaders';
 import { type ResourceId, ResourceRegistry } from './resource';
 
-/** Floats per circle instance: x, y, r, then linear RGBA. */
-const INSTANCE_FLOATS = 7;
+/** a, b, c, d | tx, ty, hx, hy | r, g, b, alpha | edge, shape. */
+const INSTANCE_FLOATS = 14;
 const INSTANCE_BYTES = INSTANCE_FLOATS * 4;
+
+const SHAPE_CIRCLE = 0;
+const SHAPE_BOX = 1;
 
 const INITIAL_INSTANCES = 1024;
 
 export interface Webgl2Options {
-  /** Multisample count requested for the drawing buffer. */
   readonly samples?: number;
   /**
    * Reserved. Allocating a depth attachment is a config flag rather than a
-   * redesign — see "Shipping 2D, staying 3D-capable" in the architecture doc.
+   * redesign — see "Shipping 2D, staying 3D-capable" in AGENTS.md.
    */
   readonly depth?: boolean;
 }
 
 export interface FrameStats {
-  /** Draw calls issued for the last frame. One is the target. */
+  /** Draw calls issued for the last frame. */
   readonly drawCalls: number;
   /** Instances submitted in the last frame. */
   readonly instances: number;
   /** Times the instance array has grown. Constant in steady state. */
   readonly growths: number;
+  /** GL state changes issued. */
+  readonly stateChanges: number;
+  /** GL state changes elided by the state cache. */
+  readonly stateSkipped: number;
+}
+
+interface Style {
+  fillR: number; fillG: number; fillB: number; fillA: number;
+  strokeR: number; strokeG: number; strokeB: number; strokeA: number;
+  strokeWidth: number;
+  blend: Blend;
+}
+
+function defaultStyle(): Style {
+  return {
+    fillR: 0, fillG: 0, fillB: 0, fillA: 1,
+    strokeR: 0, strokeG: 0, strokeB: 0, strokeA: 1,
+    strokeWidth: 0,
+    blend: Blend.Normal,
+  };
 }
 
 /**
- * Minimal WebGL2 backend: instanced SDF circles, one draw call per frame.
+ * WebGL2 backend: instanced SDF primitives, batched by pipeline.
  *
- * The per-frame path allocates nothing once the instance array has settled.
- * Everything on the GPU side is owned by `ResourceRegistry`, so a context loss
- * is recoverable without a page reload.
+ * Per-frame work walks the command buffer once, resolving style and transform
+ * into a pre-sized instance array, then issues one draw call per batch. The
+ * walk allocates nothing once the array has settled.
+ *
+ * GPU objects are owned by ResourceRegistry as handles over descriptors, so a
+ * context loss is recoverable without a page reload.
  */
 export class Webgl2Renderer {
   #canvas: HTMLCanvasElement;
   #gl: WebGL2RenderingContext | null = null;
   #registry = new ResourceRegistry();
+  #state: GlStateCache | null = null;
+  #batches = new BatchList();
 
   #quadId: ResourceId;
   #instanceId: ResourceId;
@@ -60,11 +96,10 @@ export class Webgl2Renderer {
   #viewProj = new Float32Array(16);
   #contextLost = false;
 
-  // Current fill, resolved into each instance as the stream is walked.
-  #fr = 0;
-  #fg = 0;
-  #fb = 0;
-  #fa = 1;
+  #style: Style = defaultStyle();
+  #styleStack: Style[] = [];
+  #xform: Affine = identityAffine();
+  #xformStack: Affine[] = [];
 
   #visitor: CommandVisitor;
   #onLost: (event: Event) => void;
@@ -81,38 +116,26 @@ export class Webgl2Renderer {
       usage: WebGL2RenderingContext.STATIC_DRAW,
       byteLength: 8 * 4,
     });
-
     this.#instanceId = this.#registry.register({
       kind: 'buffer',
       target: WebGL2RenderingContext.ARRAY_BUFFER,
       usage: WebGL2RenderingContext.DYNAMIC_DRAW,
       byteLength: this.#instances.byteLength,
     });
-
     this.#programId = this.#registry.register({
       kind: 'program',
-      vertex: CIRCLE_VERTEX_SHADER,
-      fragment: CIRCLE_FRAGMENT_SHADER,
+      vertex: SDF_VERTEX_SHADER,
+      fragment: SDF_FRAGMENT_SHADER,
     });
 
-    // Bound once and reused, so walking the stream allocates no closures.
-    this.#visitor = {
-      setFill: (r: number, g: number, b: number, a: number): void => {
-        this.#fr = r;
-        this.#fg = g;
-        this.#fb = b;
-        this.#fa = a;
-      },
-      circle: (x: number, y: number, radius: number): void => {
-        this.#pushInstance(x, y, radius);
-      },
-    };
+    this.#visitor = this.#makeVisitor();
 
     this.#onLost = (event: Event): void => {
       // Without preventDefault the context is never restored.
       event.preventDefault();
       this.#contextLost = true;
       this.#registry.invalidate();
+      this.#state?.invalidate();
       this.#vao = null;
     };
 
@@ -141,6 +164,8 @@ export class Webgl2Renderer {
       drawCalls: this.#drawCalls,
       instances: this.#count,
       growths: this.#growths,
+      stateChanges: this.#state?.applied ?? 0,
+      stateSkipped: this.#state?.skipped ?? 0,
     };
   }
 
@@ -151,13 +176,10 @@ export class Webgl2Renderer {
 
   /**
    * Orthographic projection mapping (0,0)-(width,height) to clip space with the
-   * origin top-left, written in place so no matrix is allocated per frame.
+   * origin top-left.
    *
    * Defaulted to the canvas size at construction; call this again after
    * resizing the canvas.
-   *
-   * Column-major 4x4, matching what GL expects and what the 3D camera will
-   * produce later.
    */
   setViewport(width: number, height: number): void {
     mat4.ortho(this.#viewProj, 0, width, height, 0, -1, 1);
@@ -167,15 +189,18 @@ export class Webgl2Renderer {
     const gl = this.#gl;
     this.#drawCalls = 0;
     this.#count = 0;
+    this.#batches.reset();
+    this.#state?.resetCounters();
 
     if (gl === null || this.#contextLost) return;
 
-    this.#fr = 0;
-    this.#fg = 0;
-    this.#fb = 0;
-    this.#fa = 1;
+    this.#style = defaultStyle();
+    this.#styleStack.length = 0;
+    this.#xform = identityAffine();
+    this.#xformStack.length = 0;
 
     decode(buffer, this.#visitor);
+    const batches = this.#batches.finish();
 
     gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
     gl.clearColor(0, 0, 0, 0);
@@ -183,30 +208,26 @@ export class Webgl2Renderer {
 
     if (this.#count === 0) return;
 
-    gl.useProgram(this.#registry.program(this.#programId));
-    gl.bindVertexArray(this.#vao);
+    const state = this.#state as GlStateCache;
+    state.useProgram(this.#registry.program(this.#programId));
+    state.bindVertexArray(this.#vao as WebGLVertexArrayObject);
     gl.uniformMatrix4fv(this.#viewProjLocation, false, this.#viewProj);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
-    gl.bufferSubData(
-      gl.ARRAY_BUFFER,
-      0,
-      this.#instances,
-      0,
-      this.#count * INSTANCE_FLOATS,
-    );
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#instances, 0, this.#count * INSTANCE_FLOATS);
 
-    // Every circle shares one program, one blend state, and no texture, so the
-    // whole frame is a single batch.
-    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.#count);
-    this.#drawCalls = 1;
+    for (const batch of batches) {
+      state.setBlend(batch.blend);
+      // baseInstance is not available in WebGL2, so the offset is applied by
+      // re-pointing the instance attributes rather than passed to the draw.
+      this.#setInstanceOffset(gl, batch.start);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, batch.count);
+      this.#drawCalls++;
+    }
   }
 
   dispose(): void {
-    this.#canvas.removeEventListener(
-      'webglcontextlost',
-      this.#onLost as EventListener,
-    );
+    this.#canvas.removeEventListener('webglcontextlost', this.#onLost as EventListener);
     this.#canvas.removeEventListener('webglcontextrestored', this.#onRestored);
 
     const gl = this.#gl;
@@ -223,18 +244,138 @@ export class Webgl2Renderer {
     this.#gl = null;
   }
 
-  #pushInstance(x: number, y: number, radius: number): void {
+  // --- instance building ---
+
+  #makeVisitor(): CommandVisitor {
+    return {
+      setFill: (r: number, g: number, b: number, a: number): void => {
+        this.#style.fillR = r; this.#style.fillG = g;
+        this.#style.fillB = b; this.#style.fillA = a;
+      },
+      setStroke: (r: number, g: number, b: number, a: number): void => {
+        this.#style.strokeR = r; this.#style.strokeG = g;
+        this.#style.strokeB = b; this.#style.strokeA = a;
+      },
+      setStrokeWidth: (width: number): void => {
+        this.#style.strokeWidth = width;
+      },
+      setBlend: (mode: Blend): void => {
+        this.#style.blend = mode;
+      },
+
+      push: (): void => {
+        this.#styleStack.push({ ...this.#style });
+        const saved = identityAffine();
+        copyAffine(saved, this.#xform);
+        this.#xformStack.push(saved);
+      },
+      pop: (): void => {
+        const style = this.#styleStack.pop();
+        if (style !== undefined) this.#style = style;
+        const xform = this.#xformStack.pop();
+        if (xform !== undefined) this.#xform = xform;
+      },
+
+      translate: (x: number, y: number): void => translateAffine(this.#xform, x, y),
+      rotate: (radians: number): void => rotateAffine(this.#xform, radians),
+      scale: (x: number, y: number): void => scaleAffine(this.#xform, x, y),
+
+      circle: (x: number, y: number, radius: number): void => {
+        this.#emitShape(SHAPE_CIRCLE, x, y, radius, radius, 0);
+      },
+
+      rect: (x: number, y: number, width: number, height: number): void => {
+        // The unit box spans -1..1, so half-extents are the scale.
+        this.#emitShape(SHAPE_BOX, x + width / 2, y + height / 2, width / 2, height / 2, 0);
+      },
+
+      line: (x1: number, y1: number, x2: number, y2: number): void => {
+        const style = this.#style;
+        if (style.strokeWidth <= 0 || style.strokeA <= 0) return;
+
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+        if (len === 0) return;
+
+        // A line is a box: half-length along its own axis, half-width across.
+        // That is what gives butt caps, matching Canvas2D exactly.
+        this.#emitShape(
+          SHAPE_BOX,
+          (x1 + x2) / 2,
+          (y1 + y2) / 2,
+          len / 2,
+          style.strokeWidth / 2,
+          Math.atan2(dy, dx),
+          true,
+        );
+      },
+    };
+  }
+
+  /**
+   * Emit the fill instance, then the stroke instance.
+   *
+   * Two instances rather than one shader that draws both, so painter order
+   * between them is explicit and matches Canvas2D's fill-then-stroke.
+   */
+  #emitShape(
+    shape: number,
+    cx: number,
+    cy: number,
+    halfW: number,
+    halfH: number,
+    rotation: number,
+    strokeOnly = false,
+  ): void {
+    const style = this.#style;
+
+    // Rotation and translation only — the half-extents travel as attributes so
+    // local space stays isotropic. See the note in shaders.ts.
+    const m = identityAffine();
+    copyAffine(m, this.#xform);
+    translateAffine(m, cx, cy);
+    if (rotation !== 0) rotateAffine(m, rotation);
+
+    if (strokeOnly) {
+      this.#pushInstance(m, halfW, halfH, style.strokeR, style.strokeG, style.strokeB, style.strokeA, shape, 0);
+      return;
+    }
+
+    if (style.fillA > 0) {
+      this.#pushInstance(m, halfW, halfH, style.fillR, style.fillG, style.fillB, style.fillA, shape, 0);
+    }
+
+    if (style.strokeWidth > 0 && style.strokeA > 0) {
+      // Stroke width is in user units, the same space as the half-extents, so
+      // the current transform scales both together exactly as Canvas2D does.
+      this.#pushInstance(
+        m, halfW, halfH,
+        style.strokeR, style.strokeG, style.strokeB, style.strokeA,
+        shape,
+        style.strokeWidth / 2,
+      );
+    }
+  }
+
+  #pushInstance(
+    m: Affine,
+    halfW: number,
+    halfH: number,
+    r: number, g: number, b: number, a: number,
+    shape: number,
+    edge: number,
+  ): void {
     if (this.#count === this.#instanceCapacity) this.#growInstances();
 
     const i = this.#count * INSTANCE_FLOATS;
-    const a = this.#instances;
-    a[i] = x;
-    a[i + 1] = y;
-    a[i + 2] = radius;
-    a[i + 3] = this.#fr;
-    a[i + 4] = this.#fg;
-    a[i + 5] = this.#fb;
-    a[i + 6] = this.#fa;
+    const arr = this.#instances;
+    arr[i] = m.a; arr[i + 1] = m.b; arr[i + 2] = m.c; arr[i + 3] = m.d;
+    arr[i + 4] = m.tx; arr[i + 5] = m.ty; arr[i + 6] = halfW; arr[i + 7] = halfH;
+    arr[i + 8] = r; arr[i + 9] = g; arr[i + 10] = b; arr[i + 11] = a;
+    arr[i + 12] = edge; arr[i + 13] = shape;
+
+    this.#batches.push(this.#style.blend);
     this.#count++;
   }
 
@@ -252,6 +393,16 @@ export class Webgl2Renderer {
     }
   }
 
+  // --- GL setup ---
+
+  #setInstanceOffset(gl: WebGL2RenderingContext, instance: number): void {
+    const base = instance * INSTANCE_BYTES;
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, INSTANCE_BYTES, base);
+    gl.vertexAttribPointer(2, 4, gl.FLOAT, false, INSTANCE_BYTES, base + 16);
+    gl.vertexAttribPointer(3, 4, gl.FLOAT, false, INSTANCE_BYTES, base + 32);
+    gl.vertexAttribPointer(4, 2, gl.FLOAT, false, INSTANCE_BYTES, base + 48);
+  }
+
   #acquireContext(options: Webgl2Options): void {
     const gl = this.#canvas.getContext('webgl2', {
       alpha: true,
@@ -264,10 +415,8 @@ export class Webgl2Renderer {
 
     this.#gl = gl;
     this.#registry.realize(gl);
+    this.#state = new GlStateCache(gl);
     this.#buildVao(gl);
-
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
 
   #buildVao(gl: WebGL2RenderingContext): void {
@@ -278,7 +427,6 @@ export class Webgl2Renderer {
     if (vao === null) throw new Error('gl.createVertexArray() returned null');
     gl.bindVertexArray(vao);
 
-    // Unit quad, drawn as a triangle strip.
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#quadId));
     gl.bufferData(
       gl.ARRAY_BUFFER,
@@ -291,13 +439,11 @@ export class Webgl2Renderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
     gl.bufferData(gl.ARRAY_BUFFER, this.#instances.byteLength, gl.DYNAMIC_DRAW);
 
-    gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, INSTANCE_BYTES, 0);
-    gl.vertexAttribDivisor(1, 1);
-
-    gl.enableVertexAttribArray(2);
-    gl.vertexAttribPointer(2, 4, gl.FLOAT, false, INSTANCE_BYTES, 12);
-    gl.vertexAttribDivisor(2, 1);
+    for (const location of [1, 2, 3, 4]) {
+      gl.enableVertexAttribArray(location);
+      gl.vertexAttribDivisor(location, 1);
+    }
+    this.#setInstanceOffset(gl, 0);
 
     gl.bindVertexArray(null);
     this.#vao = vao;
