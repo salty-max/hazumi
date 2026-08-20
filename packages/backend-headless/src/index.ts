@@ -52,8 +52,14 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     scale: (x: number, y: number): void => {
       out.push({ op: 'scale', args: [x, y] });
     },
+    background: (r: number, g: number, b: number, a: number): void => {
+      out.push({ op: 'background', args: [r, g, b, a] });
+    },
     circle: (x: number, y: number, radius: number): void => {
       out.push({ op: 'circle', args: [x, y, radius] });
+    },
+    ellipse: (x: number, y: number, rx: number, ry: number): void => {
+      out.push({ op: 'ellipse', args: [x, y, rx, ry] });
     },
     rect: (x: number, y: number, w: number, h: number): void => {
       out.push({ op: 'rect', args: [x, y, w, h] });

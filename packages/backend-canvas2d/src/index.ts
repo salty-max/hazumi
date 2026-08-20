@@ -45,6 +45,7 @@ export class Canvas2dRenderer {
   #styleStack: Style[] = [];
   #visitor: CommandVisitor;
   #drawCalls = 0;
+  #viewport: { width: number; height: number };
 
   constructor(canvas: HTMLCanvasElement, options: Canvas2dOptions = {}) {
     const ctx = canvas.getContext('2d', { alpha: options.alpha ?? true });
@@ -53,6 +54,7 @@ export class Canvas2dRenderer {
     this.#canvas = canvas;
     this.#ctx = ctx;
     this.#style = Canvas2dRenderer.#defaultStyle();
+    this.#viewport = { width: canvas.width, height: canvas.height };
 
     // Butt caps so a line is exactly the rectangle the GPU path draws for it.
     ctx.lineCap = 'butt';
@@ -74,6 +76,25 @@ export class Canvas2dRenderer {
     return this.#drawCalls;
   }
 
+  /**
+   * Present for interface parity with the GPU backend. Canvas2D reads the
+   * canvas dimensions directly on every frame, so there is no projection to
+   * update — but a backend that silently ignored a resize would be a trap, so
+   * the dimensions are recorded and asserted against in tests.
+   */
+  setViewport(width: number, height: number): void {
+    this.#viewport = { width, height };
+  }
+
+  get viewport(): { width: number; height: number } {
+    return this.#viewport;
+  }
+
+  dispose(): void {
+    this.#ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.#ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
+  }
+
   render(buffer: CommandBuffer): void {
     const ctx = this.#ctx;
     this.#drawCalls = 0;
@@ -81,8 +102,9 @@ export class Canvas2dRenderer {
     this.#style = Canvas2dRenderer.#defaultStyle();
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
     ctx.globalCompositeOperation = 'source-over';
+    // Deliberately no clearRect: a sketch that never calls background()
+    // accumulates across frames, matching p5 and the GPU backend.
     ctx.save();
 
     decode(buffer, this.#visitor);
@@ -149,10 +171,30 @@ export class Canvas2dRenderer {
       rotate: (radians: number): void => void ctx.rotate(radians),
       scale: (x: number, y: number): void => void ctx.scale(x, y),
 
+      background: (r: number, g: number, b: number, a: number): void => {
+        // Painted under identity transform, ignoring whatever the sketch has
+        // pushed. Opaque replaces outright; translucent blends over the
+        // previous frame, which is the trail idiom.
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = a >= 1 ? 'copy' : 'source-over';
+        ctx.fillStyle = toCss([r, g, b, a]);
+        ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
+        ctx.restore();
+        this.#drawCalls++;
+      },
+
       circle: (x: number, y: number, radius: number): void => {
         this.#paint(() => {
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
+        });
+      },
+
+      ellipse: (x: number, y: number, rx: number, ry: number): void => {
+        this.#paint(() => {
+          ctx.beginPath();
+          ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
         });
       },
 
@@ -178,4 +220,11 @@ export class Canvas2dRenderer {
       },
     };
   }
+}
+
+import type { BackendFactory } from '@matter/graphics';
+
+/** Backend factory for `sketch({ backend: canvas2d() })`. */
+export function canvas2d(options: Canvas2dOptions = {}): BackendFactory {
+  return (canvas: HTMLCanvasElement) => new Canvas2dRenderer(canvas, options);
 }

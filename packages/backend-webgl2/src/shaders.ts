@@ -27,7 +27,7 @@ layout(location = 1) in vec4 a_xform;
 // tx, ty, then the shape's half-extents in user units.
 layout(location = 2) in vec4 a_offsetExtent;
 layout(location = 3) in vec4 a_color;
-// x = stroke half-width (0 = filled), y = shape (0 circle, 1 box)
+// x = stroke half-width (0 = filled), y = shape (0 circle, 1 box, 2 ellipse)
 layout(location = 4) in vec2 a_params;
 
 uniform mat4 u_viewProj;
@@ -79,9 +79,18 @@ float boxSdf(vec2 p, vec2 half_) {
 }
 
 void main() {
-  float d = v_shape < 0.5
-    ? length(v_local) - v_half.x
-    : boxSdf(v_local, v_half);
+  float d;
+  if (v_shape < 0.5) {
+    d = length(v_local) - v_half.x;
+  } else if (v_shape < 1.5) {
+    d = boxSdf(v_local, v_half);
+  } else {
+    // Approximate ellipse distance: the exact form needs a root solve, and
+    // scaling the normalised distance by the smaller semi-axis is accurate
+    // enough for a one-pixel antialiased edge at sane aspect ratios.
+    vec2 n = v_local / v_half;
+    d = (length(n) - 1.0) * min(v_half.x, v_half.y);
+  }
 
   // A stroke is the band around the boundary: |d| - halfWidth.
   if (v_edge > 0.0) d = abs(d) - v_edge;

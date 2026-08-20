@@ -25,3 +25,11 @@ export type {
   ProgramDescriptor,
 } from './resource';
 export { SDF_VERTEX_SHADER, SDF_FRAGMENT_SHADER } from './shaders';
+
+import type { BackendFactory } from '@matter/graphics';
+import { Webgl2Renderer, type Webgl2Options } from './renderer';
+
+/** Backend factory for `sketch({ backend: webgl2() })`. */
+export function webgl2(options: Webgl2Options = {}): BackendFactory {
+  return (canvas: HTMLCanvasElement) => new Webgl2Renderer(canvas, options);
+}

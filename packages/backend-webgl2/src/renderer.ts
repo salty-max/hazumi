@@ -22,6 +22,7 @@ const INSTANCE_BYTES = INSTANCE_FLOATS * 4;
 
 const SHAPE_CIRCLE = 0;
 const SHAPE_BOX = 1;
+const SHAPE_ELLIPSE = 2;
 
 const INITIAL_INSTANCES = 1024;
 
@@ -95,6 +96,10 @@ export class Webgl2Renderer {
 
   #viewProj = new Float32Array(16);
   #contextLost = false;
+  // null means "do not clear this frame", which is what makes trails work.
+  #clearRequested: readonly [number, number, number, number] | null = null;
+  #viewWidth = 0;
+  #viewHeight = 0;
 
   #style: Style = defaultStyle();
   #styleStack: Style[] = [];
@@ -182,6 +187,8 @@ export class Webgl2Renderer {
    * resizing the canvas.
    */
   setViewport(width: number, height: number): void {
+    this.#viewWidth = width;
+    this.#viewHeight = height;
     mat4.ortho(this.#viewProj, 0, width, height, 0, -1, 1);
   }
 
@@ -198,13 +205,24 @@ export class Webgl2Renderer {
     this.#styleStack.length = 0;
     this.#xform = identityAffine();
     this.#xformStack.length = 0;
+    this.#clearRequested = null;
 
     decode(buffer, this.#visitor);
     const batches = this.#batches.finish();
 
     gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    // Only clear when an opaque background asked for it. A sketch that never
+    // calls background() accumulates across frames, as it does in p5.
+    //
+    // Read through a local: the field is set from inside the decode callback,
+    // which the checker cannot see, so it would otherwise stay narrowed to the
+    // null it was initialised to above.
+    const clear: readonly [number, number, number, number] | null = this.#clearRequested;
+    if (clear !== null) {
+      // Premultiplied, matching the drawing buffer's storage.
+      gl.clearColor(clear[0] * clear[3], clear[1] * clear[3], clear[2] * clear[3], clear[3]);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
 
     if (this.#count === 0) return;
 
@@ -280,8 +298,39 @@ export class Webgl2Renderer {
       rotate: (radians: number): void => rotateAffine(this.#xform, radians),
       scale: (x: number, y: number): void => scaleAffine(this.#xform, x, y),
 
+      background: (r: number, g: number, b: number, a: number): void => {
+        if (a >= 1) {
+          // Opaque: everything queued is about to be hidden, so discarding it
+          // and clearing is both correct and far cheaper than overpainting.
+          this.#count = 0;
+          this.#batches.reset();
+          this.#clearRequested = [r, g, b, a];
+          return;
+        }
+
+        // Translucent: this is the trail idiom, and it has to actually blend
+        // over the previous frame, so it becomes a full-viewport rectangle
+        // under identity transform rather than a clear.
+        const half = identityAffine();
+        half.tx = this.#viewWidth / 2;
+        half.ty = this.#viewHeight / 2;
+        this.#pushInstanceWithBlend(
+          half,
+          this.#viewWidth / 2,
+          this.#viewHeight / 2,
+          r, g, b, a,
+          SHAPE_BOX,
+          0,
+          Blend.Normal,
+        );
+      },
+
       circle: (x: number, y: number, radius: number): void => {
         this.#emitShape(SHAPE_CIRCLE, x, y, radius, radius, 0);
+      },
+
+      ellipse: (x: number, y: number, rx: number, ry: number): void => {
+        this.#emitShape(SHAPE_ELLIPSE, x, y, rx, ry, 0);
       },
 
       rect: (x: number, y: number, width: number, height: number): void => {
@@ -366,6 +415,18 @@ export class Webgl2Renderer {
     shape: number,
     edge: number,
   ): void {
+    this.#pushInstanceWithBlend(m, halfW, halfH, r, g, b, a, shape, edge, this.#style.blend);
+  }
+
+  #pushInstanceWithBlend(
+    m: Affine,
+    halfW: number,
+    halfH: number,
+    r: number, g: number, b: number, a: number,
+    shape: number,
+    edge: number,
+    blend: Blend,
+  ): void {
     if (this.#count === this.#instanceCapacity) this.#growInstances();
 
     const i = this.#count * INSTANCE_FLOATS;
@@ -375,7 +436,7 @@ export class Webgl2Renderer {
     arr[i + 8] = r; arr[i + 9] = g; arr[i + 10] = b; arr[i + 11] = a;
     arr[i + 12] = edge; arr[i + 13] = shape;
 
-    this.#batches.push(this.#style.blend);
+    this.#batches.push(blend);
     this.#count++;
   }
 
@@ -409,6 +470,10 @@ export class Webgl2Renderer {
       antialias: (options.samples ?? 0) > 0,
       depth: options.depth ?? false,
       premultipliedAlpha: true,
+      // Required for the trail idiom: without it the driver is free to discard
+      // the colour buffer between frames and a translucent background has
+      // nothing to blend over.
+      preserveDrawingBuffer: true,
     });
 
     if (gl === null) throw new Error('WebGL2 is not available on this canvas');
