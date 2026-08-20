@@ -4,9 +4,9 @@ A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
 retained command buffer, with WebGL2 as the default renderer rather than the
 fallback.
 
-> **Status: pre-alpha.** Phases 1 and 2 are complete: the command buffer, an
-> instanced WebGL2 circle path, and the core/math/colour layers. The public
-> `sketch()` API arrives in phase 4.
+> **Status: pre-alpha.** Phases 1–3 are complete: the command buffer, a batched
+> WebGL2 renderer verified against a Canvas2D reference, and the
+> core/math/colour layers. The public `sketch()` API arrives in phase 4.
 
 ## Why
 
@@ -51,7 +51,7 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 | --- | --- | --- |
 | P1 ✅ | Command buffer + minimal instanced WebGL2 path | **Met** — see measurements below |
 | P2 ✅ | core, math, color | **Met** — 253 tests; plugin types verified at compile time |
-| P3 | Renderer subsystems + Canvas2D oracle | WebGL2 and Canvas2D agree on every primitive |
+| P3 ✅ | Renderer subsystems + Canvas2D oracle | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255 |
 | P4 | First vertical slice, `0.1.0` | A real p5 sketch ports without an escape hatch |
 | P5 | MSDF text, then SVG backend | Every example renders to WebGL2 and exports valid SVG |
 | P6 | Docs + playground | A stranger reaches a running sketch without reading source |
@@ -75,11 +75,46 @@ complete with a 1×1 `readPixels`:
 
 | Metric | Result |
 | --- | --- |
-| Frame time (median) | 7.50 ms (45% of the 16.67 ms budget) |
-| Frame time (p95) | 7.80 ms |
+| Frame time (median) | 10.00 ms (60% of the 16.67 ms budget) |
+| Frame time (p95) | 11.50 ms |
 | Draw calls per frame | 1 |
 | Instance-array growths in steady state | 0 |
 | Forced context loss | Recovered without reload, 1 draw call after restore |
+
+P3 grew instances from 7 floats to 14 to carry transform, extents and stroke,
+moving the median from 7.50 ms to 10.00 ms. Packing colour into a `u32` would
+recover roughly a fifth of that upload bandwidth and is the obvious next step.
+
+## Backend agreement
+
+Canvas2D is the reference renderer. Ten scenes render through both backends and
+are compared pixel by pixel — mean per-channel difference over the frame, out
+of 255:
+
+| Scene | Mean diff | Draw calls |
+| --- | --- | --- |
+| filled circles | 0.40 | 1 |
+| filled rects | 0.68 | 1 |
+| non-square rect strokes | 1.75 | 1 |
+| circle strokes | 0.93 | 1 |
+| lines | 1.81 | 1 |
+| overlapping transparency | 0.36 | 1 |
+| interleaved blend modes | 0.59 | 10 |
+| transform stack | 0.61 | 1 |
+| uniform scale with stroke | 0.62 | 1 |
+| push/pop restores style | 0.47 | 1 |
+
+Two independent rasterisers never match bit-for-bit on antialiased edges, so
+the bar is "no visible difference", not "identical". The interleaved-blend
+scene takes ten draw calls by design: merging non-adjacent instances would
+reorder overlapping transparent shapes.
+
+Run it with `bun run bench/serve.ts` and open
+http://localhost:5199/compare.html.
+
+**Known divergence:** stroke width under anisotropic scale. Both backends
+scale stroke with the transform, but they distribute it differently; the
+comparison scenes use uniform scale only.
 
 Reproduce with:
 

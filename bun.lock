@@ -9,6 +9,7 @@
         "@commitlint/cli": "^21.2.2",
         "@commitlint/config-conventional": "^21.2.2",
         "@commitlint/types": "^21.2.0",
+        "@matter/backend-canvas2d": "workspace:*",
         "@matter/backend-headless": "workspace:*",
         "@matter/backend-webgl2": "workspace:*",
         "@matter/graphics": "workspace:*",
