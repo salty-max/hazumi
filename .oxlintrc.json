@@ -13,5 +13,13 @@
     "no-console": "warn",
     "eqeqeq": "error"
   },
-  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/.turbo/**"]
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/.turbo/**"],
+  "overrides": [
+    {
+      "files": ["bench/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }
