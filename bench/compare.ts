@@ -72,7 +72,7 @@ async function rasterizeSvg(svg: string): Promise<Uint8ClampedArray> {
     });
 
     const canvas = makeCanvas();
-    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
     ctx.drawImage(img, 0, 0, W, H);
     return ctx.getImageData(0, 0, W, H).data;
   } finally {
@@ -93,7 +93,9 @@ function readPixels(canvas: HTMLCanvasElement, webgl: boolean): Uint8ClampedArra
     }
     return flipped;
   }
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  // This harness reads back every frame; without the hint Chrome keeps the
+  // surface on the GPU and every read is a stall.
+  const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
   return ctx.getImageData(0, 0, W, H).data;
 }
 

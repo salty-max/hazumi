@@ -326,6 +326,13 @@ export class Webgl2Renderer {
       // destroy, not invalidate: the context is still alive here, so the GPU
       // objects have to be deleted explicitly or they leak.
       this.#registry.destroy(gl);
+
+      // Browsers cap concurrent WebGL contexts, and dropping the canvas only
+      // frees one when the collector gets round to it. Anything that creates
+      // sketches repeatedly — the playground's Run button — would hit that cap
+      // long before GC ran, so release it now.
+      this.#gl = null;
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
     } else {
       this.#registry.invalidate();
     }
@@ -333,6 +340,7 @@ export class Webgl2Renderer {
     this.#vao = null;
     this.#glyphVao = null;
     this.#gl = null;
+    this.#atlases.clear();
   }
 
   // --- instance building ---

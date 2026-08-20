@@ -29,7 +29,8 @@ const DEFAULT_CAPACITY = 2048;
  * sketches are overwhelmingly literals, so a plain Map hits almost always.
  *
  * It is bounded, because they are not *always* literals: a sketch that builds
- * a colour from a continuous value — `fill(\`oklch(0.7 0.2 ${t * 10})\`)`, an
+ * a colour from a continuous value — a template literal interpolating time,
+ * say — an
  * entirely ordinary thing to write — produces a fresh key every frame, and an
  * unbounded map would grow for as long as the sketch runs.
  *
