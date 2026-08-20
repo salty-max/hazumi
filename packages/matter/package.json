@@ -40,7 +40,7 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
     "@matter/core": "workspace:*",
@@ -51,5 +51,8 @@
     "@matter/backend-canvas2d": "workspace:*",
     "@matter/backend-svg": "workspace:*",
     "@matter/backend-headless": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
   }
 }

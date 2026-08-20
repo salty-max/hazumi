@@ -16,12 +16,15 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
     "@matter/core": "workspace:*",
     "@matter/math": "workspace:*",
     "@matter/color": "workspace:*",
     "@matter/graphics": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
   }
 }
