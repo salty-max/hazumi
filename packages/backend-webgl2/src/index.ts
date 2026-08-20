@@ -1,19 +1,24 @@
 /**
- * L4 — the primary renderer. This is where the real engineering lives.
+ * L4 — the primary renderer.
  *
- * Subsystems (see §05 of the architecture doc):
- *   resource/  handles over descriptors, so context loss is recoverable
- *   shaders/   GLSL ES 3.00 + generated typed accessors
- *   batch/     pipeline keys, instancing, draw-order rules
- *   text/      MSDF atlas with a Canvas2D fallback
+ * P1 scope: instanced SDF circles through a single draw call, with GPU
+ * resources owned by descriptors so context loss is recoverable. Batching by
+ * pipeline key, stroke expansion, fill tessellation, and the framebuffer chain
+ * arrive in P3.
  */
 
-export interface Webgl2Options {
-  /** Multisample count for the offscreen target. */
-  readonly samples?: number;
-  /** Reserved: allocating a depth attachment is a config flag, not a redesign. */
-  readonly depth?: boolean;
-}
-
-// TODO(P1): minimal instanced-SDF path — 100k shapes, one draw call, zero
-// steady-state allocation, plus forced context-loss recovery.
+export { Webgl2Renderer } from './renderer';
+export type { Webgl2Options, FrameStats } from './renderer';
+export {
+  ResourceRegistry,
+  ShaderCompileError,
+  ProgramLinkError,
+} from './resource';
+export type {
+  GlLike,
+  ResourceId,
+  ResourceDescriptor,
+  BufferDescriptor,
+  ProgramDescriptor,
+} from './resource';
+export { CIRCLE_VERTEX_SHADER, CIRCLE_FRAGMENT_SHADER } from './shaders';
