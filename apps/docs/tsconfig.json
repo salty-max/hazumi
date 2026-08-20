@@ -1,4 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*"]
+  "compilerOptions": {
+    // The isolated linker keeps root @types out of each package's resolution
+    // scope, so bun's types must be requested explicitly.
+    "types": ["bun"]
+  },
+  "include": ["src/**/*", "test/**/*"]
 }
