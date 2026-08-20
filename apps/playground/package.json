@@ -4,6 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "bun build src/main.ts --outfile dist/playground.js --target browser && cp src/playground.css dist/playground.css",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.9",
+    "@matter/backend-svg": "workspace:*",
+    "@matter/backend-webgl2": "workspace:*",
+    "@matter/graphics": "workspace:*",
+    "codemirror": "^6.0.2",
+    "matter": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0"
   }
 }
