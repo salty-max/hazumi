@@ -35,6 +35,14 @@ export interface TextureDescriptor {
 export interface ImageTextureDescriptor {
   readonly kind: 'image-texture';
   readonly source: TexImageSource;
+  /**
+   * Whether to filter between texels.
+   *
+   * Off means nearest-neighbour, which is what pixel art needs — linear
+   * filtering blurs a 32x32 sprite into mush the moment it is drawn larger
+   * than its source.
+   */
+  readonly smoothing: boolean;
 }
 
 export type ResourceDescriptor =
@@ -88,6 +96,7 @@ export interface GlLike {
   readonly TEXTURE_WRAP_S: number;
   readonly TEXTURE_WRAP_T: number;
   readonly LINEAR: number;
+  readonly NEAREST: number;
   readonly CLAMP_TO_EDGE: number;
   readonly UNPACK_ALIGNMENT: number;
   readonly RGBA: number;
@@ -264,8 +273,9 @@ function createImageTexture(gl: GlLike, desc: ImageTextureDescriptor): WebGLText
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, desc.source);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  const filter = desc.smoothing ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   return texture;

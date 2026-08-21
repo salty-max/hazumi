@@ -63,6 +63,13 @@ const INITIAL_PATH_VERTICES = 4096;
 export interface Webgl2Options {
   readonly samples?: number;
   /**
+   * Filter images between texels. Defaults to true.
+   *
+   * Set false for pixel art: linear filtering blurs a 32x32 sprite the moment
+   * it is drawn larger than its source, which is most of the time in a game.
+   */
+  readonly smoothing?: boolean;
+  /**
    * Reserved. Allocating a depth attachment is a config flag rather than a
    * redesign — see "Shipping 2D, staying 3D-capable" in AGENTS.md.
    */
@@ -168,6 +175,7 @@ export class Webgl2Renderer {
   // Keyed by the source object, so the same image uploads once no matter how
   // many times a sketch draws it. Weak, so unloading an image frees the entry.
   #imageTextures = new WeakMap<ImageSource, ResourceId>();
+  #smoothing: boolean;
 
   #pathProgramId: ResourceId;
   #pathBufferId: ResourceId;
@@ -200,6 +208,7 @@ export class Webgl2Renderer {
 
   constructor(canvas: HTMLCanvasElement, options: Webgl2Options = {}) {
     this.#canvas = canvas;
+    this.#smoothing = options.smoothing ?? true;
     this.#instanceCapacity = INITIAL_INSTANCES;
     this.#instances = new Float32Array(INITIAL_INSTANCES * INSTANCE_FLOATS);
 
@@ -893,7 +902,11 @@ export class Webgl2Renderer {
     const existing = this.#imageTextures.get(source);
     if (existing !== undefined) return existing;
 
-    const id = this.#registry.add(gl, { kind: 'image-texture', source });
+    const id = this.#registry.add(gl, {
+      kind: 'image-texture',
+      source,
+      smoothing: this.#smoothing,
+    });
     this.#imageTextures.set(source, id);
     return id;
   }

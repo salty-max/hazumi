@@ -15,15 +15,18 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
   created: { buffers: number; programs: number; shaders: number; textures: number };
   deleted: { buffers: number; programs: number; shaders: number; textures: number };
   unpackAlignment: number;
+  filters: number[];
 } {
   let nextId = 1;
   const created = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
   const deleted = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
+  const filters: number[] = [];
   const state = { unpackAlignment: 4 };
 
   return {
     created,
     deleted,
+    filters,
     get unpackAlignment() {
       return state.unpackAlignment;
     },
@@ -40,6 +43,7 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     TEXTURE_WRAP_S: 10242,
     TEXTURE_WRAP_T: 10243,
     LINEAR: 9729,
+    NEAREST: 9728,
     CLAMP_TO_EDGE: 33071,
     UNPACK_ALIGNMENT: 3317,
     RGBA: 6408,
@@ -50,7 +54,9 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     },
     bindTexture: () => {},
     texImage2D: () => {},
-    texParameteri: () => {},
+    texParameteri: (_t: number, pname: number, param: number) => {
+      if (pname === 10241 || pname === 10240) filters.push(param);
+    },
     pixelStorei: (_pname: number, param: number) => {
       state.unpackAlignment = param;
     },
@@ -271,5 +277,46 @@ describe('ResourceRegistry', () => {
 
     expect(gl.created.shaders).toBe(2);
     expect(gl.deleted.shaders).toBe(2);
+  });
+});
+
+/**
+ * Pixel art is the reason this exists: linear filtering turns a 32x32 sprite
+ * to mush the moment it is drawn larger than its source, which in a game is
+ * most of the time.
+ */
+describe('image texture filtering', () => {
+  test('smoothing on uses linear', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({
+      kind: 'image-texture',
+      source: {} as never,
+      smoothing: true,
+    });
+    registry.realize(gl);
+    expect(gl.filters).toEqual([9729, 9729]);
+  });
+
+  test('smoothing off uses nearest', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({
+      kind: 'image-texture',
+      source: {} as never,
+      smoothing: false,
+    });
+    registry.realize(gl);
+    expect(gl.filters).toEqual([9728, 9728]);
+  });
+
+  test('the SDF atlas stays linear either way', () => {
+    // A distance field is interpolated by design; nearest would make text
+    // blocky at exactly the sizes SDF exists to handle.
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({ kind: 'texture', width: 4, height: 4, data: new Uint8Array(16) });
+    registry.realize(gl);
+    expect(gl.filters).toEqual([9729, 9729]);
   });
 });
