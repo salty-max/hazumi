@@ -20,6 +20,7 @@ export type {
   SketchHandle,
   SetupFunction,
   DrawFunction,
+  ShaderPass,
 } from './sketch';
 export type { SketchContext, StyleOverrides } from './context';
 export { ColorCache } from './color-cache';

@@ -33,6 +33,7 @@ function makeContext(): {
     colors: new ColorCache(),
     state,
     seed: 42,
+    setPasses: () => {},
   });
   return {
     ctx: context,
@@ -127,7 +128,9 @@ describe('style', () => {
     const colors = new ColorCache();
     const buffer = new CommandBuffer();
     const state: ContextState = makeState(1, 1);
-    const { context } = createContext({ buffer, colors, state, seed: 1 });
+    const { context } = createContext({
+      buffer, colors, state, seed: 1, setPasses: () => {},
+    });
 
     // createContext already resolved the default fill, so measure the delta.
     const missesBefore = colors.misses;

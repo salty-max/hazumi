@@ -6,6 +6,7 @@ import { orbits } from './orbits';
 import { staticPoster } from './static-poster';
 import { typeSpecimen } from './type-specimen';
 import { imageGrid } from './image-grid';
+import { postBloom } from './post-bloom';
 
 const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => SketchHandle | void]> = [
   ['flow field', flowField],
@@ -15,6 +16,7 @@ const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => SketchHandle | v
   ['static poster', staticPoster],
   ['type specimen', typeSpecimen],
   ['image grid', imageGrid],
+  ['post bloom', postBloom],
 ];
 
 const root = document.getElementById('root') as HTMLElement;

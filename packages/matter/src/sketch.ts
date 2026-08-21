@@ -1,5 +1,5 @@
 import { SketchClock } from '@matter/core';
-import { type BackendFactory, CommandBuffer } from '@matter/graphics';
+import { type BackendFactory, CommandBuffer, type Renderer } from '@matter/graphics';
 import { ColorCache } from './color-cache';
 import {
   type ContextState,
@@ -45,11 +45,44 @@ export type SetupFunction = (
   context: SketchContext,
 ) => DrawFunction | void | Promise<DrawFunction | void>;
 
+/**
+ * A post-processing pass.
+ *
+ * `fragment` is only a `main()`. The runtime supplies `v_uv`, `fragColor`,
+ * `u_texture` (the previous pass, or the scene), `u_resolution`, `u_time` and
+ * a `texelSize()` helper, so the smallest useful effect is three lines.
+ */
+export interface ShaderPass {
+  readonly fragment: string;
+  readonly uniforms?: Readonly<Record<string, number | readonly number[]>>;
+}
+
+/** A renderer that can run a post-processing chain. */
+interface PostCapableRenderer extends Renderer {
+  setPasses: (passes: readonly ShaderPass[]) => void;
+  setTime: (seconds: number) => void;
+}
+
+function supportsPasses(renderer: Renderer): renderer is PostCapableRenderer {
+  return (
+    typeof (renderer as PostCapableRenderer).setPasses === 'function' &&
+    typeof (renderer as PostCapableRenderer).setTime === 'function'
+  );
+}
+
 export interface SketchHandle {
   readonly context: SketchContext;
   readonly canvas: HTMLCanvasElement;
   /** Resolves once setup has finished and the loop has started. */
   readonly ready: Promise<void>;
+  /**
+   * Replace the post-processing chain.
+   *
+   * Throws on a backend that cannot run passes — Canvas2D and SVG have no
+   * shader stage, and silently ignoring the request would leave a sketch
+   * looking wrong with nothing to explain why.
+   */
+  setPasses: (passes: readonly ShaderPass[]) => void;
   /** Draw exactly one frame. Useful when the loop is stopped. No-op after stop(). */
   redraw: () => void;
   /**
@@ -125,11 +158,22 @@ export function sketch(
     looping: true,
   };
 
+  const applyPasses = (passes: readonly ShaderPass[]): void => {
+    if (!supportsPasses(renderer)) {
+      throw new Error(
+        'This backend cannot run shader passes. Only the WebGL2 backend has a ' +
+          'shader stage; Canvas2D and SVG do not.',
+      );
+    }
+    renderer.setPasses(passes);
+  };
+
   const { context, beginFrame } = createContext({
     buffer,
     colors,
     state,
     seed: options.seed ?? 1,
+    setPasses: applyPasses,
   });
 
   const onMove = (event: MouseEvent): void => {
@@ -187,6 +231,7 @@ export function sketch(
 
     try {
       if (draw !== null) draw(context);
+      if (supportsPasses(renderer)) renderer.setTime(state.t);
       renderer.render(buffer);
     } catch (error) {
       // Stop before reporting: a throwing sketch throws every frame, and the
@@ -234,6 +279,7 @@ export function sketch(
     context,
     canvas,
     ready: started,
+    setPasses: applyPasses,
     get stopped(): boolean {
       return stopped;
     },

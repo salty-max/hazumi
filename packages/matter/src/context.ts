@@ -64,6 +64,16 @@ export interface SketchContext {
   strokeWeight: (weight: number) => void;
   blendMode: (mode: Blend) => void;
 
+  // --- post-processing ---
+  /**
+   * Set the post-processing chain. Passes run in order, each reading the
+   * previous one's output.
+   *
+   * Set it in setup: it is configuration, not per-frame drawing, and calling
+   * it every frame would recompile nothing but still churn.
+   */
+  setPasses: (passes: readonly ShaderPassLike[]) => void;
+
   // --- images ---
   /**
    * Decode an image.
@@ -142,6 +152,20 @@ export interface ContextDeps {
   readonly colors: ColorCache;
   readonly state: ContextState;
   readonly seed: number;
+  /** Injected by the runtime; the context does not know about renderers. */
+  readonly setPasses: (passes: readonly ShaderPassLike[]) => void;
+}
+
+/**
+ * A post-processing pass.
+ *
+ * `fragment` is only a `main()`. The runtime supplies `v_uv`, `fragColor`,
+ * `u_texture` (the previous pass, or the scene), `u_resolution`, `u_time` and
+ * a `texelSize()` helper, so the smallest useful effect is three lines.
+ */
+export interface ShaderPassLike {
+  readonly fragment: string;
+  readonly uniforms?: Readonly<Record<string, number | readonly number[]>>;
 }
 
 /**
@@ -229,6 +253,8 @@ export function createContext(deps: ContextDeps): ContextBundle {
       blend = mode;
       buffer.setBlend(mode);
     },
+
+    setPasses: deps.setPasses,
 
     loadImage: async (url: string): Promise<ImageSource> => {
       const response = await fetch(url);
