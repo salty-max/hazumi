@@ -169,6 +169,24 @@ entirely — the GPU path renders glyphs from a signed distance field while
 Canvas2D and SVG use native text, which cannot match pixel for pixel by
 construction.
 
+## Sprites
+
+`spritesheet()` slices an image into frames, and `image()` takes a frame
+wherever it takes an image:
+
+```ts
+const sheet = spritesheet(await loadImage('tiles.png'), { frame: [16, 16] });
+image(sheet.at(3, 1), x, y);
+```
+
+This is what makes 2D games viable. Batching merges only *adjacent* instances —
+which is what keeps transparency correct — so separate images never merge and
+sprites always interleave. Measured: 400 draws across 8 images cost **400 draw
+calls**; 400 sprites across 16 frames of one sheet cost **one**.
+
+Frames are precomputed and returned by reference, so a draw loop asking for the
+same frame every frame allocates nothing. Indices wrap, so `frame(t)` loops.
+
 ## Paths
 
 Shapes are built from bezier segments, and the buffer stores the control
@@ -252,6 +270,7 @@ bun run bench/serve.ts
 | `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
 | `/bench/gpu.html` | 100k-shape GPU benchmark |
 | `/bench/probe.html` | Stencil-through-a-render-pass regression check |
+| `/bench/sprites.html` | Sprite orientation and batching check |
 
 The reference is generated from the emitted `.d.ts` files rather than by
 TypeDoc, which runs on the TypeScript compiler API that TS 7.0 does not
