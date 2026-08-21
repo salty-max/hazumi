@@ -251,6 +251,7 @@ bun run bench/serve.ts
 | `/examples/gallery.html` | The six example sketches |
 | `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
 | `/bench/gpu.html` | 100k-shape GPU benchmark |
+| `/bench/probe.html` | Stencil-through-a-render-pass regression check |
 
 The reference is generated from the emitted `.d.ts` files rather than by
 TypeDoc, which runs on the TypeScript compiler API that TS 7.0 does not
