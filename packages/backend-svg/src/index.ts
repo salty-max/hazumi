@@ -98,6 +98,8 @@ export class SvgRenderer {
   #pretty: boolean;
 
   #elements: string[] = [];
+  /** Segments of the path under construction, as SVG `d` commands. */
+  #path: string[] = [];
   #style: Style = defaultStyle();
   #styleStack: Style[] = [];
   #xform: Affine = identityAffine();
@@ -138,6 +140,7 @@ export class SvgRenderer {
     this.#styleStack.length = 0;
     this.#xform = identityAffine();
     this.#xformStack.length = 0;
+    this.#path.length = 0;
 
     decode(buffer, this.#visitor);
   }
@@ -176,6 +179,24 @@ export class SvgRenderer {
     if (s.blend === Blend.Add) parts.push('style="mix-blend-mode:plus-lighter"');
 
     return parts.length === 0 ? '' : ` ${parts.join(' ')}`;
+  }
+
+  /**
+   * Emit the accumulated path.
+   *
+   * Fill and stroke are separate elements rather than one with both attributes,
+   * because a sketch may fill and stroke the same path with different styles
+   * set between the two calls.
+   */
+  #emitPath(strokeOnly: boolean): void {
+    if (this.#path.length === 0) return;
+    const s = this.#style;
+    if (strokeOnly && (s.strokeWidth <= 0 || s.stroke[3] <= 0)) return;
+    if (!strokeOnly && s.fill[3] <= 0) return;
+
+    this.#elements.push(
+      `<path d="${this.#path.join(' ')}"${this.#paintAttrs(strokeOnly)}${this.#transformAttr()}/>`,
+    );
   }
 
   #makeVisitor(): CommandVisitor {
@@ -256,6 +277,24 @@ export class SvgRenderer {
           `<text x="${this.#n(x)}" y="${this.#n(y)}" font-family="${escapeXml(s.fontFamily)}" font-size="${this.#n(s.textSize)}" text-anchor="${ALIGN_TO_SVG[s.align]}" dominant-baseline="${BASELINE_TO_SVG[s.baseline]}" fill="${toHex(s.fill)}"${s.fill[3] < 1 ? ` fill-opacity="${this.#n(s.fill[3])}"` : ''}${this.#transformAttr()}>${escapeXml(content)}</text>`,
         );
       },
+
+      // The whole reason this backend exists: curves arrive as curves and
+      // leave as curve commands. A polyline here would mean flattening had
+      // leaked into the encoder.
+      beginPath: (): void => {
+        this.#path.length = 0;
+      },
+      moveTo: (x, y): void => void this.#path.push(`M${this.#n(x)} ${this.#n(y)}`),
+      lineTo: (x, y): void => void this.#path.push(`L${this.#n(x)} ${this.#n(y)}`),
+      quadraticTo: (cx, cy, x, y): void =>
+        void this.#path.push(`Q${this.#n(cx)} ${this.#n(cy)} ${this.#n(x)} ${this.#n(y)}`),
+      cubicTo: (c1x, c1y, c2x, c2y, x, y): void =>
+        void this.#path.push(
+          `C${this.#n(c1x)} ${this.#n(c1y)} ${this.#n(c2x)} ${this.#n(c2y)} ${this.#n(x)} ${this.#n(y)}`,
+        ),
+      closePath: (): void => void this.#path.push('Z'),
+      fillPath: (): void => this.#emitPath(false),
+      strokePath: (): void => this.#emitPath(true),
 
       image: (source, x, y, width, height): void => {
         // Inlined as a data URI so the document stands alone — an export that

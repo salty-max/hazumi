@@ -81,6 +81,14 @@ describe('recorder coverage', () => {
       ['setTextAlign', () => buf.setTextAlign(1, 2)],
       ['setFont', () => buf.setFont('serif')],
       ['image', () => buf.image({ width: 1, height: 1 } as never, 1, 2, 3, 4)],
+      ['beginPath', () => buf.beginPath()],
+      ['moveTo', () => buf.moveTo(1, 2)],
+      ['lineTo', () => buf.lineTo(1, 2)],
+      ['quadraticTo', () => buf.quadraticTo(1, 2, 3, 4)],
+      ['cubicTo', () => buf.cubicTo(1, 2, 3, 4, 5, 6)],
+      ['closePath', () => buf.closePath()],
+      ['fillPath', () => buf.fillPath()],
+      ['strokePath', () => buf.strokePath()],
     ];
 
     for (const [name, emit] of emitters) {

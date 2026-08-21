@@ -264,6 +264,39 @@ export class Canvas2dRenderer {
         this.#drawCalls++;
       },
 
+      // Paths map straight onto the native API — curves stay curves, so this
+      // backend never sees a flattened polyline.
+      beginPath: (): void => ctx.beginPath(),
+      moveTo: (x: number, y: number): void => ctx.moveTo(x, y),
+      lineTo: (x: number, y: number): void => ctx.lineTo(x, y),
+      quadraticTo: (cx: number, cy: number, x: number, y: number): void =>
+        ctx.quadraticCurveTo(cx, cy, x, y),
+      cubicTo: (
+        c1x: number, c1y: number,
+        c2x: number, c2y: number,
+        x: number, y: number,
+      ): void => ctx.bezierCurveTo(c1x, c1y, c2x, c2y, x, y),
+      closePath: (): void => ctx.closePath(),
+      fillPath: (): void => {
+        const style = this.#style;
+        if (style.fill[3] <= 0) return;
+        this.#applyBlend();
+        ctx.fillStyle = toCss(style.fill);
+        // Nonzero, the CSS default, and what the GPU backend's stencil
+        // configuration reproduces.
+        ctx.fill('nonzero');
+        this.#drawCalls++;
+      },
+      strokePath: (): void => {
+        const style = this.#style;
+        if (style.strokeWidth <= 0 || style.stroke[3] <= 0) return;
+        this.#applyBlend();
+        ctx.strokeStyle = toCss(style.stroke);
+        ctx.lineWidth = style.strokeWidth;
+        ctx.stroke();
+        this.#drawCalls++;
+      },
+
       image: (source, x: number, y: number, width: number, height: number): void => {
         this.#applyBlend();
         ctx.drawImage(source, x, y, width, height);

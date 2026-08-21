@@ -81,6 +81,22 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     text: (x: number, y: number, content: string): void => {
       out.push({ op: 'text', args: [x, y], text: content });
     },
+    beginPath: (): void => void out.push({ op: 'beginPath', args: [] }),
+    moveTo: (x: number, y: number): void => void out.push({ op: 'moveTo', args: [x, y] }),
+    lineTo: (x: number, y: number): void => void out.push({ op: 'lineTo', args: [x, y] }),
+    quadraticTo: (cx: number, cy: number, x: number, y: number): void => {
+      out.push({ op: 'quadraticTo', args: [cx, cy, x, y] });
+    },
+    cubicTo: (
+      c1x: number, c1y: number,
+      c2x: number, c2y: number,
+      x: number, y: number,
+    ): void => {
+      out.push({ op: 'cubicTo', args: [c1x, c1y, c2x, c2y, x, y] });
+    },
+    closePath: (): void => void out.push({ op: 'closePath', args: [] }),
+    fillPath: (): void => void out.push({ op: 'fillPath', args: [] }),
+    strokePath: (): void => void out.push({ op: 'strokePath', args: [] }),
     image: (_source, x: number, y: number, w: number, h: number): void => {
       out.push({ op: 'image', args: [x, y, w, h] });
     },
