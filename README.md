@@ -4,9 +4,9 @@ A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
 retained command buffer, with WebGL2 as the default renderer rather than the
 fallback.
 
-> **Status: 0.1.0, pre-alpha.** The drawing API, SDF text, images, shader
-> passes and SVG export all work, with eight example sketches running on them.
-> Not published to npm — bezier paths and a WebGPU backend are still to come.
+> **Status: 0.1.0, pre-alpha.** The drawing API, bezier paths, SDF text,
+> images, shader passes and SVG export all work, with nine example sketches
+> running on them. Not published to npm — WebGPU is still to come.
 
 ## Why
 
@@ -168,6 +168,29 @@ comparison scenes use uniform scale only. And text is outside the comparison
 entirely — the GPU path renders glyphs from a signed distance field while
 Canvas2D and SVG use native text, which cannot match pixel for pixel by
 construction.
+
+## Paths
+
+Shapes are built from bezier segments, and the buffer stores the control
+points — never a flattened polyline:
+
+```ts
+beginShape();
+vertex(0, 0);
+bezierVertex(70, -40, 140, -60, 200, 0);
+bezierVertex(140, 60, 70, 40, 0, 0);
+endShape(true);
+```
+
+That is what lets SVG export a real `<path d="…">` with curve commands while
+the GPU flattens at whatever resolution it is actually drawing. Flattening is
+adaptive, derived from a bound on the curve's second derivative.
+
+Fills use the stencil buffer rather than a triangulator: each contour is drawn
+as a fan with separate front/back winding, leaving the winding number in the
+stencil, and a cover quad paints where it is non-zero. That is the nonzero rule
+Canvas2D uses, it handles self-intersection and holes, and it needs no
+dependency. The hole scene in the comparison comes out pixel-identical.
 
 ## Shaders
 

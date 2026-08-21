@@ -175,6 +175,59 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
+    name: 'filled bezier path',
+    // The abstraction test made visual: curves reach the GPU as control
+    // points and are flattened there, while SVG exports them as curves.
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      b.setFill(0.9, 0.5, 0.2, 1);
+      b.beginPath();
+      b.moveTo(60, 300);
+      b.cubicTo(60, 120, 180, 60, 240, 160);
+      b.cubicTo(300, 60, 360, 140, 340, 300);
+      b.closePath();
+      b.fillPath();
+    },
+  },
+  {
+    name: 'path with a hole',
+    // Two contours winding oppositely: the nonzero rule must leave the inner
+    // one empty, which is what the stencil pass reproduces.
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      b.setFill(0.3, 0.75, 0.95, 1);
+      b.beginPath();
+      b.moveTo(80, 80);
+      b.lineTo(320, 80);
+      b.lineTo(320, 320);
+      b.lineTo(80, 320);
+      b.closePath();
+      b.moveTo(160, 240);
+      b.lineTo(240, 240);
+      b.lineTo(240, 160);
+      b.lineTo(160, 160);
+      b.closePath();
+      b.fillPath();
+    },
+  },
+  {
+    name: 'stroked path',
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      b.setFill(0, 0, 0, 0);
+      b.setStroke(0.95, 0.85, 0.3, 1);
+      b.setStrokeWidth(9);
+      b.beginPath();
+      b.moveTo(50, 200);
+      b.quadraticTo(140, 40, 200, 200);
+      b.quadraticTo(260, 360, 350, 200);
+      b.strokePath();
+    },
+    // Joins differ in principle — the GPU expands round joins on the CPU while
+    // Canvas2D uses its miter default — but at these widths the seam is well
+    // inside the standard tolerance, so no override.
+  },
+  {
     name: 'push/pop restores style',
     draw: (b) => {
       b.background(0, 0, 0, 1);
