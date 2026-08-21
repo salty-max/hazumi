@@ -21,16 +21,25 @@ export type {
   SetupFunction,
   DrawFunction,
   ShaderPass,
+  FrameStats,
 } from './sketch';
 export type { SketchContext, StyleOverrides } from './context';
 export { ColorCache } from './color-cache';
-export { spritesheet, isSpriteFrame, UnknownFrameError } from './spritesheet';
+export {
+  spritesheet,
+  isSpriteFrame,
+  UnknownFrameError,
+  UnknownClipError,
+} from './spritesheet';
+export { createClip, ClipEnd, EmptyClipError } from './animation';
+export type { AnimationClip, ClipOptions } from './animation';
 export type {
   Spritesheet,
   SpriteFrame,
   SpritesheetOptions,
   GridOptions,
   NamedOptions,
+  ClipsOption,
 } from './spritesheet';
 export type { ColorLike, Rgba } from './color-cache';
 

@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { isSpriteFrame, spritesheet, UnknownFrameError } from '../src/spritesheet';
+import {
+  isSpriteFrame,
+  spritesheet,
+  UnknownClipError,
+  UnknownFrameError,
+} from '../src/spritesheet';
 
 /** Stand-in for an ImageBitmap; only the dimensions matter here. */
 const image = (width: number, height: number): never =>
@@ -120,5 +125,59 @@ describe('isSpriteFrame', () => {
     const sheet = spritesheet(image(32, 32), { frame: [16, 16] });
     expect(isSpriteFrame(sheet.at(0, 0))).toBe(true);
     expect(isSpriteFrame(image(32, 32))).toBe(false);
+  });
+});
+
+describe('animation clips', () => {
+  const sheet = spritesheet(image(64, 64), {
+    frame: [16, 16],
+    clips: {
+      idle: { frames: [0, 1], fps: 4 },
+      run: { frames: [4, 5, 6, 7], fps: 12 },
+    },
+  });
+
+  test('a sheet carries its animations', () => {
+    expect(sheet.clipNames().toSorted()).toEqual(['idle', 'run']);
+    expect(sheet.clip('run').fps).toBe(12);
+    expect(sheet.clip('run').frames).toHaveLength(4);
+  });
+
+  test('clip frames resolve to the sheet’s own frames', () => {
+    expect(sheet.clip('run').frames[0]).toBe(sheet.frame(4));
+    expect(sheet.clip('idle').at(0)).toBe(sheet.at(0, 0));
+  });
+
+  test('an unknown clip throws and lists what exists', () => {
+    expect(() => sheet.clip('fly')).toThrow(UnknownClipError);
+    try {
+      sheet.clip('fly');
+    } catch (error) {
+      expect((error as Error).message).toContain('run');
+      expect((error as UnknownClipError).clipName).toBe('fly');
+    }
+  });
+
+  test('a sheet without clips has none, and says so', () => {
+    const plain = spritesheet(image(32, 32), { frame: [16, 16] });
+    expect(plain.clipNames()).toEqual([]);
+    expect(() => plain.clip('run')).toThrow(/\(none\)/);
+  });
+
+  test('clips work on a named sheet too', () => {
+    const named = spritesheet(image(64, 64), {
+      frames: { a: [0, 0, 16, 16], b: [16, 0, 16, 16] },
+      clips: { blink: { frames: ['a', 'b'], fps: 2 } },
+    });
+    expect(named.clip('blink').frames[0]).toBe(named.named('a'));
+  });
+
+  test('a clip naming a missing frame fails at construction, not at draw time', () => {
+    expect(() =>
+      spritesheet(image(64, 64), {
+        frames: { a: [0, 0, 16, 16] },
+        clips: { bad: { frames: ['a', 'nope'] } },
+      }),
+    ).toThrow(UnknownFrameError);
   });
 });

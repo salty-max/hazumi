@@ -1,4 +1,9 @@
 import type { ImageSource } from '@matter/graphics';
+import {
+  type AnimationClip,
+  type ClipOptions,
+  createClip,
+} from './animation';
 
 /**
  * One sprite: a rectangle of source pixels within a sheet.
@@ -14,7 +19,12 @@ export interface SpriteFrame {
   readonly height: number;
 }
 
-export interface GridOptions {
+/** Named animations declared alongside the frames they use. */
+export interface ClipsOption {
+  readonly clips?: Readonly<Record<string, ClipOptions>>;
+}
+
+export interface GridOptions extends ClipsOption {
   /** Size of one cell, in pixels. */
   readonly frame: readonly [number, number];
   /** Gap between cells. Defaults to 0. */
@@ -23,12 +33,25 @@ export interface GridOptions {
   readonly margin?: number;
 }
 
-export interface NamedOptions {
+export interface NamedOptions extends ClipsOption {
   /** Explicit rectangles, as `[x, y, width, height]`. */
   readonly frames: Readonly<Record<string, readonly [number, number, number, number]>>;
 }
 
 export type SpritesheetOptions = GridOptions | NamedOptions;
+
+export class UnknownClipError extends Error {
+  readonly clipName: string;
+
+  constructor(name: string, available: readonly string[]) {
+    super(
+      `No animation named ${JSON.stringify(name)}. ` +
+        `Available: ${available.length === 0 ? '(none)' : available.join(', ')}`,
+    );
+    this.name = 'UnknownClipError';
+    this.clipName = name;
+  }
+}
 
 export class UnknownFrameError extends Error {
   readonly frameName: string;
@@ -64,6 +87,16 @@ export interface Spritesheet {
   named: (name: string) => SpriteFrame;
   /** Every frame, in order. */
   frames: () => readonly SpriteFrame[];
+  /**
+   * A named animation. Throws if the sheet declares no such clip.
+   *
+   * ```ts
+   * image(hero.clip('run').at(t), x, y);
+   * ```
+   */
+  clip: (name: string) => AnimationClip;
+  /** Names of the declared animations. */
+  clipNames: () => readonly string[];
 }
 
 function isNamed(options: SpritesheetOptions): options is NamedOptions {
@@ -134,11 +167,38 @@ export function spritesheet(
     height: source.height,
   };
 
+  const resolve = (ref: number | string): SpriteFrame => {
+    if (typeof ref === 'number') {
+      return all.length === 0 ? fallback : (all[wrap(ref, all.length)] as SpriteFrame);
+    }
+    const named = byName.get(ref);
+    if (named === undefined) throw new UnknownFrameError(ref, [...byName.keys()]);
+    return named;
+  };
+
+  // Clips resolve their frames once, here, so sampling is pure arithmetic.
+  const clips = new Map<string, AnimationClip>();
+  for (const [name, options_] of Object.entries(options.clips ?? {})) {
+    clips.set(
+      name,
+      createClip(name, options_.frames.map(resolve), {
+        ...(options_.fps === undefined ? {} : { fps: options_.fps }),
+        ...(options_.end === undefined ? {} : { end: options_.end }),
+      }),
+    );
+  }
+
   return {
     source,
     columns,
     rows,
     length: all.length,
+    clip: (name: string): AnimationClip => {
+      const found = clips.get(name);
+      if (found === undefined) throw new UnknownClipError(name, [...clips.keys()]);
+      return found;
+    },
+    clipNames: (): readonly string[] => [...clips.keys()],
     at: (column: number, row = 0): SpriteFrame => {
       if (all.length === 0) return fallback;
       return all[wrap(row, rows) * columns + wrap(column, columns)] ?? fallback;
