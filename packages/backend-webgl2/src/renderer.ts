@@ -670,7 +670,19 @@ export class Webgl2Renderer {
         this.#emitText(x, y, content);
       },
       image: (source, x: number, y: number, width: number, height: number): void => {
-        this.#emitImage(source, x, y, width, height);
+        this.#emitImage(source, x, y, width, height, 0, 0, 1, 1);
+      },
+      imageRegion: (source, dx, dy, dw, dh, sx, sy, sw, sh): void => {
+        const iw = source.width;
+        const ih = source.height;
+        if (iw <= 0 || ih <= 0) return;
+        // Textures are uploaded flipped, so the sprite's top edge is the
+        // larger v. Getting this backwards renders every sprite upside down.
+        this.#emitImage(
+          source, dx, dy, dw, dh,
+          sx / iw, 1 - sy / ih,
+          (sx + sw) / iw, 1 - (sy + sh) / ih,
+        );
       },
 
       beginPath: (): void => this.#builder.reset(),
@@ -877,6 +889,10 @@ export class Webgl2Renderer {
     y: number,
     width: number,
     height: number,
+    u0: number,
+    v0: number,
+    u1: number,
+    v1: number,
   ): void {
     const textureId = this.#textureFor(source);
     if (textureId === null) return;
@@ -887,7 +903,7 @@ export class Webgl2Renderer {
     scaleAffine(m, width / 2, height / 2);
 
     // Images reuse the glyph instance layout; the fill colour acts as a tint.
-    this.#pushTextured(m, 0, 0, 1, 1, textureId, Pipeline.Image);
+    this.#pushTextured(m, u0, v0, u1, v1, textureId, Pipeline.Image);
   }
 
   #pushGlyph(

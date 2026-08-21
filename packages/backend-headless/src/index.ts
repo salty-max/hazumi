@@ -100,6 +100,9 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     image: (_source, x: number, y: number, w: number, h: number): void => {
       out.push({ op: 'image', args: [x, y, w, h] });
     },
+    imageRegion: (_source, dx, dy, dw, dh, sx, sy, sw, sh): void => {
+      out.push({ op: 'imageRegion', args: [dx, dy, dw, dh, sx, sy, sw, sh] });
+    },
   };
 
   decode(buffer, visitor);

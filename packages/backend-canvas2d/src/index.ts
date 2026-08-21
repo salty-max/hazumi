@@ -302,6 +302,12 @@ export class Canvas2dRenderer {
         ctx.drawImage(source, x, y, width, height);
         this.#drawCalls++;
       },
+      imageRegion: (source, dx, dy, dw, dh, sx, sy, sw, sh): void => {
+        this.#applyBlend();
+        // The nine-argument form takes source pixels directly.
+        ctx.drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh);
+        this.#drawCalls++;
+      },
 
       line: (x1: number, y1: number, x2: number, y2: number): void => {
         // A line has no fill; it is stroke-only in both backends.

@@ -296,6 +296,20 @@ export class SvgRenderer {
       fillPath: (): void => this.#emitPath(false),
       strokePath: (): void => this.#emitPath(true),
 
+      imageRegion: (source, dx, dy, dw, dh, sx, sy, sw, sh): void => {
+        // Crop into a canvas first: SVG can clip, but a clipPath per sprite
+        // would bloat the document and defeat the point of exporting vector.
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(sw));
+        canvas.height = Math.max(1, Math.round(sh));
+        const ctx = canvas.getContext('2d');
+        if (ctx === null) return;
+        ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+        this.#elements.push(
+          `<image x="${this.#n(dx)}" y="${this.#n(dy)}" width="${this.#n(dw)}" height="${this.#n(dh)}" href="${canvas.toDataURL()}"${this.#transformAttr()}/>`,
+        );
+      },
+
       image: (source, x, y, width, height): void => {
         // Inlined as a data URI so the document stands alone — an export that
         // depends on a live page is not really an export.

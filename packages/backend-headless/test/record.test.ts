@@ -81,6 +81,8 @@ describe('recorder coverage', () => {
       ['setTextAlign', () => buf.setTextAlign(1, 2)],
       ['setFont', () => buf.setFont('serif')],
       ['image', () => buf.image({ width: 1, height: 1 } as never, 1, 2, 3, 4)],
+      ['imageRegion', () =>
+        buf.imageRegion({ width: 1, height: 1 } as never, 1, 2, 3, 4, 5, 6, 7, 8)],
       ['beginPath', () => buf.beginPath()],
       ['moveTo', () => buf.moveTo(1, 2)],
       ['lineTo', () => buf.lineTo(1, 2)],
