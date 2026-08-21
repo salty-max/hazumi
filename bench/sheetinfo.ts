@@ -1,9 +1,10 @@
-/** Which facing is which row? Big enough to actually tell. */
+/** Confirmed Blood Mage facing order: two left/right mirror pairs, front then back. */
 const strip = document.getElementById("strip") as HTMLElement;
 const out = document.getElementById("out") as HTMLElement;
 
 const CELL = 32;
 const ZOOM = 11;
+const FACINGS = ["frontLeft", "frontRight", "backLeft", "backRight"] as const;
 
 async function load(name: string): Promise<HTMLImageElement> {
   const img = new Image();
@@ -27,14 +28,14 @@ function cellCanvas(img: HTMLImageElement, col: number, row: number): HTMLCanvas
 const walk = await load("Walk");
 const block = document.createElement("div");
 block.className = "line";
-for (let row = 0; row < 4; row++) {
+for (const [row, facing] of FACINGS.entries()) {
   const wrap = document.createElement("div");
   wrap.className = "cellwrap";
   const tag = document.createElement("div");
   tag.className = "tag";
-  tag.textContent = `row ${row}`;
+  tag.textContent = facing;
   wrap.append(tag, cellCanvas(walk, 1, row));
   block.append(wrap);
 }
 strip.append(block);
-out.textContent = "Walk, column 1, each row at 11x";
+out.textContent = "Walk, column 1 — frontLeft, frontRight, backLeft, backRight";

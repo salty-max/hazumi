@@ -121,10 +121,6 @@ Not bugs, and not scheduled to be fixed — recorded so they are not rediscovere
 
 ## Housekeeping
 
-- `bench/sheetinfo.html` was a scratch page for identifying which spritesheet
-  row is which facing. It is committed but undocumented, and the question it
-  was built to answer is still open — the Blood Mage clips are named `f0`–`f3`
-  because the facing order was never confirmed.
 - The phase table in [README.md](README.md) quotes figures from when each phase
   closed (253 tests, 10 comparison scenes, five examples). Those are historical rather than
   wrong, but the current numbers are at the top of this file.

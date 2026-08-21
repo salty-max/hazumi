@@ -2,8 +2,10 @@
  * A real asset pack: the Minifantasy Blood Mage.
  *
  * Six sheets, 32x32 frames, four facings per sheet arranged as two mirror
- * pairs. Frame timing comes from the pack's own AnimationInfo: 100ms for
- * Attack, Dmg, Die and Jump, 200ms for Idle and Walk — so 10fps and 5fps.
+ * pairs: front-left / front-right, then back-left / back-right. Confirmed by
+ * reading the Walk and Idle rows, not by pack metadata. Frame timing comes
+ * from the pack's own AnimationInfo: 100ms for Attack, Dmg, Die and Jump,
+ * 200ms for Idle and Walk — so 10fps and 5fps.
  *
  * The interesting part for the library is draw order. Each animation is its
  * own texture, and batching merges only adjacent instances, so the mages are
@@ -20,15 +22,23 @@ const CELL = 32;
 const SCALE = 4;
 const COUNT = 24;
 
-/** Names are by index: the pack does not say which row is which compass point. */
-const FACINGS = 4;
+const FACINGS = ["frontLeft", "frontRight", "backLeft", "backRight"] as const;
+type Facing = (typeof FACINGS)[number];
+
+/** Left-facing rows walk left; right-facing rows walk right. */
+const WALK_X: Record<Facing, number> = {
+  frontLeft: -1,
+  frontRight: 1,
+  backLeft: -1,
+  backRight: 1,
+};
 
 type StateName = "idle" | "walk" | "attack";
 
 interface Mage {
   x: number;
   y: number;
-  facing: number;
+  facing: Facing;
   state: StateName;
   since: number;
   next: number;
@@ -65,9 +75,9 @@ export function bloodMage(parent: HTMLElement): MatterApp {
       ): Spritesheet {
         const columns = Math.floor(sourceImage.width / CELL);
         const clips: Record<string, { frames: number[]; fps: number; end?: ClipEnd }> = {};
-        for (let facing = 0; facing < FACINGS; facing++) {
-          clips[`f${facing}`] = {
-            frames: rowFrames(columns, facing),
+        for (const [row, facing] of FACINGS.entries()) {
+          clips[facing] = {
+            frames: rowFrames(columns, row),
             fps,
             ...(end === undefined ? {} : { end }),
           };
@@ -85,7 +95,7 @@ export function bloodMage(parent: HTMLElement): MatterApp {
       const mages: Mage[] = Array.from({ length: COUNT }, () => ({
         x: random.range(20, width - 60),
         y: random.range(20, height - 60),
-        facing: random.int(0, FACINGS),
+        facing: random.pick(FACINGS),
         state: "idle",
         since: 0,
         next: random.range(0.5, 3),
@@ -104,14 +114,11 @@ export function bloodMage(parent: HTMLElement): MatterApp {
               m.since = 0;
               m.state = random.pick(["idle", "walk", "attack"] as const);
               m.next = m.state === "attack" ? 0.6 : random.range(1, 3.5);
-              if (m.state === "walk") m.facing = random.int(0, FACINGS);
+              if (m.state === "walk") m.facing = random.pick(FACINGS);
             }
 
             if (m.state === "walk") {
-              // Facings are two mirror pairs, so even rows read as one direction
-              // and odd rows as its mirror.
-              const dir = m.facing % 2 === 0 ? 1 : -1;
-              m.x += dir * m.speed * time.delta;
+              m.x += WALK_X[m.facing] * m.speed * time.delta;
               if (m.x < -size) m.x = screen.width;
               if (m.x > screen.width) m.x = -size;
               m.y += Math.sin(time.elapsed * 1.3 + m.x * 0.01) * 8 * time.delta;
@@ -125,14 +132,14 @@ export function bloodMage(parent: HTMLElement): MatterApp {
             const sheet = sheets[state];
             for (const m of mages) {
               if (m.state !== state) continue;
-              image(sheet.clip(`f${m.facing}`).at(m.since), m.x, m.y, size, size);
+              image(sheet.clip(m.facing).at(m.since), m.x, m.y, size, size);
             }
           }
 
           // Attack effects go last, over everything.
           for (const m of mages) {
             if (m.state !== "attack") continue;
-            image(effect.clip(`f${m.facing}`).at(m.since), m.x, m.y, size, size);
+            image(effect.clip(m.facing).at(m.since), m.x, m.y, size, size);
           }
 
           fill("oklch(0.95 0.03 30)");
