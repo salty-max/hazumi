@@ -52,6 +52,38 @@ with({ fill: 'red', stroke: null }, () => {
 It restores on exit *including when the body throws*, which is the failure
 `push()`/`pop()` cannot protect you from.
 
+## A fixed-step game
+
+Setup can instead return separate `update` and `draw` callbacks. Simulation
+runs at the configured fixed rate; rendering still follows the display and
+receives an interpolation alpha:
+
+```ts
+sketch(
+  { backend: webgl2(), clock: { fixedStep: 1 / 60 } },
+  () => {
+    let previousX = 100;
+    let x = 100;
+
+    return {
+      update(dt, { keyIsDown }) {
+        previousX = x;
+        if (keyIsDown('ArrowRight')) x += 120 * dt;
+      },
+      draw(alpha, { background, circle, fill }) {
+        background('#111827');
+        fill('#60a5fa');
+        circle(previousX + (x - previousX) * alpha, 300, 32);
+      },
+    };
+  },
+);
+```
+
+Catch-up is capped by default, so returning to a backgrounded tab cannot trap
+the simulation in an ever-growing backlog. `maxDelta` and `maxFixedSteps` are
+available under `clock` when a game needs different limits.
+
 Run `bun run bench/serve.ts` and open
 http://localhost:5199/examples/gallery.html to see the twelve sketches in
 `examples/`.

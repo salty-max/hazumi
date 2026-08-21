@@ -19,7 +19,11 @@ export type {
   SketchOptions,
   SketchHandle,
   SetupFunction,
+  SetupResult,
   DrawFunction,
+  FixedUpdateFunction,
+  FixedDrawFunction,
+  FixedLoop,
   ShaderPass,
   FrameStats,
 } from './sketch';

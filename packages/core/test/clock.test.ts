@@ -42,6 +42,12 @@ describe('SketchClock', () => {
     expect(clock.elapsed).toBe(0);
     expect(clock.advance(100)).toBe(0);
   });
+
+  test('rejects invalid timing options at construction', () => {
+    expect(() => new SketchClock({ maxDelta: Number.NaN })).toThrow(RangeError);
+    expect(() => new SketchClock({ fixedStep: 0 })).toThrow(RangeError);
+    expect(() => new SketchClock({ maxFixedSteps: 1.5 })).toThrow(RangeError);
+  });
 });
 
 function runFixedSequence(): number[] {

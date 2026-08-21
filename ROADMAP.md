@@ -4,7 +4,7 @@ What is built, what is built but not reachable, and what is next. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 549 unit tests, 18
+**Where it stands:** 0.1.0, pre-alpha. 10 packages, 555 unit tests, 18
 backend-agreement scenes, 12 example sketches. Not published to npm.
 
 ## Shipped
@@ -32,19 +32,15 @@ The measurements that back these:
 | Several sheets | 3 sheets grouped → 3 calls; interleaved → 300 |
 | Context loss | Recovered without reload, back to 1 draw call |
 
+The game loop now also exposes the fixed-step clock through `sketch()`: setup
+may return `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a
+stalled frame can create an unbounded simulation debt.
+
 ## Built but not reachable
 
-Two subsystems are implemented and tested but nothing consumes them. Each is a
-wiring job, not a design job — which makes them the cheapest real progress
+One subsystem is implemented and tested but nothing consumes it. This is a
+wiring job, not a design job — which makes it the cheapest real progress
 available.
-
-- **Fixed-timestep loop.** `SketchClock.stepFixed()` exists with an
-  accumulator, a configurable step and a `maxSteps` ceiling against the spiral
-  of death, and it is covered by tests. But `sketch()` only calls
-  `clock.advance()` and exposes `dt`, so `stepFixed` is referenced *nowhere
-  outside its own test file*. Games need `update(dt)` at a fixed rate and
-  `draw(alpha)` interpolating between states; the hard half is already done.
-  → [clock.ts:104](packages/core/src/clock.ts:104), [sketch.ts:245](packages/matter/src/sketch.ts:245)
 
 - **The plugin system.** `definePlugin` and `createSketch` accumulate a
   plugin's contributions into the sketch type with no declaration merging, and
@@ -58,23 +54,21 @@ available.
 Sprites and animation clips landed; these are what still stands between the
 library and a real 2D game, roughly in dependency order.
 
-1. **Wire the fixed-timestep loop** (above). Everything below assumes a stable
-   simulation step.
-2. **A camera.** No world-vs-screen distinction exists today — a sketch draws
+1. **A camera.** No world-vs-screen distinction exists today — a sketch draws
    in canvas coordinates and that is all. Needs a view transform, follow, zoom,
    and screen↔world conversion. `Mat4` and the transform stack already carry it;
    this is an API, not new math.
-3. **Input edge detection.** `keyIsDown`, `mouseX/Y`, `mouseIsPressed` and
+2. **Input edge detection.** `keyIsDown`, `mouseX/Y`, `mouseIsPressed` and
    friends report *state*. A game needs *transitions* — `justPressed`,
    `justReleased` — which cannot be derived correctly by a sketch polling once
    per frame. Also missing: pointer/touch events, wheel, and gamepad.
-   → [sketch.ts:231](packages/matter/src/sketch.ts:231)
-4. **Collision math** in `@matter/math`: AABB and circle overlap, point
+   → [sketch.ts:242](packages/matter/src/sketch.ts:242)
+3. **Collision math** in `@matter/math`: AABB and circle overlap, point
    containment, ray casts, and swept tests for tunnelling at speed. Pure
    functions, `bun test`-able, no renderer involved.
-5. **Tilemaps.** Spritesheets give the frames; a tilemap gives the layout,
+4. **Tilemaps.** Spritesheets give the frames; a tilemap gives the layout,
    culling to the camera, and one draw call per layer.
-6. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
+5. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
    Likely the first real candidate for the plugin system rather than L5.
 
 ## Library gaps, independent of games
@@ -85,7 +79,7 @@ library and a real 2D game, roughly in dependency order.
   save path from the sketch API.
 - **Canvas resize.** `pixelRatio` is read once at construction and there is no
   `resize` listener, so a sketch does not respond to a window resize.
-  → [sketch.ts:144](packages/matter/src/sketch.ts:144)
+  → [sketch.ts:170](packages/matter/src/sketch.ts:170)
 - **Colour packing.** Instances carry colour as four floats. Packing into a
   `u32` would recover roughly a fifth of the upload bandwidth — the clearest
   remaining performance win, and already identified as such.

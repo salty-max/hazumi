@@ -47,9 +47,23 @@ export class SketchClock implements Clock {
   readonly maxFixedSteps: number;
 
   constructor(options: ClockOptions = {}) {
-    this.maxDelta = options.maxDelta ?? DEFAULT_MAX_DELTA;
-    this.fixedStep = options.fixedStep ?? DEFAULT_FIXED_STEP;
-    this.maxFixedSteps = options.maxFixedSteps ?? DEFAULT_MAX_FIXED_STEPS;
+    const maxDelta = options.maxDelta ?? DEFAULT_MAX_DELTA;
+    const fixedStep = options.fixedStep ?? DEFAULT_FIXED_STEP;
+    const maxFixedSteps = options.maxFixedSteps ?? DEFAULT_MAX_FIXED_STEPS;
+
+    if (!Number.isFinite(maxDelta) || maxDelta < 0) {
+      throw new RangeError('maxDelta must be a finite non-negative number');
+    }
+    if (!Number.isFinite(fixedStep) || fixedStep <= 0) {
+      throw new RangeError('fixedStep must be a finite positive number');
+    }
+    if (!Number.isInteger(maxFixedSteps) || maxFixedSteps <= 0) {
+      throw new RangeError('maxFixedSteps must be a positive integer');
+    }
+
+    this.maxDelta = maxDelta;
+    this.fixedStep = fixedStep;
+    this.maxFixedSteps = maxFixedSteps;
   }
 
   get frame(): number {

@@ -1,4 +1,4 @@
-import { SketchClock } from '@matter/core';
+import { SketchClock, type ClockOptions } from '@matter/core';
 import { type BackendFactory, CommandBuffer, type Renderer } from '@matter/graphics';
 import { ColorCache } from './color-cache';
 import {
@@ -23,7 +23,14 @@ export interface SketchOptions {
   /** Device pixel ratio to render at. Defaults to the display's, capped at 2. */
   readonly pixelRatio?: number;
   /**
-   * Called when `draw` throws.
+   * Frame-clock configuration.
+   *
+   * `fixedStep` and `maxFixedSteps` control a fixed loop returned by setup;
+   * `maxDelta` also clamps the variable `dt` exposed on the context.
+   */
+  readonly clock?: ClockOptions;
+  /**
+   * Called when setup, update, or draw throws.
    *
    * The loop stops either way — a sketch that throws does so on every frame,
    * and sixty identical stack traces a second buries the first one. Without a
@@ -32,8 +39,29 @@ export interface SketchOptions {
   readonly onError?: (error: unknown) => void;
 }
 
-/** Returned by setup; called once per frame. */
+/** Variable-step draw returned by setup; called once per display frame. */
 export type DrawFunction = (context: SketchContext) => void;
+
+/** Advances game state by one fixed interval. */
+export type FixedUpdateFunction = (fixedDt: number, context: SketchContext) => void;
+
+/**
+ * Draws a fixed-step game once per display frame.
+ *
+ * `alpha` is the 0–1 progress from the latest completed update toward the next
+ * one. Use it to interpolate render positions without changing simulation
+ * state. The context is the second argument so a callback that only needs
+ * timing can stay as terse as `draw(alpha)`.
+ */
+export type FixedDrawFunction = (alpha: number, context: SketchContext) => void;
+
+/** Fixed-rate simulation paired with display-rate rendering. */
+export interface FixedLoop {
+  readonly update: FixedUpdateFunction;
+  readonly draw: FixedDrawFunction;
+}
+
+export type SetupResult = DrawFunction | FixedLoop | void;
 
 /**
  * Runs once. Whatever it returns becomes the draw loop; return nothing for a
@@ -43,7 +71,7 @@ export type DrawFunction = (context: SketchContext) => void;
  */
 export type SetupFunction = (
   context: SketchContext,
-) => DrawFunction | void | Promise<DrawFunction | void>;
+) => SetupResult | Promise<SetupResult>;
 
 /**
  * A post-processing pass.
@@ -138,6 +166,9 @@ export function sketch(
 ): SketchHandle {
   const width = options.width ?? 600;
   const height = options.height ?? 600;
+  // Validate timing before acquiring a renderer or attaching a canvas. Invalid
+  // configuration must not leak resources while construction unwinds.
+  const clock = new SketchClock(options.clock);
 
   const canvas = options.canvas ?? document.createElement('canvas');
   const ratio = Math.min(
@@ -161,7 +192,6 @@ export function sketch(
 
   const buffer = new CommandBuffer();
   const colors = new ColorCache();
-  const clock = new SketchClock();
 
   const state: ContextState = {
     width,
@@ -236,10 +266,17 @@ export function sketch(
   globalThis.addEventListener('blur', onBlur);
 
   let draw: DrawFunction | null = null;
+  let fixedLoop: FixedLoop | null = null;
   let frameHandle = 0;
   let stopped = false;
   // Only reclaim the canvas if we put it in the document.
   const ownsCanvas = options.canvas === undefined;
+
+  // Stable callback: stepFixed may call it several times per frame, so do not
+  // allocate a closure in the per-frame path.
+  const runFixedUpdate = (fixedDt: number): void => {
+    fixedLoop?.update(fixedDt, context);
+  };
 
   const renderFrame = (nowMs: number): void => {
     clock.advance(nowMs / 1000);
@@ -247,13 +284,18 @@ export function sketch(
     state.t = clock.elapsed;
     state.dt = clock.dt;
 
-    buffer.reset();
-    // The buffer is a fresh stream each frame, so the current style has to be
-    // re-emitted into it before anything is drawn.
-    beginFrame();
-
     try {
-      if (draw !== null) draw(context);
+      // Updates run before the buffer is cleared. Drawing from update is not
+      // part of the contract and therefore cannot leak into the render frame.
+      if (fixedLoop !== null) clock.stepFixed(runFixedUpdate);
+
+      buffer.reset();
+      // The buffer is a fresh stream each frame, so the current style has to be
+      // re-emitted into it before anything is drawn.
+      beginFrame();
+
+      if (fixedLoop !== null) fixedLoop.draw(clock.alpha(), context);
+      else if (draw !== null) draw(context);
       if (supportsPasses(renderer)) renderer.setTime(state.t);
       renderer.render(buffer);
     } catch (error) {
@@ -284,11 +326,12 @@ export function sketch(
    */
   const started = Promise.resolve(setup(context)).then((result) => {
     if (stopped) return;
-    draw = result ?? null;
+    if (typeof result === 'function') draw = result;
+    else if (result !== undefined) fixedLoop = result;
 
     // A sketch with no draw function renders exactly one frame — whatever
     // setup already wrote into the buffer. Resetting here would erase it.
-    if (draw === null) renderer.render(buffer);
+    if (draw === null && fixedLoop === null) renderer.render(buffer);
     else frameHandle = requestAnimationFrame(tick);
   });
 
