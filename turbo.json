@@ -8,6 +8,18 @@
       "inputs": ["src/**", "tsdown.config.ts", "package.json", "tsconfig.json"],
       "outputs": ["dist/**"]
     },
+    "@matter/docs#build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**",
+        "package.json",
+        "tsconfig.json",
+        "$TURBO_ROOT$/index.html",
+        "$TURBO_ROOT$/examples/gallery.html",
+        "$TURBO_ROOT$/examples/gallery.ts"
+      ],
+      "outputs": ["dist/**"]
+    },
     "typecheck": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "tsconfig.json"],

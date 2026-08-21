@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun run src/build.ts",
+    "build": "bun run src/build.ts && bunx @tailwindcss/cli -i src/style.css -o dist/style.css --minify",
     "typecheck": "tsc --noEmit",
     "test": "bun test --pass-with-no-tests"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.0"
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/bun": "^1.4.0",
+    "tailwindcss": "^4.3.3"
   }
 }

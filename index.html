@@ -3,98 +3,109 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Matter — a typed 2D graphics library</title>
+<meta name="description" content="Matter is a typed 2D graphics library with one retained command stream and WebGL2, Canvas2D, SVG and headless renderers." />
+<title>Matter — draw once, render anywhere</title>
 <link rel="stylesheet" href="./apps/docs/dist/style.css" />
-<style>
-  body { display: block; }
-  .wrap { max-width: 780px; margin: 0 auto; padding: 72px 24px 120px; }
-  .hero { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 36px; }
-  .hero h1 { font-size: clamp(38px, 7vw, 58px); letter-spacing: -.035em; margin: 0 0 12px; line-height: 1.02; }
-  .hero p { font-size: 18px; color: var(--ink-soft); margin: 0; max-width: 60ch; }
-  .status { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); margin: 0 0 14px; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 0 0 44px; }
-  .card { display: block; border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; background: var(--panel); color: var(--ink); text-decoration: none; }
-  .card:hover { border-color: var(--accent); text-decoration: none; }
-  .card h2 { margin: 0 0 5px; font-size: 16px; letter-spacing: -.01em; }
-  .card p { margin: 0; font-size: 13.5px; color: var(--ink-mute); line-height: 1.5; }
-  section h2.head { font-size: 21px; letter-spacing: -.015em; margin: 40px 0 12px; }
-  p.body { color: var(--ink-soft); max-width: 68ch; }
-  table.facts { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 8px; }
-  table.facts td { padding: 7px 0; border-bottom: 1px solid var(--rule); color: var(--ink-soft); vertical-align: top; }
-  table.facts td:first-child { width: 190px; font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
-</style>
 </head>
-<body>
-<div class="wrap">
-  <header class="hero">
-    <p class="status">0.1.0 · pre-alpha</p>
-    <h1>Matter</h1>
-    <p>A typed 2D graphics library for sketches, generative work and games.
-    The drawing API does not rasterise — it encodes a command stream that
-    WebGL2, Canvas2D, SVG and a headless recorder each consume on their own
-    terms.</p>
-  </header>
-
-  <div class="cards">
-    <a class="card" href="./apps/playground/index.html">
-      <h2>Playground →</h2>
-      <p>Edit a sketch and see it run. Five starters, no install.</p>
+<body class="site-page">
+  <nav class="mx-auto flex h-18 max-w-7xl items-center gap-3 px-5 sm:px-8" aria-label="Primary navigation">
+    <a href="./index.html" class="flex items-center gap-3 font-semibold tracking-tight text-ink">
+      <span class="brand-mark"></span>
+      <span>Matter</span>
     </a>
-    <a class="card" href="./apps/docs/dist/index.html">
-      <h2>Reference →</h2>
-      <p>Every exported symbol, generated from the shipped type declarations.</p>
-    </a>
-    <a class="card" href="./examples/gallery.html">
-      <h2>Examples →</h2>
-      <p>Twelve sketches, from a noise flow field to an animated spritesheet.</p>
-    </a>
-  </div>
+    <span class="rounded-full border border-line bg-surface-raised px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted">0.1 · pre-alpha</span>
+    <div class="ml-auto flex items-center gap-1 text-sm text-ink-soft sm:gap-5">
+      <a class="hidden hover:text-ink sm:block" href="./examples/gallery.html">Examples</a>
+      <a class="hidden hover:text-ink sm:block" href="./apps/docs/dist/index.html">Reference</a>
+      <a class="rounded-lg bg-ink px-3.5 py-2 font-medium text-white transition hover:-translate-y-px hover:bg-ink/90" href="./apps/playground/index.html">Open playground</a>
+    </div>
+  </nav>
 
-  <section>
-    <h2 class="head">A sketch</h2>
-    <pre><code>import { sketch } from 'matter';
-import { webgl2 } from 'matter/backends/webgl2';
+  <main>
+    <section class="mx-auto grid max-w-7xl items-center gap-14 px-5 pt-20 pb-24 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:pt-28 lg:pb-32">
+      <div>
+        <p class="eyebrow">Typed 2D graphics</p>
+        <h1 class="mt-6 max-w-4xl text-[clamp(3.8rem,9vw,7.4rem)] leading-[.86] font-semibold tracking-[-.075em] text-ink">
+          Draw once.<br /><span class="text-brand">Render anywhere.</span>
+        </h1>
+        <p class="mt-8 max-w-xl text-lg leading-8 text-ink-soft">
+          A short sketch API over a retained command stream. WebGL2 for speed, Canvas2D for truth, SVG for vectors, and headless output for tests.
+        </p>
+        <div class="mt-9 flex flex-wrap gap-3">
+          <a class="rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition hover:-translate-y-0.5" href="./apps/playground/index.html">Start drawing →</a>
+          <a class="rounded-xl border border-line bg-surface-raised px-5 py-3 text-sm font-semibold text-ink transition hover:border-brand/50" href="./apps/docs/dist/index.html">Read the API</a>
+        </div>
+      </div>
 
-sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
-  return ({ background, circle, fill, width, height, t }) => {
-    background('oklch(0.15 0.02 260)');
-    fill('oklch(0.72 0.18 250)');
-    circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
-  };
-});</code></pre>
-    <p class="body">The context is destructured in the draw callback rather than
-    injected onto <code>window</code>. That keeps the terseness of a
-    global-style sketch — bare <code>circle</code>, <code>fill</code>,
-    <code>width</code> — while staying fully typed, and because the same object
-    is mutated in place, reading <code>t</code> or <code>width</code> costs
-    nothing per frame.</p>
-  </section>
+      <div class="relative lg:pl-8">
+        <div class="absolute -top-8 -right-5 size-40 rounded-full bg-brand/15 blur-3xl"></div>
+        <div class="code-window relative">
+          <div class="flex h-11 items-center gap-2 border-b border-white/10 px-4">
+            <span class="size-2.5 rounded-full bg-[#ff6b6b]"></span><span class="size-2.5 rounded-full bg-[#ffd166]"></span><span class="size-2.5 rounded-full bg-[#68d391]"></span>
+            <span class="ml-auto font-mono text-[10px] text-white/40">orbit.ts</span>
+          </div>
+          <pre><code><span class="text-[#76e6b5]">return</span> {
+  update(dt, { camera }) {
+    player.step(dt);
+    camera.follow(player.x, player.y, .12);
+  },
+  draw(alpha, { background, circle, fill }) {
+    background(<span class="text-[#f7ca72]">'#090d16'</span>);
+    fill(<span class="text-[#f7ca72]">'oklch(.74 .18 160)'</span>);
+    circle(player.x, player.y, 48);
+  },
+};</code></pre>
+          <div class="grid grid-cols-4 border-t border-white/10 font-mono text-[9px] text-white/45">
+            <span class="border-r border-white/10 px-3 py-3 text-center">WebGL2</span><span class="border-r border-white/10 px-3 py-3 text-center">Canvas2D</span><span class="border-r border-white/10 px-3 py-3 text-center">SVG</span><span class="px-3 py-3 text-center">Headless</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-  <section>
-    <h2 class="head">Why it exists</h2>
-    <p class="body">Drawing APIs usually rasterise as you call them, which
-    welds what you drew to how it was drawn: the output cannot be exported as
-    vectors, re-rendered at another resolution, or tested without a browser and
-    a pixel diff. Renderers built for GPU throughput avoid that by handing you
-    buffers and pipelines instead — at which point a circle stops being one
-    line of code. Matter keeps the short API and puts a typed command buffer
-    behind it.</p>
-    <table class="facts">
-      <tr><td>100k shapes</td><td>10.0 ms per frame, one draw call — 60% of the 60fps budget</td></tr>
-      <tr><td>Allocation</td><td>Zero in steady state: 0.0 kB heap delta over 200 frames</td></tr>
-      <tr><td>Backends</td><td>WebGL2, Canvas2D, SVG and a headless recorder, from one command stream</td></tr>
-      <tr><td>Agreement</td><td>19 scenes verified pixel-by-pixel across backends</td></tr>
-      <tr><td>Colour</td><td>OKLCH throughout, so blends stay perceptually even</td></tr>
-      <tr><td>Randomness</td><td>Seeded by default — a sketch renders identically every run</td></tr>
-    </table>
-  </section>
+    <section class="border-y border-line bg-surface-raised/70">
+      <div class="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-line px-5 sm:px-8 lg:grid-cols-4">
+        <div class="py-7 pr-5"><strong class="block text-2xl tracking-tight">100k</strong><span class="text-xs text-ink-muted">shapes in 10 ms</span></div>
+        <div class="py-7 pl-5 lg:pr-5"><strong class="block text-2xl tracking-tight">1</strong><span class="text-xs text-ink-muted">draw call</span></div>
+        <div class="border-t border-line py-7 pr-5 sm:border-t-0 sm:pl-5 lg:pr-5"><strong class="block text-2xl tracking-tight">0.0 kB</strong><span class="text-xs text-ink-muted">steady allocation</span></div>
+        <div class="border-t border-line py-7 pl-5 sm:border-t-0"><strong class="block text-2xl tracking-tight">19 / 19</strong><span class="text-xs text-ink-muted">backend scenes agree</span></div>
+      </div>
+    </section>
 
-  <section>
-    <h2 class="head">Not there yet</h2>
-    <p class="body">Pixel access, input edge detection, and a WebGPU
-    backend. Text renders from a runtime SDF rather than MSDF, so corners
-    soften well above the atlas resolution. Not published to npm.</p>
-  </section>
-</div>
+    <section class="mx-auto max-w-7xl px-5 py-24 sm:px-8">
+      <div class="grid gap-5 lg:grid-cols-3">
+        <a class="route-card glass-card rounded-2xl p-6" href="./apps/playground/index.html">
+          <div class="mb-8 flex items-center justify-between"><span class="rounded-lg bg-brand-soft px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-brand">Build</span><span class="text-2xl text-ink-muted">↗</span></div>
+          <h2 class="text-xl font-semibold tracking-tight">Playground</h2>
+          <p class="mt-2 text-sm leading-6 text-ink-muted">A live React workspace with resizable code, SVG and WebGL2 panels.</p>
+        </a>
+        <a class="route-card glass-card rounded-2xl p-6" href="./apps/docs/dist/index.html">
+          <div class="mb-8 flex items-center justify-between"><span class="rounded-lg bg-brand-soft px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-brand">Learn</span><span class="text-2xl text-ink-muted">↗</span></div>
+          <h2 class="text-xl font-semibold tracking-tight">API reference</h2>
+          <p class="mt-2 text-sm leading-6 text-ink-muted">Every public symbol, generated directly from the declarations that ship.</p>
+        </a>
+        <a class="route-card glass-card rounded-2xl p-6" href="./examples/gallery.html">
+          <div class="mb-8 flex items-center justify-between"><span class="rounded-lg bg-brand-soft px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-brand">Explore</span><span class="text-2xl text-ink-muted">↗</span></div>
+          <h2 class="text-xl font-semibold tracking-tight">Example gallery</h2>
+          <p class="mt-2 text-sm leading-6 text-ink-muted">Twelve running sketches, from noise fields to animated sprite sheets.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="mx-auto grid max-w-7xl gap-10 px-5 pb-28 sm:px-8 lg:grid-cols-[.8fr_1.2fr]">
+      <div><p class="eyebrow">Why retained</p><h2 class="mt-5 text-4xl font-semibold tracking-[-.04em]">High-level commands stay useful.</h2></div>
+      <div class="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2">
+        <div class="bg-surface-raised p-6"><span class="font-mono text-xs text-brand">01</span><h3 class="mt-5 font-semibold">Resolution independent</h3><p class="mt-2 text-sm leading-6 text-ink-muted">A circle remains a circle, ready for high-DPI output or vector export.</p></div>
+        <div class="bg-surface-raised p-6"><span class="font-mono text-xs text-brand">02</span><h3 class="mt-5 font-semibold">Backend honest</h3><p class="mt-2 text-sm leading-6 text-ink-muted">Canvas2D acts as the oracle while WebGL2 owns tessellation and batching.</p></div>
+        <div class="bg-surface-raised p-6"><span class="font-mono text-xs text-brand">03</span><h3 class="mt-5 font-semibold">Deterministic</h3><p class="mt-2 text-sm leading-6 text-ink-muted">Seeded random and a fixed timestep make sketches reproducible by default.</p></div>
+        <div class="bg-surface-raised p-6"><span class="font-mono text-xs text-brand">04</span><h3 class="mt-5 font-semibold">Typed end to end</h3><p class="mt-2 text-sm leading-6 text-ink-muted">Strict declarations keep the terse drawing API discoverable and safe.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line">
+    <div class="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-xs text-ink-muted sm:flex-row sm:items-center sm:px-8">
+      <span>Matter · typed 2D graphics</span><span class="sm:ml-auto">Pre-alpha · not published to npm</span>
+    </div>
+  </footer>
 </body>
 </html>

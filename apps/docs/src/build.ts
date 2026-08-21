@@ -129,16 +129,17 @@ const html = `<!doctype html>
 <title>Matter reference</title>
 <link rel="stylesheet" href="./style.css" />
 </head>
-<body>
-<aside class="sidebar">
-  <a class="home" href="../index.html">← Matter</a>
-  <input id="filter" type="search" placeholder="Filter…" aria-label="Filter reference" />
-  <nav id="nav">${renderNav(modules)}</nav>
+<body class="docs-shell">
+<aside class="docs-sidebar">
+  <a class="docs-brand" href="../../../index.html"><span class="brand-mark"></span><span>Matter</span><small>Reference</small></a>
+  <div class="docs-search-wrap"><input id="filter" type="search" placeholder="Search symbols…" aria-label="Filter reference" /></div>
+  <nav id="nav" aria-label="API modules">${renderNav(modules)}</nav>
 </aside>
-<main>
+<main class="docs-main">
   <header class="page-head">
-    <h1>Reference</h1>
-    <p>${total} exported symbols, generated from the published type declarations.</p>
+    <p class="kicker">Typed from source</p>
+    <h1>API reference</h1>
+    <p>${total} exported symbols across ${modules.length} modules, generated directly from the published type declarations.</p>
   </header>
   ${modules.map(([mod, blurb]) => renderModule(mod, blurb)).join('')}
 </main>
@@ -152,5 +153,6 @@ await Bun.write(
   `${ROOT}apps/docs/dist/reference.json`,
   JSON.stringify(modules.map(([mod]) => mod), null, 2),
 );
+await Bun.write(`${ROOT}apps/docs/dist/filter.js`, Bun.file(`${ROOT}apps/docs/src/filter.js`));
 
 console.log(`reference: ${modules.length} modules, ${total} symbols`);

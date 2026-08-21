@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun build src/main.ts --outfile dist/playground.js --target browser && cp src/playground.css dist/playground.css",
+    "build": "bun build src/main.tsx --outfile dist/playground.js --target browser --minify && bunx @tailwindcss/cli -i src/globals.css -o dist/playground.css --minify",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -14,10 +14,23 @@
     "@matter/backend-svg": "workspace:*",
     "@matter/backend-webgl2": "workspace:*",
     "@matter/graphics": "workspace:*",
+    "@radix-ui/react-select": "^2.3.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
-    "matter": "workspace:*"
+    "lucide-react": "^1.33.0",
+    "matter": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-resizable-panels": "^4.12.3",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.0"
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/bun": "^1.4.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "^1.4.0"
   }
 }

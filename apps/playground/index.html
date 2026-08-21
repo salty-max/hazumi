@@ -4,30 +4,11 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Matter playground</title>
+<meta name="description" content="Write a Matter sketch and render it live with WebGL2 or export it as SVG." />
 <link rel="stylesheet" href="./dist/playground.css" />
 </head>
 <body>
-  <header class="bar">
-    <a class="home" href="../../index.html">← Matter</a>
-    <select id="starter" aria-label="Starter sketch"></select>
-    <button id="run" type="button">Run <kbd>⌘⏎</kbd></button>
-    <button id="export-svg" type="button" class="secondary">Export SVG</button>
-    <span id="status" data-kind="ok">ready</span>
-  </header>
-
-  <main>
-    <section class="pane">
-      <div id="editor"></div>
-      <details id="svg-panel">
-        <summary>SVG output</summary>
-        <textarea id="svg-output" readonly spellcheck="false"></textarea>
-      </details>
-    </section>
-    <section class="pane stage-pane">
-      <div id="stage"></div>
-    </section>
-  </main>
-
+  <div id="root"></div>
   <script type="module" src="./dist/playground.js"></script>
 </body>
 </html>

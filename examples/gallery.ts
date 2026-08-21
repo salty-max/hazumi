@@ -31,15 +31,16 @@ const root = document.getElementById('root') as HTMLElement;
 const handles = new Map<string, SketchHandle>();
 
 for (const [name, run] of SKETCHES) {
-  const cell = document.createElement('div');
-  cell.className = 'cell';
+  const cell = document.createElement('article');
+  cell.className = 'gallery-card';
 
   const label = document.createElement('div');
-  label.className = 'label';
+  label.className = 'gallery-card-head';
   label.textContent = name;
   cell.append(label);
 
   const host = document.createElement('div');
+  host.className = 'gallery-host';
   cell.append(host);
   root.append(cell);
 

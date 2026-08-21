@@ -1,18 +1,31 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Matter examples</title>
-    <style>
-      body { background: #0d1117; color: #dde5ee; font: 13px ui-monospace, monospace; margin: 0; padding: 20px; }
-      #root { display: flex; flex-wrap: wrap; gap: 20px; }
-      .cell { display: flex; flex-direction: column; gap: 8px; }
-      .label { color: #8492a2; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
-      canvas { border: 1px solid #2b3644; display: block; }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="./dist/gallery.js"></script>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Twelve live Matter sketches rendered with WebGL2." />
+  <title>Matter — example gallery</title>
+  <link rel="stylesheet" href="../apps/docs/dist/style.css" />
+</head>
+<body class="gallery-page">
+  <header class="border-b border-white/10">
+    <nav class="mx-auto flex h-18 max-w-7xl items-center gap-3 px-5 sm:px-8">
+      <a href="../index.html" class="flex items-center gap-3 font-semibold tracking-tight text-white"><span class="brand-mark"></span><span>Matter</span></a>
+      <span class="rounded-full border border-white/10 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-white/45">Examples</span>
+      <div class="ml-auto flex items-center gap-5 text-sm text-white/55">
+        <a class="hover:text-white" href="../apps/docs/dist/index.html">Reference</a>
+        <a class="rounded-lg bg-brand px-3.5 py-2 font-medium text-white hover:bg-brand/90" href="../apps/playground/index.html">Playground</a>
+      </div>
+    </nav>
+  </header>
+  <main class="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+    <p class="eyebrow">Rendered live</p>
+    <div class="mt-4 mb-12 grid gap-5 lg:grid-cols-[1fr_.8fr] lg:items-end">
+      <h1 class="text-5xl font-semibold tracking-[-.055em] sm:text-7xl">Twelve ways to move pixels.</h1>
+      <p class="max-w-xl text-sm leading-7 text-white/50 lg:justify-self-end">Every card is a running Matter sketch. The same high-level commands can target WebGL2 here, Canvas2D for validation, or SVG for export.</p>
+    </div>
+    <div id="root" class="gallery-grid"></div>
+  </main>
+  <script type="module" src="./dist/gallery.js"></script>
+</body>
 </html>
