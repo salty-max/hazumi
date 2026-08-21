@@ -71,12 +71,46 @@ describe("circle collisions", () => {
     expect(Math.abs(ball.vy)).toBeLessThan(20);
   });
 
+  test("a resting box does not keep bouncing on the floor", () => {
+    const world = physics.world({ gravityY: 1600 });
+    world.addBox({ x: 0, y: 100, width: 400, height: 20, isStatic: true, friction: 0.6 });
+    const crate = world.addBox({ x: 0, y: 0, width: 32, height: 24, friction: 0.6 });
+    step(world, 180);
+    let maxSpeed = 0;
+    for (let i = 0; i < 60; i++) {
+      world.step(1 / 60);
+      maxSpeed = Math.max(maxSpeed, Math.abs(crate.vx), Math.abs(crate.vy), Math.abs(crate.omega));
+    }
+    expect(maxSpeed).toBeLessThan(0.01);
+  });
+
+  test("a two-box stack stays put", () => {
+    const world = physics.world({ gravityY: 1600 });
+    world.addBox({ x: 0, y: 120, width: 400, height: 20, isStatic: true, friction: 0.5 });
+    const lower = world.addBox({ x: 0, y: 80, width: 40, height: 20, friction: 0.5 });
+    const upper = world.addBox({ x: 4, y: 40, width: 36, height: 20, friction: 0.5 });
+    step(world, 240);
+    let maxSpeed = 0;
+    for (let i = 0; i < 60; i++) {
+      world.step(1 / 60);
+      maxSpeed = Math.max(
+        maxSpeed,
+        Math.abs(lower.vy),
+        Math.abs(upper.vy),
+        Math.abs(lower.omega),
+        Math.abs(upper.omega),
+      );
+    }
+    expect(maxSpeed).toBeLessThan(0.05);
+    expect(upper.y).toBeLessThan(lower.y);
+  });
+
   test("overlapping circles separate along the join", () => {
     const world = physics.world({ gravityY: 0 });
     const left = world.addCircle({ x: 0, y: 0, radius: 10 });
     const right = world.addCircle({ x: 6, y: 0, radius: 10 });
     step(world, 30);
-    expect(right.x - left.x).toBeGreaterThan(19.5);
+    expect(right.x - left.x).toBeGreaterThan(19);
   });
 
   test("restitution reverses a fast impact", () => {

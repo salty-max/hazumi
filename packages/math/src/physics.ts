@@ -5,6 +5,12 @@
  * world: it integrates, detects, and resolves. Circles and oriented boxes,
  * gravity, restitution, friction, sequential impulses.
  *
+ * Resting contact is held by accumulated, warm-started impulses. Restitution
+ * is a one-shot velocity bias on new impacts so gravity does not re-bounce a
+ * crate every frame. Boxes generate a clipped two-point manifold so they sit
+ * instead of rocking on one vertex. Overlap is cleaned up with a mild
+ * positional correction, not a Baumgarte velocity kick.
+ *
  * Call `step` from a fixed update. Positions are centres; box angles are
  * radians, clockwise because y grows downward.
  */
@@ -94,16 +100,42 @@ interface Contact {
   px: number;
   py: number;
   depth: number;
+  pn: number;
+  pt: number;
+  velocityBias: number;
+}
+
+interface MutablePoint {
+  x: number;
+  y: number;
 }
 
 const DEFAULT_RESTITUTION = 0.2;
 const DEFAULT_FRICTION = 0.4;
 const DEFAULT_DENSITY = 1;
 const DEFAULT_ITERATIONS = 10;
-const PENETRATION_SLOP = 0.01;
-const BAUMGARTE = 0.2;
-const RESTITUTION_THRESHOLD = 1;
+/** Allow this much overlap, in world units, before correcting. Gravity * dt² sits inside it. */
+const PENETRATION_SLOP = 0.5;
+const POSITION_PERCENT = 0.4;
+const MAX_LINEAR_CORRECTION = 2;
+const RESTITUTION_THRESHOLD = 80;
+const WARM_START_DISTANCE_SQ = 4;
 const MAX_CONTACTS = 4096;
+
+const CLIP_IN: readonly [MutablePoint, MutablePoint] = [
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+];
+const CLIP_OUT: readonly [MutablePoint, MutablePoint, MutablePoint] = [
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+];
+const CLIP_TMP: readonly [MutablePoint, MutablePoint, MutablePoint] = [
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+];
 
 function finite(value: number, name: string): number {
   if (!Number.isFinite(value)) throw new RangeError(`${name} must be a finite number`);
@@ -115,10 +147,6 @@ function positive(value: number, name: string): number {
     throw new RangeError(`${name} must be a finite positive number`);
   }
   return value;
-}
-
-function crossScalar(x: number, y: number, s: number): readonly [number, number] {
-  return [-s * y, s * x];
 }
 
 function cross2(ax: number, ay: number, bx: number, by: number): number {
@@ -235,7 +263,7 @@ function addContact(
   if (depth < 0 || count >= MAX_CONTACTS) return count;
   let contact = contacts[count];
   if (contact === undefined) {
-    contact = { a, b, nx, ny, px, py, depth };
+    contact = { a, b, nx, ny, px, py, depth, pn: 0, pt: 0, velocityBias: 0 };
     contacts[count] = contact;
   } else {
     contact.a = a;
@@ -245,6 +273,9 @@ function addContact(
     contact.px = px;
     contact.py = py;
     contact.depth = depth;
+    contact.pn = 0;
+    contact.pt = 0;
+    contact.velocityBias = 0;
   }
   return count + 1;
 }
@@ -374,17 +405,94 @@ function projectBox(
   return [mid - extent, mid + extent];
 }
 
-function supportVertex(
+function worldPoint(
   body: InternalBody,
   axes: BoxAxes,
-  dx: number,
-  dy: number,
-): readonly [number, number] {
-  const localX = axes.c * dx + axes.s * dy;
-  const localY = -axes.s * dx + axes.c * dy;
-  const sx = localX >= 0 ? axes.hw : -axes.hw;
-  const sy = localY >= 0 ? axes.hh : -axes.hh;
-  return [body.x + axes.c * sx - axes.s * sy, body.y + axes.s * sx + axes.c * sy];
+  lx: number,
+  ly: number,
+  out: MutablePoint,
+): void {
+  out.x = body.x + axes.c * lx - axes.s * ly;
+  out.y = body.y + axes.s * lx + axes.c * ly;
+}
+
+function incidentFace(
+  body: InternalBody,
+  axes: BoxAxes,
+  nx: number,
+  ny: number,
+  out0: MutablePoint,
+  out1: MutablePoint,
+): void {
+  const dots = [
+    axes.c * nx + axes.s * ny,
+    -axes.s * nx + axes.c * ny,
+    -axes.c * nx - axes.s * ny,
+    axes.s * nx - axes.c * ny,
+  ];
+  let best = 0;
+  let bestDot = dots[0] as number;
+  for (let i = 1; i < 4; i++) {
+    const dot = dots[i] as number;
+    if (dot < bestDot) {
+      best = i;
+      bestDot = dot;
+    }
+  }
+  const hw = axes.hw;
+  const hh = axes.hh;
+  if (best === 0) {
+    worldPoint(body, axes, hw, hh, out0);
+    worldPoint(body, axes, hw, -hh, out1);
+  } else if (best === 1) {
+    worldPoint(body, axes, -hw, hh, out0);
+    worldPoint(body, axes, hw, hh, out1);
+  } else if (best === 2) {
+    worldPoint(body, axes, -hw, -hh, out0);
+    worldPoint(body, axes, -hw, hh, out1);
+  } else {
+    worldPoint(body, axes, hw, -hh, out0);
+    worldPoint(body, axes, -hw, -hh, out1);
+  }
+}
+
+function clipSegment(
+  v0: MutablePoint,
+  v1: MutablePoint,
+  nx: number,
+  ny: number,
+  offset: number,
+  out: readonly MutablePoint[],
+): number {
+  const d0 = nx * v0.x + ny * v0.y - offset;
+  const d1 = nx * v1.x + ny * v1.y - offset;
+  let n = 0;
+  if (d0 <= 0) {
+    const p = out[n];
+    if (p !== undefined) {
+      p.x = v0.x;
+      p.y = v0.y;
+      n++;
+    }
+  }
+  if (d1 <= 0) {
+    const p = out[n];
+    if (p !== undefined) {
+      p.x = v1.x;
+      p.y = v1.y;
+      n++;
+    }
+  }
+  if (d0 * d1 < 0) {
+    const p = out[n];
+    if (p !== undefined) {
+      const t = d0 / (d0 - d1);
+      p.x = v0.x + t * (v1.x - v0.x);
+      p.y = v0.y + t * (v1.y - v0.y);
+      n++;
+    }
+  }
+  return n;
 }
 
 function collideBoxes(
@@ -405,6 +513,7 @@ function collideBoxes(
   let minOverlap = Infinity;
   let nx = 1;
   let ny = 0;
+  let axisIndex = 0;
 
   for (let i = 0; i < worldAxes.length; i++) {
     const axis = worldAxes[i];
@@ -423,11 +532,74 @@ function collideBoxes(
       minOverlap = overlap;
       nx = ax;
       ny = ay;
+      axisIndex = i;
     }
   }
 
-  const [sx, sy] = supportVertex(b, axesB, -nx, -ny);
-  return addContact(contacts, count, a, b, nx, ny, sx, sy, minOverlap);
+  const refIsA = axisIndex < 2;
+  const ref = refIsA ? a : b;
+  const inc = refIsA ? b : a;
+  const refAxes = refIsA ? axesA : axesB;
+  const incAxes = refIsA ? axesB : axesA;
+  const frontX = refIsA ? nx : -nx;
+  const frontY = refIsA ? ny : -ny;
+  const sideX = -frontY;
+  const sideY = frontX;
+
+  incidentFace(inc, incAxes, frontX, frontY, CLIP_IN[0], CLIP_IN[1]);
+
+  const v0 = CLIP_OUT[0] as MutablePoint;
+  const v1 = CLIP_OUT[1] as MutablePoint;
+  const hw = refAxes.hw;
+  const hh = refAxes.hh;
+  const localFrontX = refAxes.c * frontX + refAxes.s * frontY;
+  const localFrontY = -refAxes.s * frontX + refAxes.c * frontY;
+  if (Math.abs(localFrontX) >= Math.abs(localFrontY)) {
+    const x = localFrontX >= 0 ? hw : -hw;
+    worldPoint(ref, refAxes, x, hh, v0);
+    worldPoint(ref, refAxes, x, -hh, v1);
+  } else {
+    const y = localFrontY >= 0 ? hh : -hh;
+    worldPoint(ref, refAxes, hw, y, v0);
+    worldPoint(ref, refAxes, -hw, y, v1);
+  }
+  if (sideX * v0.x + sideY * v0.y > sideX * v1.x + sideY * v1.y) {
+    const sx = v0.x;
+    const sy = v0.y;
+    v0.x = v1.x;
+    v0.y = v1.y;
+    v1.x = sx;
+    v1.y = sy;
+  }
+
+  const frontOffset = frontX * v0.x + frontY * v0.y;
+  const negSide = -(sideX * v0.x + sideY * v0.y);
+  const posSide = sideX * v1.x + sideY * v1.y;
+
+  let n = clipSegment(CLIP_IN[0], CLIP_IN[1], -sideX, -sideY, negSide, CLIP_TMP);
+  const t0 = CLIP_TMP[0] as MutablePoint;
+  const t1 = CLIP_TMP[1] as MutablePoint;
+  if (n >= 2) n = clipSegment(t0, t1, sideX, sideY, posSide, CLIP_OUT);
+  else if (n === 1) {
+    const p = CLIP_OUT[0];
+    if (p !== undefined) {
+      p.x = t0.x;
+      p.y = t0.y;
+    }
+  }
+
+  let added = count;
+  for (let i = 0; i < n; i++) {
+    const p = CLIP_OUT[i];
+    if (p === undefined) continue;
+    const separation = frontX * p.x + frontY * p.y - frontOffset;
+    if (separation > PENETRATION_SLOP) continue;
+    added = addContact(contacts, added, a, b, nx, ny, p.x, p.y, Math.max(-separation, 0));
+  }
+  if (added !== count) return added;
+
+  const incident = CLIP_IN[0];
+  return addContact(contacts, count, a, b, nx, ny, incident.x, incident.y, minOverlap);
 }
 
 function findContacts(bodies: readonly InternalBody[], contacts: Contact[]): number {
@@ -454,16 +626,65 @@ function findContacts(bodies: readonly InternalBody[], contacts: Contact[]): num
   return count;
 }
 
-function solveContact(contact: Contact, dt: number): void {
-  const { a, b, nx, ny, px, py, depth } = contact;
+function relativeNormalSpeed(contact: Contact): number {
+  const { a, b, nx, ny, px, py } = contact;
   const rax = px - a.x;
   const ray = py - a.y;
   const rbx = px - b.x;
   const rby = py - b.y;
-  const [wavX, wavY] = crossScalar(rax, ray, a.omega);
-  const [wbvX, wbvY] = crossScalar(rbx, rby, b.omega);
-  const dvx = b.vx + wbvX - a.vx - wavX;
-  const dvy = b.vy + wbvY - a.vy - wavY;
+  const dvx = b.vx - b.omega * rby - a.vx + a.omega * ray;
+  const dvy = b.vy + b.omega * rbx - a.vy - a.omega * rax;
+  return dvx * nx + dvy * ny;
+}
+
+function matchWarmStart(
+  fresh: readonly Contact[],
+  freshCount: number,
+  stale: readonly Contact[],
+  staleCount: number,
+): void {
+  for (let i = 0; i < freshCount; i++) {
+    const contact = fresh[i];
+    if (contact === undefined) continue;
+    let best = -1;
+    let bestDist = WARM_START_DISTANCE_SQ;
+    for (let j = 0; j < staleCount; j++) {
+      const previous = stale[j];
+      if (previous === undefined || previous.a !== contact.a || previous.b !== contact.b) continue;
+      const dx = previous.px - contact.px;
+      const dy = previous.py - contact.py;
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = j;
+      }
+    }
+    if (best === -1) continue;
+    const previous = stale[best];
+    if (previous === undefined) continue;
+    contact.pn = previous.pn;
+    contact.pt = previous.pt;
+  }
+}
+
+function applyWarmStart(contact: Contact): void {
+  if (contact.pn === 0 && contact.pt === 0) return;
+  const tx = -contact.ny;
+  const ty = contact.nx;
+  const ix = contact.nx * contact.pn + tx * contact.pt;
+  const iy = contact.ny * contact.pn + ty * contact.pt;
+  applyImpulseOn(contact.a, -ix, -iy, contact.px, contact.py);
+  applyImpulseOn(contact.b, ix, iy, contact.px, contact.py);
+}
+
+function solveContact(contact: Contact): void {
+  const { a, b, nx, ny, px, py } = contact;
+  const rax = px - a.x;
+  const ray = py - a.y;
+  const rbx = px - b.x;
+  const rby = py - b.y;
+  const dvx = b.vx - b.omega * rby - a.vx + a.omega * ray;
+  const dvy = b.vy + b.omega * rbx - a.vy - a.omega * rax;
   const vn = dvx * nx + dvy * ny;
 
   const rnA = cross2(rax, ray, nx, ny);
@@ -471,39 +692,37 @@ function solveContact(contact: Contact, dt: number): void {
   const invMassN = a.invMass + b.invMass + a.invInertia * rnA * rnA + b.invInertia * rnB * rnB;
   if (invMassN === 0) return;
 
-  const e = Math.min(a.restitution, b.restitution);
-  const restitution = vn < -RESTITUTION_THRESHOLD ? e : 0;
-  const bias = (BAUMGARTE / dt) * Math.max(depth - PENETRATION_SLOP, 0);
-  const lambda = -(vn + restitution * vn + bias) / invMassN;
-  if (lambda < 0) return;
-
-  const ix = nx * lambda;
-  const iy = ny * lambda;
-  applyImpulseOn(a, -ix, -iy, px, py);
-  applyImpulseOn(b, ix, iy, px, py);
+  let lambda = -(vn - contact.velocityBias) / invMassN;
+  const pnOld = contact.pn;
+  contact.pn = Math.max(0, pnOld + lambda);
+  lambda = contact.pn - pnOld;
+  applyImpulseOn(a, -nx * lambda, -ny * lambda, px, py);
+  applyImpulseOn(b, nx * lambda, ny * lambda, px, py);
 
   const tx = -ny;
   const ty = nx;
-  const [tawX, tawY] = crossScalar(rax, ray, a.omega);
-  const [tbwX, tbwY] = crossScalar(rbx, rby, b.omega);
-  const tvx = b.vx + tbwX - a.vx - tawX;
-  const tvy = b.vy + tbwY - a.vy - tawY;
+  const tvx = b.vx - b.omega * rby - a.vx + a.omega * ray;
+  const tvy = b.vy + b.omega * rbx - a.vy - a.omega * rax;
   const vt = tvx * tx + tvy * ty;
   const rtA = cross2(rax, ray, tx, ty);
   const rtB = cross2(rbx, rby, tx, ty);
   const invMassT = a.invMass + b.invMass + a.invInertia * rtA * rtA + b.invInertia * rtB * rtB;
   if (invMassT === 0) return;
   let tangentLambda = -vt / invMassT;
-  const maxFriction = Math.max(a.friction, b.friction) * lambda;
-  if (tangentLambda > maxFriction) tangentLambda = maxFriction;
-  else if (tangentLambda < -maxFriction) tangentLambda = -maxFriction;
+  const ptOld = contact.pt;
+  const maxFriction = Math.max(a.friction, b.friction) * contact.pn;
+  contact.pt = Math.min(maxFriction, Math.max(-maxFriction, ptOld + tangentLambda));
+  tangentLambda = contact.pt - ptOld;
   applyImpulseOn(a, -tx * tangentLambda, -ty * tangentLambda, px, py);
   applyImpulseOn(b, tx * tangentLambda, ty * tangentLambda, px, py);
 }
 
 function correctPositions(contact: Contact): void {
   const { a, b, nx, ny, depth } = contact;
-  const correction = Math.max(depth - PENETRATION_SLOP, 0);
+  const correction = Math.min(
+    Math.max(depth - PENETRATION_SLOP, 0) * POSITION_PERCENT,
+    MAX_LINEAR_CORRECTION,
+  );
   if (correction === 0) return;
   const inv = a.invMass + b.invMass;
   if (inv === 0) return;
@@ -519,7 +738,9 @@ export class PhysicsWorld implements World {
   gravityY: number;
   iterations: number;
   readonly bodies: InternalBody[];
-  readonly #contacts: Contact[] = [];
+  #contacts: Contact[] = [];
+  #previous: Contact[] = [];
+  #previousCount = 0;
 
   constructor(options: WorldOptions = {}) {
     this.gravityX = finite(options.gravityX ?? 0, "gravityX");
@@ -559,6 +780,7 @@ export class PhysicsWorld implements World {
 
   clear(): void {
     this.bodies.length = 0;
+    this.#previousCount = 0;
   }
 
   applyForce(body: RigidBody, fx: number, fy: number, px?: number, py?: number): void {
@@ -599,16 +821,29 @@ export class PhysicsWorld implements World {
     }
 
     const count = findContacts(bodies, this.#contacts);
+    matchWarmStart(this.#contacts, count, this.#previous, this.#previousCount);
+    for (let i = 0; i < count; i++) {
+      const contact = this.#contacts[i];
+      if (contact === undefined) continue;
+      applyWarmStart(contact);
+      const vn = relativeNormalSpeed(contact);
+      const e = Math.min(contact.a.restitution, contact.b.restitution);
+      contact.velocityBias = vn < -RESTITUTION_THRESHOLD ? -e * vn : 0;
+    }
     for (let iter = 0; iter < this.iterations; iter++) {
       for (let i = 0; i < count; i++) {
         const contact = this.#contacts[i];
-        if (contact !== undefined) solveContact(contact, dt);
+        if (contact !== undefined) solveContact(contact);
       }
     }
     for (let i = 0; i < count; i++) {
       const contact = this.#contacts[i];
       if (contact !== undefined) correctPositions(contact);
     }
+    const swap = this.#previous;
+    this.#previous = this.#contacts;
+    this.#contacts = swap;
+    this.#previousCount = count;
   }
 }
 
