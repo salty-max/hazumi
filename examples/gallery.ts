@@ -9,6 +9,7 @@ import { imageGrid } from './image-grid';
 import { postBloom } from './post-bloom';
 import { petals } from './petals';
 import { tileField } from './tile-field';
+import { characters } from './characters';
 
 const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => SketchHandle | void]> = [
   ['flow field', flowField],
@@ -21,6 +22,7 @@ const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => SketchHandle | v
   ['post bloom', postBloom],
   ['petals', petals],
   ['tile field', tileField],
+  ['characters', characters],
 ];
 
 const root = document.getElementById('root') as HTMLElement;
