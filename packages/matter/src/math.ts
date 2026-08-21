@@ -1,1 +1,1 @@
-export * from '@matter/math';
+export * from "@matter/math";

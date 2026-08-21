@@ -1,1 +1,1 @@
-export * from '@matter/backend-webgl2';
+export * from "@matter/backend-webgl2";

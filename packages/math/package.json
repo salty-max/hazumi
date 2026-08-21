@@ -2,12 +2,12 @@
   "name": "@matter/math",
   "version": "0.1.0",
   "description": "Vectors, collision queries, 4x4 matrices, seeded PRNG, noise, and easing.",
-  "type": "module",
   "license": "MIT",
-  "sideEffects": false,
   "files": [
     "dist"
   ],
+  "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

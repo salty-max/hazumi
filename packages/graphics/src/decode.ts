@@ -1,5 +1,5 @@
-import type { CommandBuffer, ImageSource } from './command-buffer';
-import { type Align, type Baseline, type Blend, Op, OP_SIZE } from './op';
+import type { CommandBuffer, ImageSource } from "./command-buffer";
+import { type Align, type Baseline, type Blend, Op, OP_SIZE } from "./op";
 
 /**
  * Backends implement this to consume a command stream. Every method takes
@@ -30,28 +30,24 @@ export interface CommandVisitor {
   moveTo?: (x: number, y: number) => void;
   lineTo?: (x: number, y: number) => void;
   quadraticTo?: (cx: number, cy: number, x: number, y: number) => void;
-  cubicTo?: (
-    c1x: number, c1y: number,
-    c2x: number, c2y: number,
-    x: number, y: number,
-  ) => void;
+  cubicTo?: (c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number) => void;
   closePath?: () => void;
   fillPath?: () => void;
   strokePath?: () => void;
   /** Source-pixel sub-rectangle of an image. */
   imageRegion?: (
     source: ImageSource,
-    dx: number, dy: number, dWidth: number, dHeight: number,
-    sx: number, sy: number, sWidth: number, sHeight: number,
+    dx: number,
+    dy: number,
+    dWidth: number,
+    dHeight: number,
+    sx: number,
+    sy: number,
+    sWidth: number,
+    sHeight: number,
   ) => void;
   /** Receives the resolved image, not its id — backends never see the table. */
-  image?: (
-    source: ImageSource,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-  ) => void;
+  image?: (source: ImageSource, x: number, y: number, width: number, height: number) => void;
 }
 
 /** Thrown when the stream contains an opcode this build does not know. */
@@ -61,7 +57,7 @@ export class UnknownOpcodeError extends Error {
 
   constructor(opcode: number, offset: number) {
     super(`Unknown opcode ${opcode} at word ${offset}`);
-    this.name = 'UnknownOpcodeError';
+    this.name = "UnknownOpcodeError";
     this.opcode = opcode;
     this.offset = offset;
   }
@@ -85,10 +81,20 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
 
     switch (op) {
       case Op.SetFill:
-        visitor.setFill?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        visitor.setFill?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+        );
         break;
       case Op.SetStroke:
-        visitor.setStroke?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        visitor.setStroke?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+        );
         break;
       case Op.SetStrokeWidth:
         visitor.setStrokeWidth?.(f32[i + 1] as number);
@@ -116,19 +122,39 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
         visitor.resetTransform?.();
         break;
       case Op.Background:
-        visitor.background?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        visitor.background?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+        );
         break;
       case Op.Circle:
         visitor.circle?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number);
         break;
       case Op.Ellipse:
-        visitor.ellipse?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        visitor.ellipse?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+        );
         break;
       case Op.Rect:
-        visitor.rect?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        visitor.rect?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+        );
         break;
       case Op.Line:
-        visitor.line?.(f32[i + 1] as number, f32[i + 2] as number, f32[i + 3] as number, f32[i + 4] as number);
+        visitor.line?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+        );
         break;
       case Op.SetTextSize:
         visitor.setTextSize?.(f32[i + 1] as number);
@@ -137,13 +163,13 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
         visitor.setTextAlign?.(u32[i + 1] as Align, u32[i + 2] as Baseline);
         break;
       case Op.SetFont:
-        visitor.setFont?.(strings[u32[i + 1] as number] ?? 'sans-serif');
+        visitor.setFont?.(strings[u32[i + 1] as number] ?? "sans-serif");
         break;
       case Op.Text:
         visitor.text?.(
           f32[i + 1] as number,
           f32[i + 2] as number,
-          strings[u32[i + 3] as number] ?? '',
+          strings[u32[i + 3] as number] ?? "",
         );
         break;
       case Op.BeginPath:
@@ -157,15 +183,20 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
         break;
       case Op.QuadraticTo:
         visitor.quadraticTo?.(
-          f32[i + 1] as number, f32[i + 2] as number,
-          f32[i + 3] as number, f32[i + 4] as number,
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
         );
         break;
       case Op.CubicTo:
         visitor.cubicTo?.(
-          f32[i + 1] as number, f32[i + 2] as number,
-          f32[i + 3] as number, f32[i + 4] as number,
-          f32[i + 5] as number, f32[i + 6] as number,
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+          f32[i + 5] as number,
+          f32[i + 6] as number,
         );
         break;
       case Op.ClosePath:
@@ -182,10 +213,14 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
         if (source !== undefined) {
           visitor.imageRegion?.(
             source,
-            f32[i + 2] as number, f32[i + 3] as number,
-            f32[i + 4] as number, f32[i + 5] as number,
-            f32[i + 6] as number, f32[i + 7] as number,
-            f32[i + 8] as number, f32[i + 9] as number,
+            f32[i + 2] as number,
+            f32[i + 3] as number,
+            f32[i + 4] as number,
+            f32[i + 5] as number,
+            f32[i + 6] as number,
+            f32[i + 7] as number,
+            f32[i + 8] as number,
+            f32[i + 9] as number,
           );
         }
         break;

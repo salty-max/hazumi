@@ -1,13 +1,13 @@
-import { describe, expect, test } from 'bun:test';
-import { mat4 } from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { mat4 } from "../src/index";
 
-describe('mat4', () => {
-  test('starts as identity', () => {
+describe("mat4", () => {
+  test("starts as identity", () => {
     const m = mat4.mat4();
     expect(Array.from(m)).toEqual([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
   });
 
-  test('identity resets in place', () => {
+  test("identity resets in place", () => {
     const m = mat4.mat4();
     m[3] = 9;
     mat4.identity(m);
@@ -15,7 +15,7 @@ describe('mat4', () => {
     expect(m[0]).toBe(1);
   });
 
-  test('multiplying by identity is a no-op', () => {
+  test("multiplying by identity is a no-op", () => {
     const a = mat4.mat4();
     mat4.translate(a, a, 3, 4, 5);
     const out = mat4.mat4();
@@ -23,7 +23,7 @@ describe('mat4', () => {
     expect(mat4.equals(out, a)).toBe(true);
   });
 
-  test('multiply is correct when out aliases an input', () => {
+  test("multiply is correct when out aliases an input", () => {
     const a = mat4.mat4();
     mat4.rotateZ(a, a, 0.3);
     const b = mat4.mat4();
@@ -37,7 +37,7 @@ describe('mat4', () => {
     expect(mat4.equals(aliased, expected)).toBe(true);
   });
 
-  test('translate moves a point', () => {
+  test("translate moves a point", () => {
     const m = mat4.mat4();
     mat4.translate(m, m, 10, 20, 0);
     const out = { x: 0, y: 0 };
@@ -46,7 +46,7 @@ describe('mat4', () => {
     expect(out.y).toBeCloseTo(22);
   });
 
-  test('scale scales a point', () => {
+  test("scale scales a point", () => {
     const m = mat4.mat4();
     mat4.scale(m, m, 2, 3, 1);
     const out = { x: 0, y: 0 };
@@ -55,7 +55,7 @@ describe('mat4', () => {
     expect(out.y).toBeCloseTo(15);
   });
 
-  test('rotateZ rotates a point a quarter turn', () => {
+  test("rotateZ rotates a point a quarter turn", () => {
     const m = mat4.mat4();
     mat4.rotateZ(m, m, Math.PI / 2);
     const out = { x: 0, y: 0 };
@@ -64,7 +64,7 @@ describe('mat4', () => {
     expect(out.y).toBeCloseTo(1);
   });
 
-  test('transforms compose in the expected order', () => {
+  test("transforms compose in the expected order", () => {
     // Translate then rotate: the rotation happens about the translated origin.
     const m = mat4.mat4();
     mat4.translate(m, m, 10, 0, 0);
@@ -75,7 +75,7 @@ describe('mat4', () => {
     expect(out.y).toBeCloseTo(1);
   });
 
-  test('ortho maps screen space to clip space with origin top-left', () => {
+  test("ortho maps screen space to clip space with origin top-left", () => {
     const m = mat4.mat4();
     mat4.ortho(m, 0, 800, 600, 0, -1, 1);
     const out = { x: 0, y: 0 };
@@ -96,7 +96,7 @@ describe('mat4', () => {
     expect(out.y).toBeCloseTo(0);
   });
 
-  test('perspective produces the standard projection layout', () => {
+  test("perspective produces the standard projection layout", () => {
     const m = mat4.mat4();
     mat4.perspective(m, Math.PI / 2, 1, 1, 100);
     // f = 1/tan(45deg) = 1
@@ -107,7 +107,7 @@ describe('mat4', () => {
     expect(m[15]).toBe(0);
   });
 
-  test('copy and equals', () => {
+  test("copy and equals", () => {
     const a = mat4.mat4();
     mat4.translate(a, a, 1, 2, 3);
     const b = mat4.copy(mat4.mat4(), a);

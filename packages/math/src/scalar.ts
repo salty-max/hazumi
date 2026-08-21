@@ -25,9 +25,7 @@ export function remap(
   const t = norm(value, inMin, inMax);
   const mapped = lerp(outMin, outMax, t);
   if (!clamped) return mapped;
-  return outMin < outMax
-    ? clamp(mapped, outMin, outMax)
-    : clamp(mapped, outMax, outMin);
+  return outMin < outMax ? clamp(mapped, outMin, outMax) : clamp(mapped, outMax, outMin);
 }
 
 export function degrees(angleInRadians: number): number {

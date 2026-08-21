@@ -12,7 +12,7 @@ import {
   rotateAffine,
   scaleAffine,
   translateAffine,
-} from '@matter/graphics';
+} from "@matter/graphics";
 
 /**
  * L4 — vector export.
@@ -49,16 +49,16 @@ interface Style {
 }
 
 const ALIGN_TO_SVG: Readonly<Record<Align, string>> = {
-  [Align.Left]: 'start',
-  [Align.Center]: 'middle',
-  [Align.Right]: 'end',
+  [Align.Left]: "start",
+  [Align.Center]: "middle",
+  [Align.Right]: "end",
 };
 
 const BASELINE_TO_SVG: Readonly<Record<Baseline, string>> = {
-  [Baseline.Alphabetic]: 'alphabetic',
-  [Baseline.Top]: 'hanging',
-  [Baseline.Middle]: 'middle',
-  [Baseline.Bottom]: 'text-after-edge',
+  [Baseline.Alphabetic]: "alphabetic",
+  [Baseline.Top]: "hanging",
+  [Baseline.Middle]: "middle",
+  [Baseline.Bottom]: "text-after-edge",
 };
 
 function defaultStyle(): Style {
@@ -67,7 +67,7 @@ function defaultStyle(): Style {
     stroke: [0, 0, 0, 1],
     strokeWidth: 0,
     blend: Blend.Normal,
-    fontFamily: 'sans-serif',
+    fontFamily: "sans-serif",
     textSize: 16,
     align: Align.Left,
     baseline: Baseline.Alphabetic,
@@ -79,17 +79,17 @@ function channel(v: number): number {
 }
 
 function toHex(c: readonly [number, number, number, number]): string {
-  const hex = (v: number): string => channel(v).toString(16).padStart(2, '0');
+  const hex = (v: number): string => channel(v).toString(16).padStart(2, "0");
   return `#${hex(c[0])}${hex(c[1])}${hex(c[2])}`;
 }
 
 /** SVG is XML, so anything interpolated into it has to be escaped. */
 function escapeXml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export class SvgRenderer {
@@ -117,13 +117,15 @@ export class SvgRenderer {
 
   /** The document produced by the last render. */
   get svg(): string {
-    const separator = this.#pretty ? '\n  ' : '';
-    const tail = this.#pretty ? '\n' : '';
+    const separator = this.#pretty ? "\n  " : "";
+    const tail = this.#pretty ? "\n" : "";
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${this.#width}" height="${this.#height}" viewBox="0 0 ${this.#width} ${this.#height}">`,
       ...this.#elements,
       `</svg>`,
-    ].join(separator === '' ? '' : separator).replace('</svg>', `${tail}</svg>`);
+    ]
+      .join(separator === "" ? "" : separator)
+      .replace("</svg>", `${tail}</svg>`);
   }
 
   setViewport(width: number, height: number): void {
@@ -155,7 +157,7 @@ export class SvgRenderer {
   #transformAttr(): string {
     const m = this.#xform;
     if (m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.tx === 0 && m.ty === 0) {
-      return '';
+      return "";
     }
     return ` transform="matrix(${this.#n(m.a)} ${this.#n(m.b)} ${this.#n(m.c)} ${this.#n(m.d)} ${this.#n(m.tx)} ${this.#n(m.ty)})"`;
   }
@@ -179,7 +181,7 @@ export class SvgRenderer {
     // Additive blending has a direct CSS equivalent; normal is the default.
     if (s.blend === Blend.Add) parts.push('style="mix-blend-mode:plus-lighter"');
 
-    return parts.length === 0 ? '' : ` ${parts.join(' ')}`;
+    return parts.length === 0 ? "" : ` ${parts.join(" ")}`;
   }
 
   /**
@@ -196,7 +198,7 @@ export class SvgRenderer {
     if (!strokeOnly && s.fill[3] <= 0) return;
 
     this.#elements.push(
-      `<path d="${this.#path.join(' ')}"${this.#paintAttrs(strokeOnly)}${this.#transformAttr()}/>`,
+      `<path d="${this.#path.join(" ")}"${this.#paintAttrs(strokeOnly)}${this.#transformAttr()}/>`,
     );
   }
 
@@ -239,7 +241,7 @@ export class SvgRenderer {
           this.#elements.length = 0;
         }
         this.#elements.push(
-          `<rect x="0" y="0" width="${this.#width}" height="${this.#height}" fill="${toHex([r, g, b, a])}"${a < 1 ? ` fill-opacity="${this.#n(a)}"` : ''}/>`,
+          `<rect x="0" y="0" width="${this.#width}" height="${this.#height}" fill="${toHex([r, g, b, a])}"${a < 1 ? ` fill-opacity="${this.#n(a)}"` : ""}/>`,
         );
       },
 
@@ -276,7 +278,7 @@ export class SvgRenderer {
         // Real <text>, so the export stays editable and the glyphs stay
         // selectable — the reason to export vector in the first place.
         this.#elements.push(
-          `<text x="${this.#n(x)}" y="${this.#n(y)}" font-family="${escapeXml(s.fontFamily)}" font-size="${this.#n(s.textSize)}" text-anchor="${ALIGN_TO_SVG[s.align]}" dominant-baseline="${BASELINE_TO_SVG[s.baseline]}" fill="${toHex(s.fill)}"${s.fill[3] < 1 ? ` fill-opacity="${this.#n(s.fill[3])}"` : ''}${this.#transformAttr()}>${escapeXml(content)}</text>`,
+          `<text x="${this.#n(x)}" y="${this.#n(y)}" font-family="${escapeXml(s.fontFamily)}" font-size="${this.#n(s.textSize)}" text-anchor="${ALIGN_TO_SVG[s.align]}" dominant-baseline="${BASELINE_TO_SVG[s.baseline]}" fill="${toHex(s.fill)}"${s.fill[3] < 1 ? ` fill-opacity="${this.#n(s.fill[3])}"` : ""}${this.#transformAttr()}>${escapeXml(content)}</text>`,
         );
       },
 
@@ -294,17 +296,17 @@ export class SvgRenderer {
         void this.#path.push(
           `C${this.#n(c1x)} ${this.#n(c1y)} ${this.#n(c2x)} ${this.#n(c2y)} ${this.#n(x)} ${this.#n(y)}`,
         ),
-      closePath: (): void => void this.#path.push('Z'),
+      closePath: (): void => void this.#path.push("Z"),
       fillPath: (): void => this.#emitPath(false),
       strokePath: (): void => this.#emitPath(true),
 
       imageRegion: (source, dx, dy, dw, dh, sx, sy, sw, sh): void => {
         // Crop into a canvas first: SVG can clip, but a clipPath per sprite
         // would bloat the document and defeat the point of exporting vector.
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(sw));
         canvas.height = Math.max(1, Math.round(sh));
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (ctx === null) return;
         ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         this.#elements.push(
@@ -315,10 +317,10 @@ export class SvgRenderer {
       image: (source, x, y, width, height): void => {
         // Inlined as a data URI so the document stands alone — an export that
         // depends on a live page is not really an export.
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = source.width;
         canvas.height = source.height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (ctx === null) return;
         ctx.drawImage(source, 0, 0);
         this.#elements.push(

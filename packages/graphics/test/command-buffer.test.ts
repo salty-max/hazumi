@@ -1,8 +1,8 @@
-import { describe, expect, test } from 'bun:test';
-import { CommandBuffer, Op } from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { CommandBuffer, Op } from "../src/index";
 
-describe('CommandBuffer', () => {
-  test('encodes a circle as opcode plus three floats', () => {
+describe("CommandBuffer", () => {
+  test("encodes a circle as opcode plus three floats", () => {
     const buf = new CommandBuffer();
     buf.circle(10, 20, 5);
 
@@ -13,7 +13,7 @@ describe('CommandBuffer', () => {
     expect(buf.f32[3]).toBe(5);
   });
 
-  test('u32 and f32 views address the same memory', () => {
+  test("u32 and f32 views address the same memory", () => {
     const buf = new CommandBuffer();
     buf.setFill(0.25, 0.5, 0.75, 1);
 
@@ -23,7 +23,7 @@ describe('CommandBuffer', () => {
     expect(buf.f32[4]).toBeCloseTo(1);
   });
 
-  test('reset rewinds without shrinking capacity', () => {
+  test("reset rewinds without shrinking capacity", () => {
     const buf = new CommandBuffer();
     for (let i = 0; i < 500; i++) buf.circle(i, i, 1);
 
@@ -34,7 +34,7 @@ describe('CommandBuffer', () => {
     expect(buf.capacity).toBe(capacity);
   });
 
-  test('grows to fit, then stops growing once warm', () => {
+  test("grows to fit, then stops growing once warm", () => {
     const buf = new CommandBuffer(8);
 
     for (let i = 0; i < 10_000; i++) buf.circle(i, i, 1);
@@ -50,7 +50,7 @@ describe('CommandBuffer', () => {
     expect(buf.growths).toBe(afterWarmup);
   });
 
-  test('preserves earlier commands across a growth', () => {
+  test("preserves earlier commands across a growth", () => {
     const buf = new CommandBuffer(8);
     buf.circle(1, 2, 3);
     for (let i = 0; i < 100; i++) buf.circle(i, i, i);
@@ -68,51 +68,50 @@ describe('CommandBuffer', () => {
  * a side table. The two have to stay in step: a table that outlived a reset
  * would leave text commands pointing at the wrong strings.
  */
-describe('string table', () => {
-  test('text commands reference interned strings', () => {
+describe("string table", () => {
+  test("text commands reference interned strings", () => {
     const buf = new CommandBuffer();
-    buf.text(1, 2, 'hello');
-    expect(buf.strings).toEqual(['hello']);
+    buf.text(1, 2, "hello");
+    expect(buf.strings).toEqual(["hello"]);
     expect(buf.u32[3]).toBe(0);
   });
 
-  test('each call interns separately, preserving order', () => {
+  test("each call interns separately, preserving order", () => {
     const buf = new CommandBuffer();
-    buf.text(0, 0, 'a');
-    buf.setFont('serif');
-    buf.text(0, 0, 'b');
-    expect(buf.strings).toEqual(['a', 'serif', 'b']);
+    buf.text(0, 0, "a");
+    buf.setFont("serif");
+    buf.text(0, 0, "b");
+    expect(buf.strings).toEqual(["a", "serif", "b"]);
   });
 
-  test('reset clears the table alongside the numeric stream', () => {
+  test("reset clears the table alongside the numeric stream", () => {
     const buf = new CommandBuffer();
-    buf.text(0, 0, 'stale');
+    buf.text(0, 0, "stale");
     buf.reset();
 
     expect(buf.length).toBe(0);
     expect(buf.strings).toEqual([]);
 
     // Ids restart from zero, matching the rewound stream.
-    buf.text(0, 0, 'fresh');
-    expect(buf.strings).toEqual(['fresh']);
+    buf.text(0, 0, "fresh");
+    expect(buf.strings).toEqual(["fresh"]);
     expect(buf.u32[3]).toBe(0);
   });
 
-  test('repeated identical strings are interned per call, not deduplicated', () => {
+  test("repeated identical strings are interned per call, not deduplicated", () => {
     // Deduplication would need a lookup on every text call; scenes emit few
     // enough strings per frame that the map would cost more than it saved.
     const buf = new CommandBuffer();
-    buf.text(0, 0, 'same');
-    buf.text(1, 1, 'same');
-    expect(buf.strings).toEqual(['same', 'same']);
+    buf.text(0, 0, "same");
+    buf.text(1, 1, "same");
+    expect(buf.strings).toEqual(["same", "same"]);
   });
 });
 
 const fakeImage = (id: number): never => ({ width: id, height: id }) as never;
 
-describe('image table', () => {
-
-  test('image commands reference an interned source', () => {
+describe("image table", () => {
+  test("image commands reference an interned source", () => {
     const buf = new CommandBuffer();
     const source = fakeImage(7);
     buf.image(source, 1, 2, 3, 4);
@@ -121,10 +120,10 @@ describe('image table', () => {
     expect(buf.u32[1]).toBe(0);
   });
 
-  test('reset clears images alongside strings and the stream', () => {
+  test("reset clears images alongside strings and the stream", () => {
     const buf = new CommandBuffer();
     buf.image(fakeImage(1), 0, 0, 1, 1);
-    buf.text(0, 0, 'x');
+    buf.text(0, 0, "x");
     buf.reset();
 
     expect(buf.images).toEqual([]);
@@ -132,16 +131,16 @@ describe('image table', () => {
     expect(buf.length).toBe(0);
   });
 
-  test('images and strings index independently', () => {
+  test("images and strings index independently", () => {
     // Two side tables, two id spaces — mixing them up would draw the wrong
     // image or the wrong text.
     const buf = new CommandBuffer();
-    buf.text(0, 0, 'first');
+    buf.text(0, 0, "first");
     const source = fakeImage(2);
     buf.image(source, 0, 0, 1, 1);
-    buf.text(0, 0, 'second');
+    buf.text(0, 0, "second");
 
-    expect(buf.strings).toEqual(['first', 'second']);
+    expect(buf.strings).toEqual(["first", "second"]);
     expect(buf.images).toEqual([source]);
   });
 });

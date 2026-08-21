@@ -1,5 +1,5 @@
-import { oklch, type Oklch, fromSrgb } from './oklch';
-import { namedColorHex, TRANSPARENT_HEX } from './named';
+import { oklch, type Oklch, fromSrgb } from "./oklch";
+import { namedColorHex, TRANSPARENT_HEX } from "./named";
 
 /** Thrown when a colour string cannot be understood. */
 export class ColorParseError extends Error {
@@ -7,7 +7,7 @@ export class ColorParseError extends Error {
 
   constructor(input: string) {
     super(`Cannot parse colour: ${JSON.stringify(input)}`);
-    this.name = 'ColorParseError';
+    this.name = "ColorParseError";
     this.input = input;
   }
 }
@@ -63,13 +63,13 @@ function parseHex(hex: string, input: string): Oklch {
 /** Split "1 2 3 / 0.5" or "1, 2, 3, 0.5" into components. */
 function splitArgs(body: string): string[] {
   return body
-    .replace(/\//g, ' ')
+    .replace(/\//g, " ")
     .split(/[\s,]+/)
     .filter((part) => part.length > 0);
 }
 
 function number(token: string, scaleIfPercent: number, input: string): number {
-  const value = token.endsWith('%')
+  const value = token.endsWith("%")
     ? (Number.parseFloat(token) / 100) * scaleIfPercent
     : Number.parseFloat(token);
   if (Number.isNaN(value)) throw new ColorParseError(input);
@@ -93,7 +93,7 @@ export function parse(input: string): Oklch {
   const hex = HEX.exec(text);
   if (hex !== null) return parseHex(hex[1] as string, input);
 
-  if (text === 'transparent') return parseHex(TRANSPARENT_HEX, input);
+  if (text === "transparent") return parseHex(TRANSPARENT_HEX, input);
   const named = namedColorHex(text);
   if (named !== undefined) return parseHex(named, input);
 
@@ -103,7 +103,7 @@ export function parse(input: string): Oklch {
   const name = func[1] as string;
   const args = splitArgs(func[2] as string);
 
-  if (name === 'rgb' || name === 'rgba') {
+  if (name === "rgb" || name === "rgba") {
     if (args.length < 3) throw new ColorParseError(input);
     return fromSrgb({
       r: number(args[0] as string, 255, input) / 255,
@@ -113,7 +113,7 @@ export function parse(input: string): Oklch {
     });
   }
 
-  if (name === 'oklch') {
+  if (name === "oklch") {
     if (args.length < 3) throw new ColorParseError(input);
     return oklch(
       number(args[0] as string, 1, input),

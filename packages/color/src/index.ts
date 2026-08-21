@@ -6,13 +6,25 @@
  * clipping RGB, which would shift the hue the author asked for.
  */
 
-export { oklch, toSrgb, fromSrgb, toLinearRgb, fromLinearRgb, inGamut, clampToGamut, oklabToOklch, oklchToOklab, linearRgbToOklab, oklabToLinearRgb } from './oklch';
-export type { Oklch, Oklab } from './oklch';
+export {
+  oklch,
+  toSrgb,
+  fromSrgb,
+  toLinearRgb,
+  fromLinearRgb,
+  inGamut,
+  clampToGamut,
+  oklabToOklch,
+  oklchToOklab,
+  linearRgbToOklab,
+  oklabToLinearRgb,
+} from "./oklch";
+export type { Oklch, Oklab } from "./oklch";
 
-export { linearize, delinearize, toLinear, fromLinear } from './srgb';
-export type { Srgb, LinearRgb } from './srgb';
+export { linearize, delinearize, toLinear, fromLinear } from "./srgb";
+export type { Srgb, LinearRgb } from "./srgb";
 
-export { parse, tryParse, ColorParseError } from './parse';
-export { namedColorHex } from './named';
-export { toCss, toHex, toRgbCss } from './format';
-export { mix, gradient, lighten, darken, withAlpha, rotateHue } from './mix';
+export { parse, tryParse, ColorParseError } from "./parse";
+export { namedColorHex } from "./named";
+export { toCss, toHex, toRgbCss } from "./format";
+export { mix, gradient, lighten, darken, withAlpha, rotateHue } from "./mix";

@@ -1,12 +1,12 @@
 ---
-'@matter/backend-canvas2d': minor
-'@matter/backend-headless': minor
-'@matter/backend-webgl2': minor
-'@matter/graphics': minor
-'@matter/color': minor
-'@matter/core': minor
-'@matter/math': minor
-'matter': minor
+"@matter/backend-canvas2d": minor
+"@matter/backend-headless": minor
+"@matter/backend-webgl2": minor
+"@matter/graphics": minor
+"@matter/color": minor
+"@matter/core": minor
+"@matter/math": minor
+"matter": minor
 ---
 
 First vertical slice: `sketch()`, the destructured context, and the drawing

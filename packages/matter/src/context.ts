@@ -303,11 +303,11 @@ export function createContext(deps: ContextDeps): ContextBundle {
   const { buffer, colors, state } = deps;
   const random = seeded(deps.seed);
   const noise = createNoise(seeded(deps.seed));
-  const { camera, beginFrame: beginCameraFrame, resize } = createCamera2D(
-    buffer,
-    state.width,
-    state.height,
-  );
+  const {
+    camera,
+    beginFrame: beginCameraFrame,
+    resize,
+  } = createCamera2D(buffer, state.width, state.height);
   const findGamepad = (index: number): GamepadInput | undefined => {
     for (let gamepadIndex = 0; gamepadIndex < state.gamepads.length; gamepadIndex++) {
       const gamepad = state.gamepads[gamepadIndex]!;

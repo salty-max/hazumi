@@ -1,50 +1,81 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Matter is a typed 2D graphics library with one retained command stream and WebGL2, Canvas2D, SVG and headless renderers." />
-<title>Matter — draw once, render anywhere</title>
-<link rel="stylesheet" href="/apps/docs/dist/style.css" />
-</head>
-<body class="site-page">
-  <nav class="mx-auto flex h-18 max-w-7xl items-center gap-3 px-5 sm:px-8" aria-label="Primary navigation">
-    <a href="/" class="flex items-center gap-3 font-display text-lg font-semibold tracking-tight text-ink">
-      <span class="brand-mark"></span>
-      <span>Matter</span>
-    </a>
-    <span class="rounded-full border border-line bg-surface-raised px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted">0.1 · pre-alpha</span>
-    <div class="ml-auto flex items-center gap-1 text-sm text-ink-soft sm:gap-5">
-      <a class="hidden hover:text-ink sm:block" href="/examples">Examples</a>
-      <a class="hidden hover:text-ink sm:block" href="/reference">Reference</a>
-      <a class="rounded-lg bg-ink px-3.5 py-2 font-medium text-white transition hover:-translate-y-px hover:bg-ink/90" href="/playground">Open playground</a>
-    </div>
-  </nav>
-
-  <main>
-    <section class="mx-auto grid max-w-7xl items-center gap-14 px-5 pt-20 pb-24 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:pt-28 lg:pb-32">
-      <div>
-        <p class="eyebrow">Typed 2D graphics</p>
-        <h1 class="mt-6 max-w-4xl font-display text-[clamp(3.8rem,9vw,7.4rem)] leading-[.86] font-semibold tracking-[-.06em] text-ink">
-          Draw once.<br /><span class="text-brand">Render anywhere.</span>
-        </h1>
-        <p class="mt-8 max-w-xl text-lg leading-8 text-ink-soft">
-          A compact scene API over a retained command stream. WebGL2 for speed, Canvas2D for truth, SVG for vectors, and headless output for tests.
-        </p>
-        <div class="mt-9 flex flex-wrap gap-3">
-          <a class="rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition hover:-translate-y-0.5" href="/playground">Start drawing →</a>
-          <a class="rounded-xl border border-line bg-surface-raised px-5 py-3 text-sm font-semibold text-ink transition hover:border-brand/50" href="/reference">Read the API</a>
-        </div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Matter is a typed 2D graphics library with one retained command stream and WebGL2, Canvas2D, SVG and headless renderers."
+    />
+    <title>Matter — draw once, render anywhere</title>
+    <link rel="stylesheet" href="/apps/docs/dist/style.css" />
+  </head>
+  <body class="site-page">
+    <nav
+      class="mx-auto flex h-18 max-w-7xl items-center gap-3 px-5 sm:px-8"
+      aria-label="Primary navigation"
+    >
+      <a
+        href="/"
+        class="flex items-center gap-3 font-display text-lg font-semibold tracking-tight text-ink"
+      >
+        <span class="brand-mark"></span>
+        <span>Matter</span>
+      </a>
+      <span
+        class="rounded-full border border-line bg-surface-raised px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted"
+        >0.1 · pre-alpha</span
+      >
+      <div class="ml-auto flex items-center gap-1 text-sm text-ink-soft sm:gap-5">
+        <a class="hidden hover:text-ink sm:block" href="/examples">Examples</a>
+        <a class="hidden hover:text-ink sm:block" href="/reference">Reference</a>
+        <a
+          class="rounded-lg bg-ink px-3.5 py-2 font-medium text-white transition hover:-translate-y-px hover:bg-ink/90"
+          href="/playground"
+          >Open playground</a
+        >
       </div>
+    </nav>
 
-      <div class="relative lg:pl-8">
-        <div class="absolute -top-8 -right-5 size-40 rounded-full bg-brand/15 blur-3xl"></div>
-        <div class="code-window relative">
-          <div class="flex h-11 items-center gap-2 border-b border-white/10 px-4">
-            <span class="size-2.5 rounded-full bg-[#ff6b6b]"></span><span class="size-2.5 rounded-full bg-[#ffd166]"></span><span class="size-2.5 rounded-full bg-[#68d391]"></span>
-            <span class="ml-auto font-mono text-[10px] text-white/40">orbit.ts</span>
+    <main>
+      <section
+        class="mx-auto grid max-w-7xl items-center gap-14 px-5 pt-20 pb-24 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:pt-28 lg:pb-32"
+      >
+        <div>
+          <p class="eyebrow">Typed 2D graphics</p>
+          <h1
+            class="mt-6 max-w-4xl font-display text-[clamp(3.8rem,9vw,7.4rem)] leading-[.86] font-semibold tracking-[-.06em] text-ink"
+          >
+            Draw once.<br /><span class="text-brand">Render anywhere.</span>
+          </h1>
+          <p class="mt-8 max-w-xl text-lg leading-8 text-ink-soft">
+            A compact scene API over a retained command stream. WebGL2 for speed, Canvas2D for
+            truth, SVG for vectors, and headless output for tests.
+          </p>
+          <div class="mt-9 flex flex-wrap gap-3">
+            <a
+              class="rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition hover:-translate-y-0.5"
+              href="/playground"
+              >Start drawing →</a
+            >
+            <a
+              class="rounded-xl border border-line bg-surface-raised px-5 py-3 text-sm font-semibold text-ink transition hover:border-brand/50"
+              href="/reference"
+              >Read the API</a
+            >
           </div>
-          <pre><code><span class="tok-variableName">start</span>({ <span class="tok-propertyName">backend</span>: <span class="tok-variableName">webgl2</span>(), <span class="tok-propertyName">width</span>: <span class="tok-number">600</span>, <span class="tok-propertyName">height</span>: <span class="tok-number">600</span> }, () =&gt; {
+        </div>
+
+        <div class="relative lg:pl-8">
+          <div class="absolute -top-8 -right-5 size-40 rounded-full bg-brand/15 blur-3xl"></div>
+          <div class="code-window relative">
+            <div class="flex h-11 items-center gap-2 border-b border-white/10 px-4">
+              <span class="size-2.5 rounded-full bg-[#ff6b6b]"></span
+              ><span class="size-2.5 rounded-full bg-[#ffd166]"></span
+              ><span class="size-2.5 rounded-full bg-[#68d391]"></span>
+              <span class="ml-auto font-mono text-[10px] text-white/40">orbit.ts</span>
+            </div>
+            <pre><code><span class="tok-variableName">start</span>({ <span class="tok-propertyName">backend</span>: <span class="tok-variableName">webgl2</span>(), <span class="tok-propertyName">width</span>: <span class="tok-number">600</span>, <span class="tok-propertyName">height</span>: <span class="tok-number">600</span> }, () =&gt; {
   <span class="tok-keyword">const</span> <span class="tok-variableName tok-definition">player</span> = { <span class="tok-propertyName">x</span>: <span class="tok-number">300</span>, <span class="tok-propertyName">y</span>: <span class="tok-number">300</span> };
 
   <span class="tok-keyword">return</span> {
@@ -59,36 +90,64 @@
     },
   };
 });</code></pre>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-      <div class="grid gap-5 lg:grid-cols-3">
-        <a class="route-card glass-card rounded-2xl p-6" href="/playground">
-          <h2 class="font-display text-2xl font-semibold tracking-tight">Playground</h2>
-          <p class="mt-2 text-sm leading-6 text-ink-muted">Write code, resize the preview and export a frame to SVG.</p>
-        </a>
-        <a class="route-card glass-card rounded-2xl p-6" href="/reference">
-          <h2 class="font-display text-2xl font-semibold tracking-tight">API reference</h2>
-          <p class="mt-2 text-sm leading-6 text-ink-muted">Types, signatures and examples generated from the declarations.</p>
-        </a>
-        <a class="route-card glass-card rounded-2xl p-6" href="/examples">
-          <h2 class="font-display text-2xl font-semibold tracking-tight">Example gallery</h2>
-          <p class="mt-2 text-sm leading-6 text-ink-muted">Twelve scenes running live.</p>
-        </a>
-      </div>
-    </section>
+      <section class="mx-auto max-w-7xl px-5 py-20 sm:px-8">
+        <div class="grid gap-5 lg:grid-cols-3">
+          <a class="route-card glass-card rounded-2xl p-6" href="/playground">
+            <h2 class="font-display text-2xl font-semibold tracking-tight">Playground</h2>
+            <p class="mt-2 text-sm leading-6 text-ink-muted">
+              Write code, resize the preview and export a frame to SVG.
+            </p>
+          </a>
+          <a class="route-card glass-card rounded-2xl p-6" href="/reference">
+            <h2 class="font-display text-2xl font-semibold tracking-tight">API reference</h2>
+            <p class="mt-2 text-sm leading-6 text-ink-muted">
+              Types, signatures and examples generated from the declarations.
+            </p>
+          </a>
+          <a class="route-card glass-card rounded-2xl p-6" href="/examples">
+            <h2 class="font-display text-2xl font-semibold tracking-tight">Example gallery</h2>
+            <p class="mt-2 text-sm leading-6 text-ink-muted">Twelve scenes running live.</p>
+          </a>
+        </div>
+      </section>
 
-    <section class="mx-auto max-w-7xl px-5 pb-24 sm:px-8">
-      <h2 class="max-w-2xl font-display text-5xl font-semibold tracking-[-.04em]">What is already there</h2>
-      <div class="mt-8 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2">
-        <div class="bg-surface-raised p-6"><h3 class="font-semibold">Game loop and camera</h3><p class="mt-2 text-sm leading-6 text-ink-muted">Fixed updates, interpolated draws, pan, zoom and world-to-screen conversion.</p></div>
-        <div class="bg-surface-raised p-6"><h3 class="font-semibold">2D drawing</h3><p class="mt-2 text-sm leading-6 text-ink-muted">Shapes, paths, text, transforms, spritesheets and animation clips.</p></div>
-        <div class="bg-surface-raised p-6"><h3 class="font-semibold">Four outputs</h3><p class="mt-2 text-sm leading-6 text-ink-muted">WebGL2, Canvas2D, SVG and a headless command recorder.</p></div>
-        <div class="bg-surface-raised p-6"><h3 class="font-semibold">Reproducible runs</h3><p class="mt-2 text-sm leading-6 text-ink-muted">Seeded random, noise and a deterministic fixed timestep.</p></div>
-      </div>
-    </section>
-  </main>
-</body>
+      <section class="mx-auto max-w-7xl px-5 pb-24 sm:px-8">
+        <h2 class="max-w-2xl font-display text-5xl font-semibold tracking-[-.04em]">
+          What is already there
+        </h2>
+        <div
+          class="mt-8 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2"
+        >
+          <div class="bg-surface-raised p-6">
+            <h3 class="font-semibold">Game loop and camera</h3>
+            <p class="mt-2 text-sm leading-6 text-ink-muted">
+              Fixed updates, interpolated draws, pan, zoom and world-to-screen conversion.
+            </p>
+          </div>
+          <div class="bg-surface-raised p-6">
+            <h3 class="font-semibold">2D drawing</h3>
+            <p class="mt-2 text-sm leading-6 text-ink-muted">
+              Shapes, paths, text, transforms, spritesheets and animation clips.
+            </p>
+          </div>
+          <div class="bg-surface-raised p-6">
+            <h3 class="font-semibold">Four outputs</h3>
+            <p class="mt-2 text-sm leading-6 text-ink-muted">
+              WebGL2, Canvas2D, SVG and a headless command recorder.
+            </p>
+          </div>
+          <div class="bg-surface-raised p-6">
+            <h3 class="font-semibold">Reproducible runs</h3>
+            <p class="mt-2 text-sm leading-6 text-ink-muted">
+              Seeded random, noise and a deterministic fixed timestep.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
 </html>

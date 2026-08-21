@@ -27,7 +27,7 @@ the floor, not the review. Green checks say the code compiles; they say nothing
 about whether it is correct or whether the tests cover the risk. Before staging,
 read the actual diff and work the list below.
 
-**Exports** — is every new value exported as a *value*? A class or function
+**Exports** — is every new value exported as a _value_? A class or function
 re-exported through `export type` disappears at runtime while still
 typechecking, so `bun run build` and `tsc` both stay green and the failure only
 shows up when someone imports it. Check the umbrella package too: adding to
@@ -84,7 +84,7 @@ or the code wants restructuring so the rule stops firing. Every suppression
 this repo has carried turned out to be the second: sequential awaits became a
 promise chain, `new Function` became a module import that also gave user code
 real stack traces. The one exception is `no-console` for `bench/`, `examples/`
-and the docs build script, which are programs whose output *is* the product;
+and the docs build script, which are programs whose output _is_ the product;
 it is scoped in `.oxlintrc.json` rather than sprinkled through the source.
 
 **Benchmark contamination** — never read `process.memoryUsage()` inside or
@@ -130,18 +130,18 @@ coupling.
 
 ## Layout
 
-| Path | Layer | Role |
-| --- | --- | --- |
-| `packages/core` | L0 | Lifecycle, clock, plugin registry. Depends on nothing. |
-| `packages/math` | L1 | Vec2/Vec3, Mat4, seeded PRNG, noise, easing. Pure. |
-| `packages/color` | L2 | OKLCH color type, parsing, interpolation. |
-| `packages/graphics` | L3 | Command buffer, paths, style, transforms. |
-| `packages/backend-webgl2` | L4 | **Primary renderer.** Most of the engineering. |
-| `packages/backend-canvas2d` | L4 | Reference oracle for tests + text fallback. |
-| `packages/backend-svg` | L4 | Vector export. |
-| `packages/backend-headless` | L4 | Records commands for assertions. |
-| `packages/matter` | L5 | Umbrella entry point. Deliberately thin. |
-| `packages/vite-plugin` | — | Optional build-time auto-import. |
+| Path                        | Layer | Role                                                   |
+| --------------------------- | ----- | ------------------------------------------------------ |
+| `packages/core`             | L0    | Lifecycle, clock, plugin registry. Depends on nothing. |
+| `packages/math`             | L1    | Vec2/Vec3, Mat4, seeded PRNG, noise, easing. Pure.     |
+| `packages/color`            | L2    | OKLCH color type, parsing, interpolation.              |
+| `packages/graphics`         | L3    | Command buffer, paths, style, transforms.              |
+| `packages/backend-webgl2`   | L4    | **Primary renderer.** Most of the engineering.         |
+| `packages/backend-canvas2d` | L4    | Reference oracle for tests + text fallback.            |
+| `packages/backend-svg`      | L4    | Vector export.                                         |
+| `packages/backend-headless` | L4    | Records commands for assertions.                       |
+| `packages/matter`           | L5    | Umbrella entry point. Deliberately thin.               |
+| `packages/vite-plugin`      | —     | Optional build-time auto-import.                       |
 
 If something can only be written in `packages/matter`, a lower layer is missing
 a capability. Push it down rather than thickening L5.
@@ -189,7 +189,7 @@ has no browser mode.
 
 Prefer asserting on the recorded command stream via `backend-headless` over
 pixel comparison. Reserve golden-image tests against `backend-canvas2d` for
-verifying WebGL2 *correctness*, where pixels are genuinely the thing under test.
+verifying WebGL2 _correctness_, where pixels are genuinely the thing under test.
 
 ## Performance rules for the hot path
 
@@ -198,7 +198,7 @@ These apply to command-buffer encoding and the WebGL2 backend's per-frame work:
 - No allocation in the per-frame path. No object literals, no closures, no array
   `map`/`filter` in encode or flush.
 - Batches key on program, blend state, and texture — but with alpha blending only
-  *adjacent* compatible commands may merge. A global sort silently reorders
+  _adjacent_ compatible commands may merge. A global sort silently reorders
   overlapping transparent shapes.
 - Every GPU resource is a handle plus a CPU-side descriptor sufficient to rebuild
   it, so `webglcontextlost` is recoverable. Never hold a raw GL object.

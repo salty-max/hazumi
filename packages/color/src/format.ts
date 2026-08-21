@@ -1,4 +1,4 @@
-import { type Oklch, toSrgb } from './oklch';
+import { type Oklch, toSrgb } from "./oklch";
 
 function round(value: number, places: number): number {
   const f = 10 ** places;
@@ -9,7 +9,7 @@ function round(value: number, places: number): number {
 function hexByte(value: number): string {
   return Math.round(value * 255)
     .toString(16)
-    .padStart(2, '0');
+    .padStart(2, "0");
 }
 
 /** `oklch(...)`, preserving the colour exactly. */
@@ -38,7 +38,5 @@ function byte255(value: number): number {
 export function toRgbCss(color: Oklch): string {
   const srgb = toSrgb(color);
   const rgb = `${byte255(srgb.r)} ${byte255(srgb.g)} ${byte255(srgb.b)}`;
-  return srgb.alpha >= 1
-    ? `rgb(${rgb})`
-    : `rgb(${rgb} / ${round(srgb.alpha, 4)})`;
+  return srgb.alpha >= 1 ? `rgb(${rgb})` : `rgb(${rgb} / ${round(srgb.alpha, 4)})`;
 }

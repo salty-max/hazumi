@@ -1,11 +1,11 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from "bun:test";
 import {
   cubicSegments,
   flattenCubic,
   flattenQuadratic,
   quadraticSegments,
   type PolylineSink,
-} from '../src/path/flatten';
+} from "../src/path/flatten";
 
 function collect(): PolylineSink & { points: Array<[number, number]> } {
   const points: Array<[number, number]> = [];
@@ -15,44 +15,46 @@ function collect(): PolylineSink & { points: Array<[number, number]> } {
 /** Exact quadratic evaluation, to check the flattened points against. */
 function quadAt(
   t: number,
-  x0: number, y0: number, cx: number, cy: number, x1: number, y1: number,
+  x0: number,
+  y0: number,
+  cx: number,
+  cy: number,
+  x1: number,
+  y1: number,
 ): [number, number] {
   const u = 1 - t;
-  return [
-    u * u * x0 + 2 * u * t * cx + t * t * x1,
-    u * u * y0 + 2 * u * t * cy + t * t * y1,
-  ];
+  return [u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1];
 }
 
-describe('quadraticSegments', () => {
-  test('a straight curve needs one segment', () => {
+describe("quadraticSegments", () => {
+  test("a straight curve needs one segment", () => {
     // Control point on the chord: the curve is the chord.
     expect(quadraticSegments(0, 0, 50, 0, 100, 0)).toBe(1);
   });
 
-  test('a curved one needs more', () => {
+  test("a curved one needs more", () => {
     expect(quadraticSegments(0, 0, 50, 100, 100, 0)).toBeGreaterThan(1);
   });
 
-  test('segment count grows with curvature', () => {
+  test("segment count grows with curvature", () => {
     const gentle = quadraticSegments(0, 0, 50, 5, 100, 0);
     const sharp = quadraticSegments(0, 0, 50, 500, 100, 0);
     expect(sharp).toBeGreaterThan(gentle);
   });
 
-  test('a tighter tolerance asks for more segments', () => {
+  test("a tighter tolerance asks for more segments", () => {
     const coarse = quadraticSegments(0, 0, 50, 100, 100, 0, 1);
     const fine = quadraticSegments(0, 0, 50, 100, 100, 0, 0.01);
     expect(fine).toBeGreaterThan(coarse);
   });
 
-  test('never returns zero, whatever the input', () => {
+  test("never returns zero, whatever the input", () => {
     expect(quadraticSegments(0, 0, 0, 0, 0, 0)).toBeGreaterThanOrEqual(1);
   });
 });
 
-describe('flattenQuadratic', () => {
-  test('ends exactly on the endpoint', () => {
+describe("flattenQuadratic", () => {
+  test("ends exactly on the endpoint", () => {
     const sink = collect();
     flattenQuadratic(sink, 0, 0, 50, 100, 100, 0);
     const last = sink.points.at(-1) as [number, number];
@@ -60,7 +62,7 @@ describe('flattenQuadratic', () => {
     expect(last[1]).toBeCloseTo(0, 9);
   });
 
-  test('does not repeat the start point', () => {
+  test("does not repeat the start point", () => {
     // The current point is already in the polyline; emitting it again would
     // create a zero-length segment and a degenerate stroke join.
     const sink = collect();
@@ -68,7 +70,7 @@ describe('flattenQuadratic', () => {
     expect(sink.points[0]).not.toEqual([10, 20]);
   });
 
-  test('stays within tolerance of the true curve', () => {
+  test("stays within tolerance of the true curve", () => {
     const tolerance = 0.25;
     const sink = collect();
     flattenQuadratic(sink, 0, 0, 50, 200, 100, 0, tolerance);
@@ -87,7 +89,8 @@ describe('flattenQuadratic', () => {
         const dx = bx - ax;
         const dy = by - ay;
         const len2 = dx * dx + dy * dy;
-        const t = len2 === 0 ? 0 : Math.min(Math.max(((px - ax) * dx + (py - ay) * dy) / len2, 0), 1);
+        const t =
+          len2 === 0 ? 0 : Math.min(Math.max(((px - ax) * dx + (py - ay) * dy) / len2, 0), 1);
         nearest = Math.min(nearest, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)));
       }
       worst = Math.max(worst, nearest);
@@ -95,43 +98,43 @@ describe('flattenQuadratic', () => {
     expect(worst).toBeLessThanOrEqual(tolerance);
   });
 
-  test('a degenerate curve produces a single segment', () => {
+  test("a degenerate curve produces a single segment", () => {
     const sink = collect();
     flattenQuadratic(sink, 0, 0, 0, 0, 0, 0);
     expect(sink.points).toHaveLength(1);
   });
 });
 
-describe('cubicSegments', () => {
-  test('a straight, evenly parameterised cubic needs one segment', () => {
+describe("cubicSegments", () => {
+  test("a straight, evenly parameterised cubic needs one segment", () => {
     // Controls at exactly a third and two thirds: the curve is the chord, the
     // parameterisation is uniform, and the second derivative is zero.
     expect(cubicSegments(0, 0, 100 / 3, 0, 200 / 3, 0, 100, 0)).toBe(1);
   });
 
-  test('is conservative for a straight but unevenly spaced cubic', () => {
+  test("is conservative for a straight but unevenly spaced cubic", () => {
     // Geometrically still a line, but the second derivative is non-zero
     // because the parameterisation is not uniform. Conservative in the safe
     // direction: extra vertices, never a visible facet.
     expect(cubicSegments(0, 0, 33, 0, 66, 0, 100, 0)).toBeGreaterThanOrEqual(1);
   });
 
-  test('an S-curve is measured by its larger lobe', () => {
+  test("an S-curve is measured by its larger lobe", () => {
     // One control point flat, the other far out: bounding only the first would
     // under-segment the second half.
     const asymmetric = cubicSegments(0, 0, 10, 0, 90, 300, 100, 0);
     expect(asymmetric).toBeGreaterThan(4);
   });
 
-  test('is symmetric under reversal', () => {
+  test("is symmetric under reversal", () => {
     const forward = cubicSegments(0, 0, 20, 80, 80, 80, 100, 0);
     const backward = cubicSegments(100, 0, 80, 80, 20, 80, 0, 0);
     expect(forward).toBe(backward);
   });
 });
 
-describe('flattenCubic', () => {
-  test('ends exactly on the endpoint', () => {
+describe("flattenCubic", () => {
+  test("ends exactly on the endpoint", () => {
     const sink = collect();
     flattenCubic(sink, 0, 0, 20, 80, 80, 80, 100, 0);
     const last = sink.points.at(-1) as [number, number];
@@ -139,7 +142,7 @@ describe('flattenCubic', () => {
     expect(last[1]).toBeCloseTo(0, 9);
   });
 
-  test('produces a monotone parameterisation', () => {
+  test("produces a monotone parameterisation", () => {
     // Points come out in curve order; an out-of-order point would fold the
     // polyline back on itself and break both fill and stroke.
     const sink = collect();
@@ -151,13 +154,13 @@ describe('flattenCubic', () => {
     }
   });
 
-  test('a straight cubic flattens to points on the line', () => {
+  test("a straight cubic flattens to points on the line", () => {
     const sink = collect();
     flattenCubic(sink, 0, 0, 100 / 3, 0, 200 / 3, 0, 100, 0);
     expect(sink.points).toEqual([[100, 0]]);
   });
 
-  test('stays within tolerance of the true curve', () => {
+  test("stays within tolerance of the true curve", () => {
     // The property that actually matters, checked the same way as for
     // quadratics: sample the exact curve and measure distance to the polyline.
     const tolerance = 0.25;
@@ -184,7 +187,8 @@ describe('flattenCubic', () => {
         const dx = bx - ax;
         const dy = by - ay;
         const len2 = dx * dx + dy * dy;
-        const tt = len2 === 0 ? 0 : Math.min(Math.max(((px - ax) * dx + (py - ay) * dy) / len2, 0), 1);
+        const tt =
+          len2 === 0 ? 0 : Math.min(Math.max(((px - ax) * dx + (py - ay) * dy) / len2, 0), 1);
         nearest = Math.min(nearest, Math.hypot(px - (ax + tt * dx), py - (ay + tt * dy)));
       }
       worst = Math.max(worst, nearest);

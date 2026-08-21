@@ -427,7 +427,11 @@ export function start<Api extends object = Record<never, never>>(
     renderer.setPasses(passes);
   };
 
-  const { context, beginFrame, resize: resizeContext } = createContext({
+  const {
+    context,
+    beginFrame,
+    resize: resizeContext,
+  } = createContext({
     buffer,
     colors,
     state,

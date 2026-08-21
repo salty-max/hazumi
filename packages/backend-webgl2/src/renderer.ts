@@ -13,10 +13,10 @@ import {
   rotateAffine,
   scaleAffine,
   translateAffine,
-} from '@matter/graphics';
-import { mat4 } from '@matter/math';
-import { BatchList, Pipeline } from './batch';
-import { GlStateCache } from './state';
+} from "@matter/graphics";
+import { mat4 } from "@matter/math";
+import { BatchList, Pipeline } from "./batch";
+import { GlStateCache } from "./state";
 import {
   GLYPH_FRAGMENT_SHADER,
   GLYPH_VERTEX_SHADER,
@@ -26,13 +26,13 @@ import {
   SDF_FRAGMENT_SHADER,
   SDF_VERTEX_SHADER,
   POST_VERTEX_SHADER,
-} from './shaders';
-import { PathBuilder } from './path/builder';
-import { fanTriangles, quadTriangles, strokeTriangles } from './path/geometry';
-import { SdfAtlas } from './text/atlas';
-import { type ResourceId, ResourceRegistry } from './resource';
-import type { ImageSource } from '@matter/graphics';
-import { PingPongTargets } from './framebuffer';
+} from "./shaders";
+import { PathBuilder } from "./path/builder";
+import { fanTriangles, quadTriangles, strokeTriangles } from "./path/geometry";
+import { SdfAtlas } from "./text/atlas";
+import { type ResourceId, ResourceRegistry } from "./resource";
+import type { ImageSource } from "@matter/graphics";
+import { PingPongTargets } from "./framebuffer";
 import {
   COPY_PASS_FRAGMENT_BODY,
   COPY_PASS_FRAGMENT,
@@ -40,7 +40,7 @@ import {
   setUniform,
   setUniformInt,
   type ShaderPass,
-} from './post';
+} from "./post";
 
 /** a, b, c, d | tx, ty, hx, hy | r, g, b, alpha | edge, shape. */
 const INSTANCE_FLOATS = 14;
@@ -161,16 +161,28 @@ export interface FrameStats {
 }
 
 interface Style {
-  fillR: number; fillG: number; fillB: number; fillA: number;
-  strokeR: number; strokeG: number; strokeB: number; strokeA: number;
+  fillR: number;
+  fillG: number;
+  fillB: number;
+  fillA: number;
+  strokeR: number;
+  strokeG: number;
+  strokeB: number;
+  strokeA: number;
   strokeWidth: number;
   blend: Blend;
 }
 
 function defaultStyle(): Style {
   return {
-    fillR: 0, fillG: 0, fillB: 0, fillA: 1,
-    strokeR: 0, strokeG: 0, strokeB: 0, strokeA: 1,
+    fillR: 0,
+    fillG: 0,
+    fillB: 0,
+    fillA: 1,
+    strokeR: 0,
+    strokeG: 0,
+    strokeB: 0,
+    strokeA: 1,
     strokeWidth: 0,
     blend: Blend.Normal,
   };
@@ -254,7 +266,7 @@ export class Webgl2Renderer {
   #passes = new PassCache(this.#registry);
   #chain: readonly ShaderPass[] = [];
   #elapsed = 0;
-  #fontFamily = 'sans-serif';
+  #fontFamily = "sans-serif";
   #textSize = 16;
   #align: Align = Align.Left;
   #baseline: Baseline = Baseline.Alphabetic;
@@ -275,19 +287,19 @@ export class Webgl2Renderer {
     this.#instances = new Float32Array(INITIAL_INSTANCES * INSTANCE_FLOATS);
 
     this.#quadId = this.#registry.register({
-      kind: 'buffer',
+      kind: "buffer",
       target: WebGL2RenderingContext.ARRAY_BUFFER,
       usage: WebGL2RenderingContext.STATIC_DRAW,
       byteLength: 8 * 4,
     });
     this.#instanceId = this.#registry.register({
-      kind: 'buffer',
+      kind: "buffer",
       target: WebGL2RenderingContext.ARRAY_BUFFER,
       usage: WebGL2RenderingContext.DYNAMIC_DRAW,
       byteLength: this.#instances.byteLength,
     });
     this.#programId = this.#registry.register({
-      kind: 'program',
+      kind: "program",
       vertex: SDF_VERTEX_SHADER,
       fragment: SDF_FRAGMENT_SHADER,
     });
@@ -295,19 +307,19 @@ export class Webgl2Renderer {
     this.#glyphCapacity = INITIAL_INSTANCES;
     this.#glyphs = new Float32Array(INITIAL_INSTANCES * GLYPH_FLOATS);
     this.#glyphBufferId = this.#registry.register({
-      kind: 'buffer',
+      kind: "buffer",
       target: WebGL2RenderingContext.ARRAY_BUFFER,
       usage: WebGL2RenderingContext.DYNAMIC_DRAW,
       byteLength: this.#glyphs.byteLength,
     });
     this.#glyphProgramId = this.#registry.register({
-      kind: 'program',
+      kind: "program",
       vertex: GLYPH_VERTEX_SHADER,
       fragment: GLYPH_FRAGMENT_SHADER,
     });
     // Shares the glyph vertex shader: same textured quad, different sampling.
     this.#imageProgramId = this.#registry.register({
-      kind: 'program',
+      kind: "program",
       vertex: GLYPH_VERTEX_SHADER,
       fragment: IMAGE_FRAGMENT_SHADER,
     });
@@ -315,24 +327,24 @@ export class Webgl2Renderer {
     this.#pathCapacity = INITIAL_PATH_VERTICES;
     this.#pathVertices = new Float32Array(INITIAL_PATH_VERTICES * PATH_FLOATS);
     this.#pathBufferId = this.#registry.register({
-      kind: 'buffer',
+      kind: "buffer",
       target: WebGL2RenderingContext.ARRAY_BUFFER,
       usage: WebGL2RenderingContext.DYNAMIC_DRAW,
       byteLength: this.#pathVertices.byteLength,
     });
     this.#pathProgramId = this.#registry.register({
-      kind: 'program',
+      kind: "program",
       vertex: PATH_VERTEX_SHADER,
       fragment: PATH_FRAGMENT_SHADER,
     });
     this.#pixelTextureId = this.#registry.register({
-      kind: 'rgba-texture',
+      kind: "rgba-texture",
       width: 1,
       height: 1,
       data: new Uint8Array(4),
     });
     this.#pixelProgramId = this.#registry.register({
-      kind: 'program',
+      kind: "program",
       vertex: POST_VERTEX_SHADER,
       fragment: COPY_PASS_FRAGMENT,
     });
@@ -353,8 +365,8 @@ export class Webgl2Renderer {
       this.#acquireContext(options);
     };
 
-    canvas.addEventListener('webglcontextlost', this.#onLost as EventListener);
-    canvas.addEventListener('webglcontextrestored', this.#onRestored);
+    canvas.addEventListener("webglcontextlost", this.#onLost as EventListener);
+    canvas.addEventListener("webglcontextrestored", this.#onRestored);
 
     // Default to the canvas dimensions. An unset viewport is a zero matrix,
     // which collapses every vertex and renders a silently blank canvas — a
@@ -456,7 +468,7 @@ export class Webgl2Renderer {
 
   #pixelContext(): WebGL2RenderingContext {
     if (this.#gl === null || this.#contextLost) {
-      throw new Error('WebGL pixel access is unavailable while the context is lost');
+      throw new Error("WebGL pixel access is unavailable while the context is lost");
     }
     return this.#gl;
   }
@@ -674,12 +686,9 @@ export class Webgl2Renderer {
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    setUniformInt(gl, program, compiled, 'u_texture', 0);
-    setUniform(gl, program, compiled, 'u_resolution', [
-      this.#canvas.width,
-      this.#canvas.height,
-    ]);
-    setUniform(gl, program, compiled, 'u_time', this.#elapsed);
+    setUniformInt(gl, program, compiled, "u_texture", 0);
+    setUniform(gl, program, compiled, "u_resolution", [this.#canvas.width, this.#canvas.height]);
+    setUniform(gl, program, compiled, "u_time", this.#elapsed);
 
     if (uniforms !== undefined) {
       for (const [name, value] of Object.entries(uniforms)) {
@@ -694,8 +703,8 @@ export class Webgl2Renderer {
   }
 
   dispose(): void {
-    this.#canvas.removeEventListener('webglcontextlost', this.#onLost as EventListener);
-    this.#canvas.removeEventListener('webglcontextrestored', this.#onRestored);
+    this.#canvas.removeEventListener("webglcontextlost", this.#onLost as EventListener);
+    this.#canvas.removeEventListener("webglcontextrestored", this.#onRestored);
 
     const gl = this.#gl;
     if (gl !== null) {
@@ -713,7 +722,7 @@ export class Webgl2Renderer {
       // applications repeatedly — the playground's Run button — would hit that cap
       // long before GC ran, so release it now.
       this.#gl = null;
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
     } else {
       this.#registry.invalidate();
     }
@@ -730,12 +739,16 @@ export class Webgl2Renderer {
   #makeVisitor(): CommandVisitor {
     return {
       setFill: (r: number, g: number, b: number, a: number): void => {
-        this.#style.fillR = r; this.#style.fillG = g;
-        this.#style.fillB = b; this.#style.fillA = a;
+        this.#style.fillR = r;
+        this.#style.fillG = g;
+        this.#style.fillB = b;
+        this.#style.fillA = a;
       },
       setStroke: (r: number, g: number, b: number, a: number): void => {
-        this.#style.strokeR = r; this.#style.strokeG = g;
-        this.#style.strokeB = b; this.#style.strokeA = a;
+        this.#style.strokeR = r;
+        this.#style.strokeG = g;
+        this.#style.strokeB = b;
+        this.#style.strokeA = a;
       },
       setStrokeWidth: (width: number): void => {
         this.#style.strokeWidth = width;
@@ -783,7 +796,10 @@ export class Webgl2Renderer {
           half,
           this.#viewWidth / 2,
           this.#viewHeight / 2,
-          r, g, b, a,
+          r,
+          g,
+          b,
+          a,
           SHAPE_BOX,
           0,
           Blend.Normal,
@@ -825,11 +841,7 @@ export class Webgl2Renderer {
         if (iw <= 0 || ih <= 0) return;
         // Textures upload unflipped, so v runs top-down exactly like the source
         // rectangle does — the same convention as the whole-image case above.
-        this.#emitImage(
-          source, dx, dy, dw, dh,
-          sx / iw, sy / ih,
-          (sx + sw) / iw, (sy + sh) / ih,
-        );
+        this.#emitImage(source, dx, dy, dw, dh, sx / iw, sy / ih, (sx + sw) / iw, (sy + sh) / ih);
       },
 
       beginPath: (): void => this.#builder.reset(),
@@ -837,11 +849,8 @@ export class Webgl2Renderer {
       lineTo: (x: number, y: number): void => this.#builder.lineTo(x, y),
       quadraticTo: (cx: number, cy: number, x: number, y: number): void =>
         this.#builder.quadraticTo(cx, cy, x, y),
-      cubicTo: (
-        c1x: number, c1y: number,
-        c2x: number, c2y: number,
-        x: number, y: number,
-      ): void => this.#builder.cubicTo(c1x, c1y, c2x, c2y, x, y),
+      cubicTo: (c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void =>
+        this.#builder.cubicTo(c1x, c1y, c2x, c2y, x, y),
       closePath: (): void => this.#builder.close(),
       fillPath: (): void => this.#emitPathFill(),
       strokePath: (): void => this.#emitPathStroke(),
@@ -895,20 +904,45 @@ export class Webgl2Renderer {
     if (rotation !== 0) rotateAffine(m, rotation);
 
     if (strokeOnly) {
-      this.#pushInstance(m, halfW, halfH, style.strokeR, style.strokeG, style.strokeB, style.strokeA, shape, 0);
+      this.#pushInstance(
+        m,
+        halfW,
+        halfH,
+        style.strokeR,
+        style.strokeG,
+        style.strokeB,
+        style.strokeA,
+        shape,
+        0,
+      );
       return;
     }
 
     if (style.fillA > 0) {
-      this.#pushInstance(m, halfW, halfH, style.fillR, style.fillG, style.fillB, style.fillA, shape, 0);
+      this.#pushInstance(
+        m,
+        halfW,
+        halfH,
+        style.fillR,
+        style.fillG,
+        style.fillB,
+        style.fillA,
+        shape,
+        0,
+      );
     }
 
     if (style.strokeWidth > 0 && style.strokeA > 0) {
       // Stroke width is in user units, the same space as the half-extents, so
       // the current transform scales both together exactly as Canvas2D does.
       this.#pushInstance(
-        m, halfW, halfH,
-        style.strokeR, style.strokeG, style.strokeB, style.strokeA,
+        m,
+        halfW,
+        halfH,
+        style.strokeR,
+        style.strokeG,
+        style.strokeB,
+        style.strokeA,
         shape,
         style.strokeWidth / 2,
       );
@@ -919,7 +953,10 @@ export class Webgl2Renderer {
     m: Affine,
     halfW: number,
     halfH: number,
-    r: number, g: number, b: number, a: number,
+    r: number,
+    g: number,
+    b: number,
+    a: number,
     shape: number,
     edge: number,
   ): void {
@@ -930,7 +967,10 @@ export class Webgl2Renderer {
     m: Affine,
     halfW: number,
     halfH: number,
-    r: number, g: number, b: number, a: number,
+    r: number,
+    g: number,
+    b: number,
+    a: number,
     shape: number,
     edge: number,
     blend: Blend,
@@ -939,10 +979,20 @@ export class Webgl2Renderer {
 
     const i = this.#count * INSTANCE_FLOATS;
     const arr = this.#instances;
-    arr[i] = m.a; arr[i + 1] = m.b; arr[i + 2] = m.c; arr[i + 3] = m.d;
-    arr[i + 4] = m.tx; arr[i + 5] = m.ty; arr[i + 6] = halfW; arr[i + 7] = halfH;
-    arr[i + 8] = r; arr[i + 9] = g; arr[i + 10] = b; arr[i + 11] = a;
-    arr[i + 12] = edge; arr[i + 13] = shape;
+    arr[i] = m.a;
+    arr[i + 1] = m.b;
+    arr[i + 2] = m.c;
+    arr[i + 3] = m.d;
+    arr[i + 4] = m.tx;
+    arr[i + 5] = m.ty;
+    arr[i + 6] = halfW;
+    arr[i + 7] = halfH;
+    arr[i + 8] = r;
+    arr[i + 9] = g;
+    arr[i + 10] = b;
+    arr[i + 11] = a;
+    arr[i + 12] = edge;
+    arr[i + 13] = shape;
 
     this.#batches.push(blend);
     this.#count++;
@@ -966,7 +1016,7 @@ export class Webgl2Renderer {
 
     const atlas = new SdfAtlas(family);
     const textureId = this.#registry.add(gl, {
-      kind: 'texture',
+      kind: "texture",
       width: atlas.width,
       height: atlas.height,
       data: atlas.data,
@@ -993,7 +1043,8 @@ export class Webgl2Renderer {
 
     let penY = y;
     if (this.#baseline === Baseline.Top) penY += atlas.ascent * size;
-    else if (this.#baseline === Baseline.Middle) penY += ((atlas.ascent - atlas.descent) / 2) * size;
+    else if (this.#baseline === Baseline.Middle)
+      penY += ((atlas.ascent - atlas.descent) / 2) * size;
     else if (this.#baseline === Baseline.Bottom) penY -= atlas.descent * size;
 
     for (const char of content) {
@@ -1026,7 +1077,7 @@ export class Webgl2Renderer {
     if (existing !== undefined) return existing;
 
     const id = this.#registry.add(gl, {
-      kind: 'image-texture',
+      kind: "image-texture",
       source,
       smoothing: this.#smoothing,
     });
@@ -1059,7 +1110,10 @@ export class Webgl2Renderer {
 
   #pushGlyph(
     m: Affine,
-    u0: number, v0: number, u1: number, v1: number,
+    u0: number,
+    v0: number,
+    u1: number,
+    v1: number,
     textureId: ResourceId,
   ): void {
     if (this.#glyphCount === this.#glyphCapacity) this.#growGlyphs();
@@ -1067,11 +1121,20 @@ export class Webgl2Renderer {
     const i = this.#glyphCount * GLYPH_FLOATS;
     const arr = this.#glyphs;
     const style = this.#style;
-    arr[i] = m.a; arr[i + 1] = m.b; arr[i + 2] = m.c; arr[i + 3] = m.d;
-    arr[i + 4] = m.tx; arr[i + 5] = m.ty;
-    arr[i + 6] = u0; arr[i + 7] = v0; arr[i + 8] = u1; arr[i + 9] = v1;
-    arr[i + 10] = style.fillR; arr[i + 11] = style.fillG;
-    arr[i + 12] = style.fillB; arr[i + 13] = style.fillA;
+    arr[i] = m.a;
+    arr[i + 1] = m.b;
+    arr[i + 2] = m.c;
+    arr[i + 3] = m.d;
+    arr[i + 4] = m.tx;
+    arr[i + 5] = m.ty;
+    arr[i + 6] = u0;
+    arr[i + 7] = v0;
+    arr[i + 8] = u1;
+    arr[i + 9] = v1;
+    arr[i + 10] = style.fillR;
+    arr[i + 11] = style.fillG;
+    arr[i + 12] = style.fillB;
+    arr[i + 13] = style.fillA;
 
     this.#batches.push(style.blend, Pipeline.Glyph, textureId);
     this.#glyphCount++;
@@ -1080,7 +1143,10 @@ export class Webgl2Renderer {
   /** Glyphs and images share the instance array; only the pipeline differs. */
   #pushTextured(
     m: Affine,
-    u0: number, v0: number, u1: number, v1: number,
+    u0: number,
+    v0: number,
+    u1: number,
+    v1: number,
     textureId: ResourceId,
     pipeline: Pipeline,
   ): void {
@@ -1089,11 +1155,21 @@ export class Webgl2Renderer {
     const i = this.#glyphCount * GLYPH_FLOATS;
     const arr = this.#glyphs;
     const style = this.#style;
-    arr[i] = m.a; arr[i + 1] = m.b; arr[i + 2] = m.c; arr[i + 3] = m.d;
-    arr[i + 4] = m.tx; arr[i + 5] = m.ty;
-    arr[i + 6] = u0; arr[i + 7] = v0; arr[i + 8] = u1; arr[i + 9] = v1;
+    arr[i] = m.a;
+    arr[i + 1] = m.b;
+    arr[i + 2] = m.c;
+    arr[i + 3] = m.d;
+    arr[i + 4] = m.tx;
+    arr[i + 5] = m.ty;
+    arr[i + 6] = u0;
+    arr[i + 7] = v0;
+    arr[i + 8] = u1;
+    arr[i + 9] = v1;
     // Tint: white fill leaves the image untouched.
-    arr[i + 10] = 1; arr[i + 11] = 1; arr[i + 12] = 1; arr[i + 13] = style.fillA;
+    arr[i + 10] = 1;
+    arr[i + 11] = 1;
+    arr[i + 12] = 1;
+    arr[i + 13] = style.fillA;
 
     this.#batches.push(style.blend, pipeline, textureId);
     this.#glyphCount++;
@@ -1141,7 +1217,10 @@ export class Webgl2Renderer {
 
     this.#pushPathVertices(
       scratch,
-      style.fillR, style.fillG, style.fillB, style.fillA,
+      style.fillR,
+      style.fillG,
+      style.fillB,
+      style.fillA,
       Pipeline.PathFill,
       fanVertices,
     );
@@ -1160,7 +1239,10 @@ export class Webgl2Renderer {
 
     this.#pushPathVertices(
       scratch,
-      style.strokeR, style.strokeG, style.strokeB, style.strokeA,
+      style.strokeR,
+      style.strokeG,
+      style.strokeB,
+      style.strokeA,
       Pipeline.PathStroke,
     );
   }
@@ -1174,7 +1256,10 @@ export class Webgl2Renderer {
    */
   #pushPathVertices(
     points: readonly number[],
-    r: number, g: number, b: number, a: number,
+    r: number,
+    g: number,
+    b: number,
+    a: number,
     pipeline: Pipeline,
     fanCount = 0,
   ): void {
@@ -1246,7 +1331,7 @@ export class Webgl2Renderer {
   }
 
   #acquireContext(options: Webgl2Options): void {
-    const gl = this.#canvas.getContext('webgl2', {
+    const gl = this.#canvas.getContext("webgl2", {
       alpha: true,
       antialias: (options.samples ?? 0) > 0,
       depth: options.depth ?? false,
@@ -1259,13 +1344,13 @@ export class Webgl2Renderer {
       preserveDrawingBuffer: true,
     });
 
-    if (gl === null) throw new Error('WebGL2 is not available on this canvas');
+    if (gl === null) throw new Error("WebGL2 is not available on this canvas");
 
     this.#gl = gl;
     this.#registry.realize(gl);
     this.#pixelTextureLocation = gl.getUniformLocation(
       this.#registry.program(this.#pixelProgramId),
-      'u_texture',
+      "u_texture",
     );
     this.#state = new GlStateCache(gl);
     this.#buildVao(gl);
@@ -1281,18 +1366,14 @@ export class Webgl2Renderer {
 
   #buildVao(gl: WebGL2RenderingContext): void {
     const program = this.#registry.program(this.#programId);
-    this.#viewProjLocation = gl.getUniformLocation(program, 'u_viewProj');
+    this.#viewProjLocation = gl.getUniformLocation(program, "u_viewProj");
 
     const vao = gl.createVertexArray();
-    if (vao === null) throw new Error('gl.createVertexArray() returned null');
+    if (vao === null) throw new Error("gl.createVertexArray() returned null");
     gl.bindVertexArray(vao);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#quadId));
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
-      gl.STATIC_DRAW,
-    );
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
@@ -1311,10 +1392,10 @@ export class Webgl2Renderer {
 
   #buildPathVao(gl: WebGL2RenderingContext): void {
     const program = this.#registry.program(this.#pathProgramId);
-    this.#pathViewProjLocation = gl.getUniformLocation(program, 'u_viewProj');
+    this.#pathViewProjLocation = gl.getUniformLocation(program, "u_viewProj");
 
     const vao = gl.createVertexArray();
-    if (vao === null) throw new Error('gl.createVertexArray() returned null');
+    if (vao === null) throw new Error("gl.createVertexArray() returned null");
     gl.bindVertexArray(vao);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#pathBufferId));
@@ -1332,15 +1413,15 @@ export class Webgl2Renderer {
 
   #buildGlyphVao(gl: WebGL2RenderingContext): void {
     const program = this.#registry.program(this.#glyphProgramId);
-    this.#glyphViewProjLocation = gl.getUniformLocation(program, 'u_viewProj');
-    this.#glyphAtlasLocation = gl.getUniformLocation(program, 'u_atlas');
+    this.#glyphViewProjLocation = gl.getUniformLocation(program, "u_viewProj");
+    this.#glyphAtlasLocation = gl.getUniformLocation(program, "u_atlas");
 
     const imageProgram = this.#registry.program(this.#imageProgramId);
-    this.#imageViewProjLocation = gl.getUniformLocation(imageProgram, 'u_viewProj');
-    this.#imageAtlasLocation = gl.getUniformLocation(imageProgram, 'u_image');
+    this.#imageViewProjLocation = gl.getUniformLocation(imageProgram, "u_viewProj");
+    this.#imageAtlasLocation = gl.getUniformLocation(imageProgram, "u_image");
 
     const vao = gl.createVertexArray();
-    if (vao === null) throw new Error('gl.createVertexArray() returned null');
+    if (vao === null) throw new Error("gl.createVertexArray() returned null");
     gl.bindVertexArray(vao);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#quadId));

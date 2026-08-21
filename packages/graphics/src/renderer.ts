@@ -1,4 +1,4 @@
-import type { CommandBuffer } from './command-buffer';
+import type { CommandBuffer } from "./command-buffer";
 
 /** A top-down snapshot of a raster backend's physical RGBA pixels. */
 export interface PixelData {

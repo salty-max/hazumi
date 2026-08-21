@@ -6,7 +6,7 @@ import {
   type CommandVisitor,
   type PixelData,
   decode,
-} from '@matter/graphics';
+} from "@matter/graphics";
 
 /**
  * L4 — Canvas2D. Deliberately NOT the primary path.
@@ -46,16 +46,16 @@ interface Style {
 }
 
 const ALIGN_TO_CSS: Readonly<Record<Align, CanvasTextAlign>> = {
-  [Align.Left]: 'left',
-  [Align.Center]: 'center',
-  [Align.Right]: 'right',
+  [Align.Left]: "left",
+  [Align.Center]: "center",
+  [Align.Right]: "right",
 };
 
 const BASELINE_TO_CSS: Readonly<Record<Baseline, CanvasTextBaseline>> = {
-  [Baseline.Alphabetic]: 'alphabetic',
-  [Baseline.Top]: 'top',
-  [Baseline.Middle]: 'middle',
-  [Baseline.Bottom]: 'bottom',
+  [Baseline.Alphabetic]: "alphabetic",
+  [Baseline.Top]: "top",
+  [Baseline.Middle]: "middle",
+  [Baseline.Bottom]: "bottom",
 };
 
 function channel(v: number): number {
@@ -77,11 +77,11 @@ export class Canvas2dRenderer {
   #viewport: { width: number; height: number };
 
   constructor(canvas: HTMLCanvasElement, options: Canvas2dOptions = {}) {
-    const ctx = canvas.getContext('2d', {
+    const ctx = canvas.getContext("2d", {
       alpha: options.alpha ?? true,
       willReadFrequently: options.willReadFrequently ?? false,
     });
-    if (ctx === null) throw new Error('Canvas2D is not available on this canvas');
+    if (ctx === null) throw new Error("Canvas2D is not available on this canvas");
 
     this.#canvas = canvas;
     this.#ctx = ctx;
@@ -89,8 +89,8 @@ export class Canvas2dRenderer {
     this.#viewport = { width: canvas.width, height: canvas.height };
 
     // Butt caps so a line is exactly the rectangle the GPU path draws for it.
-    ctx.lineCap = 'butt';
-    ctx.lineJoin = 'miter';
+    ctx.lineCap = "butt";
+    ctx.lineJoin = "miter";
 
     this.#visitor = this.#makeVisitor();
   }
@@ -101,7 +101,7 @@ export class Canvas2dRenderer {
       stroke: [0, 0, 0, 1],
       strokeWidth: 0,
       blend: Blend.Normal,
-      fontFamily: 'sans-serif',
+      fontFamily: "sans-serif",
       textSize: 16,
       align: Align.Left,
       baseline: Baseline.Alphabetic,
@@ -159,7 +159,7 @@ export class Canvas2dRenderer {
     this.#style = Canvas2dRenderer.#defaultStyle();
 
     this.#resetTransform();
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalCompositeOperation = "source-over";
     // Deliberately no clearRect: a scene that never calls background()
     // accumulates across frames, matching the GPU backend.
     ctx.save();
@@ -177,7 +177,7 @@ export class Canvas2dRenderer {
 
   #applyBlend(): void {
     this.#ctx.globalCompositeOperation =
-      this.#style.blend === Blend.Add ? 'lighter' : 'source-over';
+      this.#style.blend === Blend.Add ? "lighter" : "source-over";
   }
 
   /** Fill then stroke, matching the order the GPU backend emits instances in. */
@@ -241,7 +241,7 @@ export class Canvas2dRenderer {
         // previous frame, which is the trail idiom.
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.globalCompositeOperation = a >= 1 ? 'copy' : 'source-over';
+        ctx.globalCompositeOperation = a >= 1 ? "copy" : "source-over";
         ctx.fillStyle = toCss([r, g, b, a]);
         ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
         ctx.restore();
@@ -300,11 +300,8 @@ export class Canvas2dRenderer {
       lineTo: (x: number, y: number): void => ctx.lineTo(x, y),
       quadraticTo: (cx: number, cy: number, x: number, y: number): void =>
         ctx.quadraticCurveTo(cx, cy, x, y),
-      cubicTo: (
-        c1x: number, c1y: number,
-        c2x: number, c2y: number,
-        x: number, y: number,
-      ): void => ctx.bezierCurveTo(c1x, c1y, c2x, c2y, x, y),
+      cubicTo: (c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void =>
+        ctx.bezierCurveTo(c1x, c1y, c2x, c2y, x, y),
       closePath: (): void => ctx.closePath(),
       fillPath: (): void => {
         const style = this.#style;
@@ -313,7 +310,7 @@ export class Canvas2dRenderer {
         ctx.fillStyle = toCss(style.fill);
         // Nonzero, the CSS default, and what the GPU backend's stencil
         // configuration reproduces.
-        ctx.fill('nonzero');
+        ctx.fill("nonzero");
         this.#drawCalls++;
       },
       strokePath: (): void => {
@@ -355,7 +352,7 @@ export class Canvas2dRenderer {
   }
 }
 
-import type { BackendFactory } from '@matter/graphics';
+import type { BackendFactory } from "@matter/graphics";
 
 /** Backend factory for `start({ backend: canvas2d() }, scene)`. */
 export function canvas2d(options: Canvas2dOptions = {}): BackendFactory {

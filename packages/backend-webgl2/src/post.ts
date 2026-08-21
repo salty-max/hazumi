@@ -1,5 +1,5 @@
-import { POST_COPY_FRAGMENT, POST_FRAGMENT_PRELUDE, POST_VERTEX_SHADER } from './shaders';
-import type { ResourceId, ResourceRegistry } from './resource';
+import { POST_COPY_FRAGMENT, POST_FRAGMENT_PRELUDE, POST_VERTEX_SHADER } from "./shaders";
+import type { ResourceId, ResourceRegistry } from "./resource";
 
 /**
  * A user post-processing pass.
@@ -30,7 +30,10 @@ export interface PassGl {
   uniform3f(location: WebGLUniformLocation | null, x: number, y: number, z: number): void;
   uniform4f(
     location: WebGLUniformLocation | null,
-    x: number, y: number, z: number, w: number,
+    x: number,
+    y: number,
+    z: number,
+    w: number,
   ): void;
   uniform1fv(location: WebGLUniformLocation | null, value: Float32List): void;
 }
@@ -47,10 +50,10 @@ export class PassCompileLimitError extends Error {
   constructor(limit: number) {
     super(
       `Refusing to compile more than ${limit} distinct shader passes. ` +
-        'Interpolating a changing value into shader source is the usual cause; ' +
-        'pass it as a uniform instead.',
+        "Interpolating a changing value into shader source is the usual cause; " +
+        "pass it as a uniform instead.",
     );
-    this.name = 'PassCompileLimitError';
+    this.name = "PassCompileLimitError";
   }
 }
 
@@ -82,14 +85,14 @@ export class PassCache {
     this.#compiled.clear();
   }
 
-  get(gl: Parameters<ResourceRegistry['add']>[0], fragment: string): CompiledPass {
+  get(gl: Parameters<ResourceRegistry["add"]>[0], fragment: string): CompiledPass {
     const existing = this.#compiled.get(fragment);
     if (existing !== undefined) return existing;
 
     if (this.#compiled.size >= MAX_PASSES) throw new PassCompileLimitError(MAX_PASSES);
 
     const programId = this.#registry.add(gl, {
-      kind: 'program',
+      kind: "program",
       vertex: POST_VERTEX_SHADER,
       fragment: passSource(fragment),
     });
@@ -131,7 +134,7 @@ export function setUniform(
   }
   if (location === null) return;
 
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     gl.uniform1f(location, value);
     return;
   }
@@ -146,8 +149,10 @@ export function setUniform(
     case 4:
       gl.uniform4f(
         location,
-        value[0] as number, value[1] as number,
-        value[2] as number, value[3] as number,
+        value[0] as number,
+        value[1] as number,
+        value[2] as number,
+        value[3] as number,
       );
       break;
     default:

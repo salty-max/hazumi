@@ -1,1 +1,1 @@
-export * from '@matter/backend-svg';
+export * from "@matter/backend-svg";

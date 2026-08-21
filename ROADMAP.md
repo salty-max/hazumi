@@ -9,30 +9,30 @@ backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
 
-| Phase | Delivered |
-| --- | --- |
-| P1 ✅ | Struct-of-arrays command buffer; instanced WebGL2 circles in one draw call |
+| Phase | Delivered                                                                            |
+| ----- | ------------------------------------------------------------------------------------ |
+| P1 ✅ | Struct-of-arrays command buffer; instanced WebGL2 circles in one draw call           |
 | P2 ✅ | `core`, `math`, `color` — clock, plugin registry, Vec/Mat4, seeded RNG, noise, OKLCH |
-| P3 ✅ | Renderer subsystems, batching, state cache, and the Canvas2D reference oracle |
-| P4 ✅ | First vertical slice: `start()`, scenes, and the drawing API, `0.1.0` |
-| P5 ✅ | Runtime SDF text, then the SVG export backend |
-| P6 ✅ | Landing page, live playground, generated API reference |
-| P7 ✅ | Images, sprites, bezier paths, shader passes, input, build-time auto-import |
-| P8 ✅ | Typed runtime plugins and Web Audio with bounded pooled voices |
-| P9 ✅ | Runtime resize and DPR tracking, mutable pixels, and PNG frame capture |
+| P3 ✅ | Renderer subsystems, batching, state cache, and the Canvas2D reference oracle        |
+| P4 ✅ | First vertical slice: `start()`, scenes, and the drawing API, `0.1.0`                |
+| P5 ✅ | Runtime SDF text, then the SVG export backend                                        |
+| P6 ✅ | Landing page, live playground, generated API reference                               |
+| P7 ✅ | Images, sprites, bezier paths, shader passes, input, build-time auto-import          |
+| P8 ✅ | Typed runtime plugins and Web Audio with bounded pooled voices                       |
+| P9 ✅ | Runtime resize and DPR tracking, mutable pixels, and PNG frame capture               |
 
 The measurements that back these:
 
-| Claim | Measured |
-| --- | --- |
-| 100k shapes per frame | 10.00 ms median, **1 draw call**, p95 11.50 ms |
-| Encode cost | 0.97 ms/frame flat fill, 1.84 ms with a fill per shape |
-| Steady-state allocation | 0 buffer growths, 0.0 kB heap delta over 200 frames |
-| Backend agreement | 19 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
-| SVG vs Canvas2D | worst 1.22/255 — tighter, since both go through the same engine |
-| Sprite batching | 400 sprites across 16 frames of one sheet → **1 draw call** |
-| Several sheets | 3 sheets grouped → 3 calls; interleaved → 300 |
-| Context loss | Recovered without reload, back to 1 draw call |
+| Claim                   | Measured                                                        |
+| ----------------------- | --------------------------------------------------------------- |
+| 100k shapes per frame   | 10.00 ms median, **1 draw call**, p95 11.50 ms                  |
+| Encode cost             | 0.97 ms/frame flat fill, 1.84 ms with a fill per shape          |
+| Steady-state allocation | 0 buffer growths, 0.0 kB heap delta over 200 frames             |
+| Backend agreement       | 19 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
+| SVG vs Canvas2D         | worst 1.22/255 — tighter, since both go through the same engine |
+| Sprite batching         | 400 sprites across 16 frames of one sheet → **1 draw call**     |
+| Several sheets          | 3 sheets grouped → 3 calls; interleaved → 300                   |
+| Context loss            | Recovered without reload, back to 1 draw call                   |
 
 The application loop exposes the fixed-step clock through `start()`: a scene
 may implement `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a

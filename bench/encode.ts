@@ -3,7 +3,7 @@
  *
  * Run with:  bun run bench/encode.ts
  */
-import { CommandBuffer } from '@matter/graphics';
+import { CommandBuffer } from "@matter/graphics";
 
 const SHAPES = 100_000;
 const FRAMES = 200;
@@ -13,15 +13,15 @@ const FRAMES = 200;
  * uses the second one. Quoting a flat-fill number next to a per-shape-fill GPU
  * number would be comparing different work.
  */
-type Workload = 'flat fill' | 'fill per shape';
+type Workload = "flat fill" | "fill per shape";
 
 function encodeFrame(buf: CommandBuffer, t: number, workload: Workload): void {
   buf.reset();
-  if (workload === 'flat fill') buf.setFill(0.2, 0.6, 0.9, 1);
+  if (workload === "flat fill") buf.setFill(0.2, 0.6, 0.9, 1);
 
   for (let i = 0; i < SHAPES; i++) {
     const a = i * 0.001 + t;
-    if (workload === 'fill per shape') {
+    if (workload === "fill per shape") {
       buf.setFill(0.35 + 0.3 * Math.sin(a), 0.55, 0.95 - 0.3 * Math.cos(a), 0.55);
     }
     buf.circle(Math.cos(a) * 400 + 400, Math.sin(a) * 400 + 400, 3);
@@ -73,8 +73,10 @@ function measure(workload: Workload): void {
   console.log(`encode time/frame   ${perFrame.toFixed(3)} ms`);
   console.log(`frame budget used   ${((perFrame / 16.67) * 100).toFixed(1)}% of 16.67 ms`);
   console.log(`heap delta          ${(heapDelta / 1024).toFixed(1)} KB over ${FRAMES} frames`);
-  console.log(`shapes/second       ${((SHAPES * FRAMES) / (perFrame * FRAMES / 1000) / 1e6).toFixed(1)}M`);
+  console.log(
+    `shapes/second       ${((SHAPES * FRAMES) / ((perFrame * FRAMES) / 1000) / 1e6).toFixed(1)}M`,
+  );
 }
 
-measure('flat fill');
-measure('fill per shape');
+measure("flat fill");
+measure("fill per shape");

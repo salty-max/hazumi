@@ -1,8 +1,4 @@
-import {
-  type CommandBuffer,
-  type CommandVisitor,
-  decode,
-} from '@matter/graphics';
+import { type CommandBuffer, type CommandVisitor, decode } from "@matter/graphics";
 
 /**
  * L4 — records the command stream instead of rendering it, so tests assert on
@@ -32,79 +28,75 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
 
   const visitor: CommandVisitor = {
     setFill: (r: number, g: number, b: number, a: number): void => {
-      out.push({ op: 'setFill', args: [r, g, b, a] });
+      out.push({ op: "setFill", args: [r, g, b, a] });
     },
     setStroke: (r: number, g: number, b: number, a: number): void => {
-      out.push({ op: 'setStroke', args: [r, g, b, a] });
+      out.push({ op: "setStroke", args: [r, g, b, a] });
     },
     setStrokeWidth: (width: number): void => {
-      out.push({ op: 'setStrokeWidth', args: [width] });
+      out.push({ op: "setStrokeWidth", args: [width] });
     },
     setBlend: (mode: number): void => {
-      out.push({ op: 'setBlend', args: [mode] });
+      out.push({ op: "setBlend", args: [mode] });
     },
-    push: (): void => void out.push({ op: 'push', args: [] }),
-    pop: (): void => void out.push({ op: 'pop', args: [] }),
+    push: (): void => void out.push({ op: "push", args: [] }),
+    pop: (): void => void out.push({ op: "pop", args: [] }),
     translate: (x: number, y: number): void => {
-      out.push({ op: 'translate', args: [x, y] });
+      out.push({ op: "translate", args: [x, y] });
     },
     rotate: (radians: number): void => {
-      out.push({ op: 'rotate', args: [radians] });
+      out.push({ op: "rotate", args: [radians] });
     },
     scale: (x: number, y: number): void => {
-      out.push({ op: 'scale', args: [x, y] });
+      out.push({ op: "scale", args: [x, y] });
     },
     resetTransform: (): void => {
-      out.push({ op: 'resetTransform', args: [] });
+      out.push({ op: "resetTransform", args: [] });
     },
     background: (r: number, g: number, b: number, a: number): void => {
-      out.push({ op: 'background', args: [r, g, b, a] });
+      out.push({ op: "background", args: [r, g, b, a] });
     },
     circle: (x: number, y: number, radius: number): void => {
-      out.push({ op: 'circle', args: [x, y, radius] });
+      out.push({ op: "circle", args: [x, y, radius] });
     },
     ellipse: (x: number, y: number, rx: number, ry: number): void => {
-      out.push({ op: 'ellipse', args: [x, y, rx, ry] });
+      out.push({ op: "ellipse", args: [x, y, rx, ry] });
     },
     rect: (x: number, y: number, w: number, h: number): void => {
-      out.push({ op: 'rect', args: [x, y, w, h] });
+      out.push({ op: "rect", args: [x, y, w, h] });
     },
     line: (x1: number, y1: number, x2: number, y2: number): void => {
-      out.push({ op: 'line', args: [x1, y1, x2, y2] });
+      out.push({ op: "line", args: [x1, y1, x2, y2] });
     },
     setTextSize: (size: number): void => {
-      out.push({ op: 'setTextSize', args: [size] });
+      out.push({ op: "setTextSize", args: [size] });
     },
     setTextAlign: (h: number, v: number): void => {
-      out.push({ op: 'setTextAlign', args: [h, v] });
+      out.push({ op: "setTextAlign", args: [h, v] });
     },
     setFont: (family: string): void => {
-      out.push({ op: 'setFont', args: [], text: family });
+      out.push({ op: "setFont", args: [], text: family });
     },
     text: (x: number, y: number, content: string): void => {
-      out.push({ op: 'text', args: [x, y], text: content });
+      out.push({ op: "text", args: [x, y], text: content });
     },
-    beginPath: (): void => void out.push({ op: 'beginPath', args: [] }),
-    moveTo: (x: number, y: number): void => void out.push({ op: 'moveTo', args: [x, y] }),
-    lineTo: (x: number, y: number): void => void out.push({ op: 'lineTo', args: [x, y] }),
+    beginPath: (): void => void out.push({ op: "beginPath", args: [] }),
+    moveTo: (x: number, y: number): void => void out.push({ op: "moveTo", args: [x, y] }),
+    lineTo: (x: number, y: number): void => void out.push({ op: "lineTo", args: [x, y] }),
     quadraticTo: (cx: number, cy: number, x: number, y: number): void => {
-      out.push({ op: 'quadraticTo', args: [cx, cy, x, y] });
+      out.push({ op: "quadraticTo", args: [cx, cy, x, y] });
     },
-    cubicTo: (
-      c1x: number, c1y: number,
-      c2x: number, c2y: number,
-      x: number, y: number,
-    ): void => {
-      out.push({ op: 'cubicTo', args: [c1x, c1y, c2x, c2y, x, y] });
+    cubicTo: (c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void => {
+      out.push({ op: "cubicTo", args: [c1x, c1y, c2x, c2y, x, y] });
     },
-    closePath: (): void => void out.push({ op: 'closePath', args: [] }),
-    fillPath: (): void => void out.push({ op: 'fillPath', args: [] }),
-    strokePath: (): void => void out.push({ op: 'strokePath', args: [] }),
+    closePath: (): void => void out.push({ op: "closePath", args: [] }),
+    fillPath: (): void => void out.push({ op: "fillPath", args: [] }),
+    strokePath: (): void => void out.push({ op: "strokePath", args: [] }),
     image: (_source, x: number, y: number, w: number, h: number): void => {
-      out.push({ op: 'image', args: [x, y, w, h] });
+      out.push({ op: "image", args: [x, y, w, h] });
     },
     imageRegion: (_source, dx, dy, dw, dh, sx, sy, sw, sh): void => {
-      out.push({ op: 'imageRegion', args: [dx, dy, dw, dh, sx, sy, sw, sh] });
+      out.push({ op: "imageRegion", args: [dx, dy, dw, dh, sx, sy, sw, sh] });
     },
   };
 

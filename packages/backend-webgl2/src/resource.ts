@@ -11,20 +11,20 @@
 export type ResourceId = number;
 
 export interface BufferDescriptor {
-  readonly kind: 'buffer';
+  readonly kind: "buffer";
   readonly target: number;
   readonly usage: number;
   readonly byteLength: number;
 }
 
 export interface ProgramDescriptor {
-  readonly kind: 'program';
+  readonly kind: "program";
   readonly vertex: string;
   readonly fragment: string;
 }
 
 export interface TextureDescriptor {
-  readonly kind: 'texture';
+  readonly kind: "texture";
   readonly width: number;
   readonly height: number;
   /** Single-channel data; the atlas stores distance, not colour. */
@@ -33,7 +33,7 @@ export interface TextureDescriptor {
 
 /** A mutable RGBA upload retained so context restoration reproduces it. */
 export interface RgbaTextureDescriptor {
-  readonly kind: 'rgba-texture';
+  readonly kind: "rgba-texture";
   width: number;
   height: number;
   data: Uint8Array;
@@ -41,7 +41,7 @@ export interface RgbaTextureDescriptor {
 
 /** An RGBA texture uploaded from a decoded image. */
 export interface ImageTextureDescriptor {
-  readonly kind: 'image-texture';
+  readonly kind: "image-texture";
   readonly source: TexImageSource;
   /**
    * Whether to filter between texels.
@@ -75,18 +75,34 @@ export interface GlLike {
   createTexture(): WebGLTexture | null;
   bindTexture(target: number, texture: WebGLTexture | null): void;
   texImage2D(
-    target: number, level: number, internalformat: number,
-    width: number, height: number, border: number,
-    format: number, type: number, pixels: ArrayBufferView | null,
+    target: number,
+    level: number,
+    internalformat: number,
+    width: number,
+    height: number,
+    border: number,
+    format: number,
+    type: number,
+    pixels: ArrayBufferView | null,
   ): void;
   texSubImage2D(
-    target: number, level: number, xoffset: number, yoffset: number,
-    width: number, height: number, format: number, type: number,
+    target: number,
+    level: number,
+    xoffset: number,
+    yoffset: number,
+    width: number,
+    height: number,
+    format: number,
+    type: number,
     pixels: ArrayBufferView,
   ): void;
   texImage2D(
-    target: number, level: number, internalformat: number,
-    format: number, type: number, source: TexImageSource,
+    target: number,
+    level: number,
+    internalformat: number,
+    format: number,
+    type: number,
+    source: TexImageSource,
   ): void;
   texParameteri(target: number, pname: number, param: number): void;
   pixelStorei(pname: number, param: number): void;
@@ -117,16 +133,16 @@ export interface GlLike {
 }
 
 export class ShaderCompileError extends Error {
-  constructor(stage: 'vertex' | 'fragment', log: string) {
+  constructor(stage: "vertex" | "fragment", log: string) {
     super(`${stage} shader failed to compile: ${log}`);
-    this.name = 'ShaderCompileError';
+    this.name = "ShaderCompileError";
   }
 }
 
 export class ProgramLinkError extends Error {
   constructor(log: string) {
     super(`program failed to link: ${log}`);
-    this.name = 'ProgramLinkError';
+    this.name = "ProgramLinkError";
   }
 }
 
@@ -215,11 +231,11 @@ export class ResourceRegistry {
    */
   add(gl: GlLike, descriptor: ResourceDescriptor): ResourceId {
     const id = this.register(descriptor);
-    if (descriptor.kind === 'buffer') this.#buffers.set(id, createBuffer(gl, descriptor));
-    else if (descriptor.kind === 'texture') this.#textures.set(id, createTexture(gl, descriptor));
-    else if (descriptor.kind === 'rgba-texture') {
+    if (descriptor.kind === "buffer") this.#buffers.set(id, createBuffer(gl, descriptor));
+    else if (descriptor.kind === "texture") this.#textures.set(id, createTexture(gl, descriptor));
+    else if (descriptor.kind === "rgba-texture") {
       this.#textures.set(id, createRgbaTexture(gl, descriptor));
-    } else if (descriptor.kind === 'image-texture') {
+    } else if (descriptor.kind === "image-texture") {
       this.#textures.set(id, createImageTexture(gl, descriptor));
     } else this.#programs.set(id, createProgram(gl, descriptor));
     return id;
@@ -234,7 +250,7 @@ export class ResourceRegistry {
     data: Uint8Array,
   ): void {
     const descriptor = this.descriptor(id);
-    if (descriptor.kind !== 'rgba-texture') {
+    if (descriptor.kind !== "rgba-texture") {
       throw new TypeError(`Resource ${id} is not an RGBA texture`);
     }
     if (data.length !== width * height * 4) {
@@ -250,14 +266,27 @@ export class ResourceRegistry {
     gl.bindTexture(gl.TEXTURE_2D, this.texture(id));
     if (sameSize) {
       gl.texSubImage2D(
-        gl.TEXTURE_2D, 0, 0, 0,
-        width, height, gl.RGBA, gl.UNSIGNED_BYTE, descriptor.data,
+        gl.TEXTURE_2D,
+        0,
+        0,
+        0,
+        width,
+        height,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        descriptor.data,
       );
     } else {
       gl.texImage2D(
-        gl.TEXTURE_2D, 0, gl.RGBA,
-        width, height, 0,
-        gl.RGBA, gl.UNSIGNED_BYTE, descriptor.data,
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        width,
+        height,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        descriptor.data,
       );
     }
   }
@@ -273,13 +302,13 @@ export class ResourceRegistry {
 
     for (let id = 0; id < this.#descriptors.length; id++) {
       const desc = this.#descriptors[id] as ResourceDescriptor;
-      if (desc.kind === 'buffer') {
+      if (desc.kind === "buffer") {
         this.#buffers.set(id, createBuffer(gl, desc));
-      } else if (desc.kind === 'texture') {
+      } else if (desc.kind === "texture") {
         this.#textures.set(id, createTexture(gl, desc));
-      } else if (desc.kind === 'rgba-texture') {
+      } else if (desc.kind === "rgba-texture") {
         this.#textures.set(id, createRgbaTexture(gl, desc));
-      } else if (desc.kind === 'image-texture') {
+      } else if (desc.kind === "image-texture") {
         this.#textures.set(id, createImageTexture(gl, desc));
       } else {
         this.#programs.set(id, createProgram(gl, desc));
@@ -292,13 +321,19 @@ export class ResourceRegistry {
 
 function createRgbaTexture(gl: GlLike, desc: RgbaTextureDescriptor): WebGLTexture {
   const texture = gl.createTexture();
-  if (texture === null) throw new Error('gl.createTexture() returned null');
+  if (texture === null) throw new Error("gl.createTexture() returned null");
 
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texImage2D(
-    gl.TEXTURE_2D, 0, gl.RGBA,
-    desc.width, desc.height, 0,
-    gl.RGBA, gl.UNSIGNED_BYTE, desc.data,
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    desc.width,
+    desc.height,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    desc.data,
   );
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -309,7 +344,7 @@ function createRgbaTexture(gl: GlLike, desc: RgbaTextureDescriptor): WebGLTextur
 
 function createBuffer(gl: GlLike, desc: BufferDescriptor): WebGLBuffer {
   const buffer = gl.createBuffer();
-  if (buffer === null) throw new Error('gl.createBuffer() returned null');
+  if (buffer === null) throw new Error("gl.createBuffer() returned null");
   gl.bindBuffer(desc.target, buffer);
   gl.bufferData(desc.target, desc.byteLength, desc.usage);
   return buffer;
@@ -317,15 +352,21 @@ function createBuffer(gl: GlLike, desc: BufferDescriptor): WebGLBuffer {
 
 function createTexture(gl: GlLike, desc: TextureDescriptor): WebGLTexture {
   const texture = gl.createTexture();
-  if (texture === null) throw new Error('gl.createTexture() returned null');
+  if (texture === null) throw new Error("gl.createTexture() returned null");
 
   gl.bindTexture(gl.TEXTURE_2D, texture);
   // Single-channel rows are not 4-byte aligned; without this the atlas skews.
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   gl.texImage2D(
-    gl.TEXTURE_2D, 0, gl.R8,
-    desc.width, desc.height, 0,
-    gl.RED, gl.UNSIGNED_BYTE, desc.data,
+    gl.TEXTURE_2D,
+    0,
+    gl.R8,
+    desc.width,
+    desc.height,
+    0,
+    gl.RED,
+    gl.UNSIGNED_BYTE,
+    desc.data,
   );
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -336,7 +377,7 @@ function createTexture(gl: GlLike, desc: TextureDescriptor): WebGLTexture {
 
 function createImageTexture(gl: GlLike, desc: ImageTextureDescriptor): WebGLTexture {
   const texture = gl.createTexture();
-  if (texture === null) throw new Error('gl.createTexture() returned null');
+  if (texture === null) throw new Error("gl.createTexture() returned null");
 
   gl.bindTexture(gl.TEXTURE_2D, texture);
   // Deliberately NOT flipped on upload. UNPACK_FLIP_Y_WEBGL is honoured for a
@@ -356,11 +397,11 @@ function createImageTexture(gl: GlLike, desc: ImageTextureDescriptor): WebGLText
 }
 
 function createProgram(gl: GlLike, desc: ProgramDescriptor): WebGLProgram {
-  const vs = compile(gl, gl.VERTEX_SHADER, desc.vertex, 'vertex');
-  const fs = compile(gl, gl.FRAGMENT_SHADER, desc.fragment, 'fragment');
+  const vs = compile(gl, gl.VERTEX_SHADER, desc.vertex, "vertex");
+  const fs = compile(gl, gl.FRAGMENT_SHADER, desc.fragment, "fragment");
 
   const program = gl.createProgram();
-  if (program === null) throw new Error('gl.createProgram() returned null');
+  if (program === null) throw new Error("gl.createProgram() returned null");
 
   gl.attachShader(program, vs);
   gl.attachShader(program, fs);
@@ -371,7 +412,7 @@ function createProgram(gl: GlLike, desc: ProgramDescriptor): WebGLProgram {
   gl.deleteShader(fs);
 
   if (gl.getProgramParameter(program, gl.LINK_STATUS) !== true) {
-    const log = gl.getProgramInfoLog(program) ?? '(no log)';
+    const log = gl.getProgramInfoLog(program) ?? "(no log)";
     gl.deleteProgram(program);
     throw new ProgramLinkError(log);
   }
@@ -383,16 +424,16 @@ function compile(
   gl: GlLike,
   type: number,
   source: string,
-  stage: 'vertex' | 'fragment',
+  stage: "vertex" | "fragment",
 ): WebGLShader {
   const shader = gl.createShader(type);
-  if (shader === null) throw new Error('gl.createShader() returned null');
+  if (shader === null) throw new Error("gl.createShader() returned null");
 
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
 
   if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) !== true) {
-    const log = gl.getShaderInfoLog(shader) ?? '(no log)';
+    const log = gl.getShaderInfoLog(shader) ?? "(no log)";
     gl.deleteShader(shader);
     throw new ShaderCompileError(stage, log);
   }

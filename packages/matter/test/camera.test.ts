@@ -1,11 +1,11 @@
-import { describe, expect, test } from 'bun:test';
-import { record } from '@matter/backend-headless';
-import { toSvg } from '@matter/backend-svg';
-import { CommandBuffer } from '@matter/graphics';
-import { createCamera2D } from '../src/camera';
+import { describe, expect, test } from "bun:test";
+import { record } from "@matter/backend-headless";
+import { toSvg } from "@matter/backend-svg";
+import { CommandBuffer } from "@matter/graphics";
+import { createCamera2D } from "../src/camera";
 
-describe('Camera2D view', () => {
-  test('defaults to the existing canvas coordinate system', () => {
+describe("Camera2D view", () => {
+  test("defaults to the existing canvas coordinate system", () => {
     const buffer = new CommandBuffer();
     const { camera, beginFrame } = createCamera2D(buffer, 400, 300);
 
@@ -17,7 +17,7 @@ describe('Camera2D view', () => {
     expect(record(buffer)).toEqual([]);
   });
 
-  test('centres a world position and applies zoom in transform order', () => {
+  test("centres a world position and applies zoom in transform order", () => {
     const buffer = new CommandBuffer();
     const { camera, beginFrame } = createCamera2D(buffer, 400, 300);
     camera.lookAt(100, 80);
@@ -27,13 +27,13 @@ describe('Camera2D view', () => {
     beginFrame();
 
     expect(record(buffer)).toEqual([
-      { op: 'translate', args: [200, 150] },
-      { op: 'scale', args: [2, 2] },
-      { op: 'translate', args: [-100, -80] },
+      { op: "translate", args: [200, 150] },
+      { op: "scale", args: [2, 2] },
+      { op: "translate", args: [-100, -80] },
     ]);
   });
 
-  test('follow moves a stable fraction toward its target', () => {
+  test("follow moves a stable fraction toward its target", () => {
     const buffer = new CommandBuffer();
     const { camera } = createCamera2D(buffer, 400, 300);
 
@@ -43,7 +43,7 @@ describe('Camera2D view', () => {
     expect(camera.y).toBe(125);
   });
 
-  test('rejects values that would make the view silently disappear', () => {
+  test("rejects values that would make the view silently disappear", () => {
     const buffer = new CommandBuffer();
     const { camera } = createCamera2D(buffer, 400, 300);
 
@@ -52,7 +52,7 @@ describe('Camera2D view', () => {
     expect(() => camera.follow(0, 0, 1.1)).toThrow(RangeError);
   });
 
-  test('keeps the default canvas coordinate system after resize', () => {
+  test("keeps the default canvas coordinate system after resize", () => {
     const buffer = new CommandBuffer();
     const { camera, beginFrame, resize } = createCamera2D(buffer, 400, 300);
 
@@ -66,7 +66,7 @@ describe('Camera2D view', () => {
     expect(record(buffer)).toEqual([]);
   });
 
-  test('preserves an explicitly positioned world view after resize', () => {
+  test("preserves an explicitly positioned world view after resize", () => {
     const buffer = new CommandBuffer();
     const { camera, resize } = createCamera2D(buffer, 400, 300);
     // Explicitly pinning the current default is still an intentional world view.
@@ -80,8 +80,8 @@ describe('Camera2D view', () => {
   });
 });
 
-describe('coordinate conversion', () => {
-  test('world and screen conversions round-trip under pan and zoom', () => {
+describe("coordinate conversion", () => {
+  test("world and screen conversions round-trip under pan and zoom", () => {
     const buffer = new CommandBuffer();
     const { camera } = createCamera2D(buffer, 400, 300);
     camera.lookAt(100, 80);
@@ -95,7 +95,7 @@ describe('coordinate conversion', () => {
     expect(world.y).toBeCloseTo(100);
   });
 
-  test('writes into a reusable point when supplied', () => {
+  test("writes into a reusable point when supplied", () => {
     const buffer = new CommandBuffer();
     const { camera } = createCamera2D(buffer, 400, 300);
     const out = { x: 0, y: 0 };
@@ -105,8 +105,8 @@ describe('coordinate conversion', () => {
   });
 });
 
-describe('screen-space drawing', () => {
-  test('draws HUD commands at identity then restores the world view', () => {
+describe("screen-space drawing", () => {
+  test("draws HUD commands at identity then restores the world view", () => {
     const buffer = new CommandBuffer();
     const { camera, beginFrame } = createCamera2D(buffer, 400, 300);
     camera.lookAt(100, 80);
@@ -121,16 +121,16 @@ describe('screen-space drawing', () => {
     buffer.circle(120, 80, 5);
 
     const svg = toSvg(buffer, 400, 300);
-    const circles = svg.split('\n').filter((line) => line.includes('<circle'));
-    const rect = svg.split('\n').find((line) => line.includes('<rect'));
+    const circles = svg.split("\n").filter((line) => line.includes("<circle"));
+    const rect = svg.split("\n").find((line) => line.includes("<rect"));
 
     expect(circles).toHaveLength(2);
     expect(circles[0]).toContain('transform="matrix(2 0 0 2 0 -10)"');
     expect(circles[1]).toContain('transform="matrix(2 0 0 2 0 -10)"');
-    expect(rect).not.toContain('transform=');
+    expect(rect).not.toContain("transform=");
   });
 
-  test('restores the view even when HUD drawing throws', () => {
+  test("restores the view even when HUD drawing throws", () => {
     const buffer = new CommandBuffer();
     const { camera } = createCamera2D(buffer, 400, 300);
     camera.lookAt(100, 80);
@@ -138,13 +138,13 @@ describe('screen-space drawing', () => {
 
     expect(() =>
       camera.screen(() => {
-        throw new Error('boom');
+        throw new Error("boom");
       }),
-    ).toThrow('boom');
+    ).toThrow("boom");
     expect(record(buffer).map((command) => command.op)).toEqual([
-      'resetTransform',
-      'resetTransform',
-      'translate',
+      "resetTransform",
+      "resetTransform",
+      "translate",
     ]);
   });
 });

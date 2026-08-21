@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'bun:test';
-import { Blend } from '@matter/graphics';
-import { type BlendCapableGl, GlStateCache } from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { Blend } from "@matter/graphics";
+import { type BlendCapableGl, GlStateCache } from "../src/index";
 
 function fakeGl(): BlendCapableGl & { calls: string[] } {
   const calls: string[] = [];
@@ -11,20 +11,20 @@ function fakeGl(): BlendCapableGl & { calls: string[] } {
     ONE_MINUS_SRC_ALPHA: 771,
     enable: (cap: number) => void calls.push(`enable(${cap})`),
     blendFunc: (s: number, d: number) => void calls.push(`blendFunc(${s},${d})`),
-    useProgram: () => void calls.push('useProgram'),
-    bindVertexArray: () => void calls.push('bindVertexArray'),
+    useProgram: () => void calls.push("useProgram"),
+    bindVertexArray: () => void calls.push("bindVertexArray"),
   };
 }
 
-describe('GlStateCache', () => {
-  test('enables blending once at construction', () => {
+describe("GlStateCache", () => {
+  test("enables blending once at construction", () => {
     const gl = fakeGl();
     const cache = new GlStateCache(gl);
     expect(cache.applied).toBe(0);
-    expect(gl.calls).toEqual(['enable(3042)']);
+    expect(gl.calls).toEqual(["enable(3042)"]);
   });
 
-  test('applies a blend change once and elides repeats', () => {
+  test("applies a blend change once and elides repeats", () => {
     const gl = fakeGl();
     const cache = new GlStateCache(gl);
     cache.resetCounters();
@@ -35,21 +35,21 @@ describe('GlStateCache', () => {
 
     expect(cache.applied).toBe(1);
     expect(cache.skipped).toBe(2);
-    expect(gl.calls.filter((c) => c.startsWith('blendFunc'))).toHaveLength(1);
+    expect(gl.calls.filter((c) => c.startsWith("blendFunc"))).toHaveLength(1);
   });
 
-  test('uses different blend functions per mode', () => {
+  test("uses different blend functions per mode", () => {
     const gl = fakeGl();
     const cache = new GlStateCache(gl);
     cache.setBlend(Blend.Normal);
     cache.setBlend(Blend.Add);
 
     // Additive keeps the destination; normal attenuates it by source alpha.
-    expect(gl.calls).toContain('blendFunc(1,771)');
-    expect(gl.calls).toContain('blendFunc(1,1)');
+    expect(gl.calls).toContain("blendFunc(1,771)");
+    expect(gl.calls).toContain("blendFunc(1,1)");
   });
 
-  test('re-applies after toggling back and forth', () => {
+  test("re-applies after toggling back and forth", () => {
     const gl = fakeGl();
     const cache = new GlStateCache(gl);
     cache.resetCounters();
@@ -60,7 +60,7 @@ describe('GlStateCache', () => {
     expect(cache.skipped).toBe(0);
   });
 
-  test('elides redundant program and VAO binds', () => {
+  test("elides redundant program and VAO binds", () => {
     const gl = fakeGl();
     const cache = new GlStateCache(gl);
     cache.resetCounters();
@@ -80,7 +80,7 @@ describe('GlStateCache', () => {
    * After a context loss every GL object is gone, so a mirror that still
    * claims a program is bound would skip the rebind and draw nothing.
    */
-  test('invalidate forces the next set to be applied', () => {
+  test("invalidate forces the next set to be applied", () => {
     const gl = fakeGl();
     const cache = new GlStateCache(gl);
     cache.setBlend(Blend.Normal);

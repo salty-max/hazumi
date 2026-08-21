@@ -59,9 +59,15 @@
   --radius: 0.625rem;
 }
 
-* { border-color: var(--border); }
+* {
+  border-color: var(--border);
+}
 
-html, body, #root { height: 100%; }
+html,
+body,
+#root {
+  height: 100%;
+}
 
 body {
   margin: 0;
@@ -71,7 +77,11 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
 
 .matter-mark {
   position: relative;
@@ -95,8 +105,12 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
   content: "";
 }
 
-.matter-mark::before { transform: translate(-3px, -3px); }
-.matter-mark span { transform: translate(3px, 3px); }
+.matter-mark::before {
+  transform: translate(-3px, -3px);
+}
+.matter-mark span {
+  transform: translate(3px, 3px);
+}
 
 .preview-grid {
   display: grid;
@@ -121,26 +135,47 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
   font-size: 13px;
 }
 
-.cm-editor.cm-focused { outline: none; }
-.cm-scroller { font-family: var(--font-mono); line-height: 1.7; }
+.cm-editor.cm-focused {
+  outline: none;
+}
+.cm-scroller {
+  font-family: var(--font-mono);
+  line-height: 1.7;
+}
 .cm-gutters {
   border: 0 !important;
   background: var(--editor) !important;
   color: oklch(0.48 0.018 255) !important;
 }
-.cm-activeLine, .cm-activeLineGutter { background: oklch(0.18 0.018 255) !important; }
-.cm-selectionBackground { background: oklch(0.35 0.08 305 / 0.45) !important; }
-.cm-focused .cm-selectionBackground { background: oklch(0.42 0.1 305 / 0.5) !important; }
-.cm-selectionMatch { background: oklch(0.42 0.08 80 / 0.22); }
+.cm-activeLine,
+.cm-activeLineGutter {
+  background: oklch(0.18 0.018 255) !important;
+}
+.cm-selectionBackground {
+  background: oklch(0.35 0.08 305 / 0.45) !important;
+}
+.cm-focused .cm-selectionBackground {
+  background: oklch(0.42 0.1 305 / 0.5) !important;
+}
+.cm-selectionMatch {
+  background: oklch(0.42 0.08 80 / 0.22);
+}
 .cm-matchingBracket {
   outline: 1px solid color-mix(in oklab, var(--primary) 55%, transparent);
   border-radius: 3px;
   background: color-mix(in oklab, var(--primary) 13%, transparent);
   color: var(--foreground) !important;
 }
-.cm-content { padding: 14px 0; caret-color: var(--primary); }
-.cm-line { padding: 0 18px 0 8px; }
+.cm-content {
+  padding: 14px 0;
+  caret-color: var(--primary);
+}
+.cm-line {
+  padding: 0 18px 0 8px;
+}
 
 @media (max-width: 860px) {
-  #stage canvas { width: min(520px, calc(100vw - 72px)); }
+  #stage canvas {
+    width: min(520px, calc(100vw - 72px));
+  }
 }

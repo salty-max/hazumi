@@ -1,10 +1,5 @@
-import { clamp } from '@matter/math';
-import {
-  fromLinear,
-  type LinearRgb,
-  type Srgb,
-  toLinear,
-} from './srgb';
+import { clamp } from "@matter/math";
+import { fromLinear, type LinearRgb, type Srgb, toLinear } from "./srgb";
 
 /**
  * Colour in OKLCH.

@@ -106,7 +106,18 @@ export {
   angleDelta,
   smoothstep,
 } from "@matter/math";
-export type { Aabb, Circle, Easing, Mat4, Noise, RayHit, Rng, SweepHit, Vec2, Vec3 } from "@matter/math";
+export type {
+  Aabb,
+  Circle,
+  Easing,
+  Mat4,
+  Noise,
+  RayHit,
+  Rng,
+  SweepHit,
+  Vec2,
+  Vec3,
+} from "@matter/math";
 
 // --- L2 color ---
 export {

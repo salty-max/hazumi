@@ -2,12 +2,12 @@
   "name": "@matter/backend-canvas2d",
   "version": "0.1.0",
   "description": "Canvas2D reference renderer and text fallback.",
-  "type": "module",
   "license": "MIT",
-  "sideEffects": false,
   "files": [
     "dist"
   ],
+  "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

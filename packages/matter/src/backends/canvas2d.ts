@@ -1,1 +1,1 @@
-export * from '@matter/backend-canvas2d';
+export * from "@matter/backend-canvas2d";

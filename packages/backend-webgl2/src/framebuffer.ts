@@ -29,27 +29,36 @@ export interface TargetGl {
   createFramebuffer(): WebGLFramebuffer | null;
   bindFramebuffer(target: number, framebuffer: WebGLFramebuffer | null): void;
   framebufferTexture2D(
-    target: number, attachment: number, textarget: number,
-    texture: WebGLTexture | null, level: number,
+    target: number,
+    attachment: number,
+    textarget: number,
+    texture: WebGLTexture | null,
+    level: number,
   ): void;
   checkFramebufferStatus(target: number): number;
   deleteFramebuffer(framebuffer: WebGLFramebuffer | null): void;
   createRenderbuffer(): WebGLRenderbuffer | null;
   bindRenderbuffer(target: number, renderbuffer: WebGLRenderbuffer | null): void;
-  renderbufferStorage(
-    target: number, internalformat: number, width: number, height: number,
-  ): void;
+  renderbufferStorage(target: number, internalformat: number, width: number, height: number): void;
   framebufferRenderbuffer(
-    target: number, attachment: number,
-    renderbuffertarget: number, renderbuffer: WebGLRenderbuffer | null,
+    target: number,
+    attachment: number,
+    renderbuffertarget: number,
+    renderbuffer: WebGLRenderbuffer | null,
   ): void;
   deleteRenderbuffer(renderbuffer: WebGLRenderbuffer | null): void;
   createTexture(): WebGLTexture | null;
   bindTexture(target: number, texture: WebGLTexture | null): void;
   texImage2D(
-    target: number, level: number, internalformat: number,
-    width: number, height: number, border: number,
-    format: number, type: number, pixels: ArrayBufferView | null,
+    target: number,
+    level: number,
+    internalformat: number,
+    width: number,
+    height: number,
+    border: number,
+    format: number,
+    type: number,
+    pixels: ArrayBufferView | null,
   ): void;
   texParameteri(target: number, pname: number, param: number): void;
   deleteTexture(texture: WebGLTexture | null): void;
@@ -75,18 +84,14 @@ export class FramebufferIncompleteError extends Error {
 
   constructor(status: number) {
     super(`Framebuffer is incomplete (status 0x${status.toString(16)})`);
-    this.name = 'FramebufferIncompleteError';
+    this.name = "FramebufferIncompleteError";
     this.status = status;
   }
 }
 
-export function createRenderTarget(
-  gl: TargetGl,
-  width: number,
-  height: number,
-): RenderTarget {
+export function createRenderTarget(gl: TargetGl, width: number, height: number): RenderTarget {
   const texture = gl.createTexture();
-  if (texture === null) throw new Error('gl.createTexture() returned null');
+  if (texture === null) throw new Error("gl.createTexture() returned null");
 
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -99,7 +104,7 @@ export function createRenderTarget(
   const stencil = gl.createRenderbuffer();
   if (stencil === null) {
     gl.deleteTexture(texture);
-    throw new Error('gl.createRenderbuffer() returned null');
+    throw new Error("gl.createRenderbuffer() returned null");
   }
   gl.bindRenderbuffer(gl.RENDERBUFFER, stencil);
   gl.renderbufferStorage(gl.RENDERBUFFER, gl.STENCIL_INDEX8, width, height);
@@ -108,16 +113,12 @@ export function createRenderTarget(
   if (framebuffer === null) {
     gl.deleteTexture(texture);
     gl.deleteRenderbuffer(stencil);
-    throw new Error('gl.createFramebuffer() returned null');
+    throw new Error("gl.createFramebuffer() returned null");
   }
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-  gl.framebufferTexture2D(
-    gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0,
-  );
-  gl.framebufferRenderbuffer(
-    gl.FRAMEBUFFER, gl.STENCIL_ATTACHMENT, gl.RENDERBUFFER, stencil,
-  );
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.STENCIL_ATTACHMENT, gl.RENDERBUFFER, stencil);
 
   const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
   if (status !== gl.FRAMEBUFFER_COMPLETE) {

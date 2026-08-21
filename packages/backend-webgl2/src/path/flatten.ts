@@ -42,9 +42,12 @@ function segmentsForSecondDerivative(magnitude: number, tolerance: number): numb
  * A quadratic's second derivative is constant: 2·(P0 − 2C + P1).
  */
 export function quadraticSegments(
-  x0: number, y0: number,
-  cx: number, cy: number,
-  x1: number, y1: number,
+  x0: number,
+  y0: number,
+  cx: number,
+  cy: number,
+  x1: number,
+  y1: number,
   tolerance: number = DEFAULT_TOLERANCE,
 ): number {
   const magnitude = 2 * Math.hypot(x0 - 2 * cx + x1, y0 - 2 * cy + y1);
@@ -53,9 +56,12 @@ export function quadraticSegments(
 
 export function flattenQuadratic(
   sink: PolylineSink,
-  x0: number, y0: number,
-  cx: number, cy: number,
-  x1: number, y1: number,
+  x0: number,
+  y0: number,
+  cx: number,
+  cy: number,
+  x1: number,
+  y1: number,
   tolerance: number = DEFAULT_TOLERANCE,
 ): void {
   const n = quadraticSegments(x0, y0, cx, cy, x1, y1, tolerance);
@@ -63,10 +69,7 @@ export function flattenQuadratic(
   for (let i = 1; i <= n; i++) {
     const t = i / n;
     const u = 1 - t;
-    sink.push(
-      u * u * x0 + 2 * u * t * cx + t * t * x1,
-      u * u * y0 + 2 * u * t * cy + t * t * y1,
-    );
+    sink.push(u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1);
   }
 }
 
@@ -84,10 +87,14 @@ export function flattenQuadratic(
  * caught that.
  */
 export function cubicSegments(
-  x0: number, y0: number,
-  c1x: number, c1y: number,
-  c2x: number, c2y: number,
-  x1: number, y1: number,
+  x0: number,
+  y0: number,
+  c1x: number,
+  c1y: number,
+  c2x: number,
+  c2y: number,
+  x1: number,
+  y1: number,
   tolerance: number = DEFAULT_TOLERANCE,
 ): number {
   const a = Math.hypot(x0 - 2 * c1x + c2x, y0 - 2 * c1y + c2y);
@@ -97,10 +104,14 @@ export function cubicSegments(
 
 export function flattenCubic(
   sink: PolylineSink,
-  x0: number, y0: number,
-  c1x: number, c1y: number,
-  c2x: number, c2y: number,
-  x1: number, y1: number,
+  x0: number,
+  y0: number,
+  c1x: number,
+  c1y: number,
+  c2x: number,
+  c2y: number,
+  x1: number,
+  y1: number,
   tolerance: number = DEFAULT_TOLERANCE,
 ): void {
   const n = cubicSegments(x0, y0, c1x, c1y, c2x, c2y, x1, y1, tolerance);
@@ -111,9 +122,6 @@ export function flattenCubic(
     const b = 3 * u * u * t;
     const c = 3 * u * t * t;
     const d = t * t * t;
-    sink.push(
-      a * x0 + b * c1x + c * c2x + d * x1,
-      a * y0 + b * c1y + c * c2y + d * y1,
-    );
+    sink.push(a * x0 + b * c1x + c * c2x + d * x1, a * y0 + b * c1y + c * c2y + d * y1);
   }
 }

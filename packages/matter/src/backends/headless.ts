@@ -1,1 +1,1 @@
-export * from '@matter/backend-headless';
+export * from "@matter/backend-headless";

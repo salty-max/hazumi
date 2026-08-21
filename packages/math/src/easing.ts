@@ -9,8 +9,7 @@ export const linear: Easing = (t) => t;
 
 export const quadIn: Easing = (t) => t * t;
 export const quadOut: Easing = (t) => t * (2 - t);
-export const quadInOut: Easing = (t) =>
-  t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+export const quadInOut: Easing = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
 export const cubicIn: Easing = (t) => t * t * t;
 export const cubicOut: Easing = (t) => 1 + (t - 1) ** 3;
@@ -19,8 +18,7 @@ export const cubicInOut: Easing = (t) =>
 
 export const quartIn: Easing = (t) => t ** 4;
 export const quartOut: Easing = (t) => 1 - (t - 1) ** 4;
-export const quartInOut: Easing = (t) =>
-  t < 0.5 ? 8 * t ** 4 : 1 - 8 * (t - 1) ** 4;
+export const quartInOut: Easing = (t) => (t < 0.5 ? 8 * t ** 4 : 1 - 8 * (t - 1) ** 4);
 
 export const sineIn: Easing = (t) => 1 - Math.cos((t * Math.PI) / 2);
 export const sineOut: Easing = (t) => Math.sin((t * Math.PI) / 2);
@@ -43,8 +41,7 @@ const BACK_C3 = BACK_C1 + 1;
 /** Overshoots below 0 before settling. */
 export const backIn: Easing = (t) => BACK_C3 * t ** 3 - BACK_C1 * t ** 2;
 /** Overshoots above 1 before settling. */
-export const backOut: Easing = (t) =>
-  1 + BACK_C3 * (t - 1) ** 3 + BACK_C1 * (t - 1) ** 2;
+export const backOut: Easing = (t) => 1 + BACK_C3 * (t - 1) ** 3 + BACK_C1 * (t - 1) ** 2;
 
 const ELASTIC_C4 = (2 * Math.PI) / 3;
 
@@ -70,6 +67,5 @@ export function reverse(easing: Easing): Easing {
 
 /** Build an in-out curve from an ease-in. */
 export function inOut(easing: Easing): Easing {
-  return (t: number): number =>
-    t < 0.5 ? easing(t * 2) / 2 : 1 - easing((1 - t) * 2) / 2;
+  return (t: number): number => (t < 0.5 ? easing(t * 2) / 2 : 1 - easing((1 - t) * 2) / 2);
 }

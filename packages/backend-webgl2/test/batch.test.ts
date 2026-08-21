@@ -1,18 +1,25 @@
-import { describe, expect, test } from 'bun:test';
-import { Blend } from '@matter/graphics';
-import { BatchList, Pipeline } from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { Blend } from "@matter/graphics";
+import { BatchList, Pipeline } from "../src/index";
 
-describe('BatchList', () => {
-  test('merges a uniform run into a single batch', () => {
+describe("BatchList", () => {
+  test("merges a uniform run into a single batch", () => {
     const list = new BatchList();
     for (let i = 0; i < 1000; i++) list.push(Blend.Normal);
     const batches = list.finish();
 
     expect(batches).toHaveLength(1);
-    expect(batches[0]).toEqual({ start: 0, count: 1000, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 });
+    expect(batches[0]).toEqual({
+      start: 0,
+      count: 1000,
+      blend: Blend.Normal,
+      pipeline: Pipeline.Shape,
+      texture: -1,
+      fanCount: 0,
+    });
   });
 
-  test('splits when the pipeline changes', () => {
+  test("splits when the pipeline changes", () => {
     const list = new BatchList();
     list.push(Blend.Normal);
     list.push(Blend.Normal);
@@ -20,9 +27,23 @@ describe('BatchList', () => {
     list.push(Blend.Normal);
 
     expect(list.finish()).toEqual([
-      { start: 0, count: 2, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 },
+      {
+        start: 0,
+        count: 2,
+        blend: Blend.Normal,
+        pipeline: Pipeline.Shape,
+        texture: -1,
+        fanCount: 0,
+      },
       { start: 2, count: 1, blend: Blend.Add, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 },
-      { start: 3, count: 1, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 },
+      {
+        start: 3,
+        count: 1,
+        blend: Blend.Normal,
+        pipeline: Pipeline.Shape,
+        texture: -1,
+        fanCount: 0,
+      },
     ]);
   });
 
@@ -32,7 +53,7 @@ describe('BatchList', () => {
    * instead of many, but it would reorder overlapping transparent shapes and
    * change the image.
    */
-  test('does not reorder to reduce batch count', () => {
+  test("does not reorder to reduce batch count", () => {
     const list = new BatchList();
     for (let i = 0; i < 10; i++) {
       list.push(i % 2 === 0 ? Blend.Normal : Blend.Add);
@@ -48,10 +69,8 @@ describe('BatchList', () => {
     }
   });
 
-  test('sorting the same input would collapse it — proving the cost is real', () => {
-    const modes = Array.from({ length: 10 }, (_, i) =>
-      i % 2 === 0 ? Blend.Normal : Blend.Add,
-    );
+  test("sorting the same input would collapse it — proving the cost is real", () => {
+    const modes = Array.from({ length: 10 }, (_, i) => (i % 2 === 0 ? Blend.Normal : Blend.Add));
 
     const adjacent = new BatchList();
     for (const mode of modes) adjacent.push(mode);
@@ -64,7 +83,7 @@ describe('BatchList', () => {
     expect(adjacent.finish()).toHaveLength(10);
   });
 
-  test('batch ranges cover every instance exactly once', () => {
+  test("batch ranges cover every instance exactly once", () => {
     const list = new BatchList();
     const modes = [0, 0, 1, 1, 1, 0, 1, 0, 0] as const;
     for (const m of modes) list.push(m as Blend);
@@ -75,7 +94,7 @@ describe('BatchList', () => {
     expect(batches[0]?.start).toBe(0);
   });
 
-  test('a pipeline change splits a batch even when blend matches', () => {
+  test("a pipeline change splits a batch even when blend matches", () => {
     const list = new BatchList();
     list.push(Blend.Normal, Pipeline.Shape);
     list.push(Blend.Normal, Pipeline.Glyph);
@@ -84,11 +103,13 @@ describe('BatchList', () => {
     const batches = list.finish();
     expect(batches).toHaveLength(3);
     expect(batches.map((b) => b.pipeline)).toEqual([
-      Pipeline.Shape, Pipeline.Glyph, Pipeline.Shape,
+      Pipeline.Shape,
+      Pipeline.Glyph,
+      Pipeline.Shape,
     ]);
   });
 
-  test('path fills and strokes share one vertex cursor', () => {
+  test("path fills and strokes share one vertex cursor", () => {
     const list = new BatchList();
     list.pushSolo(Blend.Normal, Pipeline.PathFill, 9, 3);
     list.pushSolo(Blend.Normal, Pipeline.PathStroke, 6);
@@ -100,7 +121,7 @@ describe('BatchList', () => {
     expect(batches.map((b) => b.fanCount)).toEqual([3, 0, 6]);
   });
 
-  test('solo batches never merge, even when identical', () => {
+  test("solo batches never merge, even when identical", () => {
     // Two fills in a row must stay separate: one stencil pass each, or the
     // first path's winding count decides the second one's interior.
     const list = new BatchList();
@@ -109,7 +130,7 @@ describe('BatchList', () => {
     expect(list.finish()).toHaveLength(2);
   });
 
-  test('a solo batch closes any open run first, preserving order', () => {
+  test("a solo batch closes any open run first, preserving order", () => {
     const list = new BatchList();
     list.push(Blend.Normal, Pipeline.Shape);
     list.push(Blend.Normal, Pipeline.Shape);
@@ -118,19 +139,21 @@ describe('BatchList', () => {
 
     const batches = list.finish();
     expect(batches.map((b) => b.pipeline)).toEqual([
-      Pipeline.Shape, Pipeline.PathFill, Pipeline.Shape,
+      Pipeline.Shape,
+      Pipeline.PathFill,
+      Pipeline.Shape,
     ]);
     // The shape cursor resumes where it left off.
     expect(batches[2]?.start).toBe(2);
   });
 
-  test('an empty solo batch is ignored', () => {
+  test("an empty solo batch is ignored", () => {
     const list = new BatchList();
     list.pushSolo(Blend.Normal, Pipeline.PathFill, 0);
     expect(list.finish()).toEqual([]);
   });
 
-  test('each pipeline indexes its own instance array', () => {
+  test("each pipeline indexes its own instance array", () => {
     const list = new BatchList();
     list.push(Blend.Normal, Pipeline.Shape);
     list.push(Blend.Normal, Pipeline.Shape);
@@ -144,7 +167,7 @@ describe('BatchList', () => {
     expect(batches[2]).toMatchObject({ start: 2, count: 1, pipeline: Pipeline.Shape });
   });
 
-  test('a texture change splits a batch even when pipeline and blend match', () => {
+  test("a texture change splits a batch even when pipeline and blend match", () => {
     // Two fonts in one frame. Merging these would draw the first font's
     // glyphs with the second font's atlas.
     const list = new BatchList();
@@ -158,18 +181,18 @@ describe('BatchList', () => {
     expect(batches[1]).toMatchObject({ count: 1, texture: 9 });
   });
 
-  test('shapes report no texture', () => {
+  test("shapes report no texture", () => {
     const list = new BatchList();
     list.push(Blend.Normal);
     expect(list.finish()[0]?.texture).toBe(-1);
     expect(new BatchList().finish()).toEqual([]);
   });
 
-  test('an empty list produces no batches', () => {
+  test("an empty list produces no batches", () => {
     expect(new BatchList().finish()).toEqual([]);
   });
 
-  test('reset clears everything', () => {
+  test("reset clears everything", () => {
     const list = new BatchList();
     list.push(Blend.Normal);
     list.finish();
@@ -178,7 +201,7 @@ describe('BatchList', () => {
     expect(list.length).toBe(0);
   });
 
-  test('finish is idempotent for a closed list', () => {
+  test("finish is idempotent for a closed list", () => {
     const list = new BatchList();
     list.push(Blend.Normal);
     const first = list.finish();

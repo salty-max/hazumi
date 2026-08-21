@@ -1,4 +1,4 @@
-import { type Align, type Baseline, Blend, Op } from './op';
+import { type Align, type Baseline, Blend, Op } from "./op";
 
 /** Anything a backend can draw as an image. */
 export type ImageSource = ImageBitmap | HTMLImageElement | HTMLCanvasElement;
@@ -231,8 +231,14 @@ export class CommandBuffer {
    */
   imageRegion(
     source: ImageSource,
-    dx: number, dy: number, dWidth: number, dHeight: number,
-    sx: number, sy: number, sWidth: number, sHeight: number,
+    dx: number,
+    dy: number,
+    dWidth: number,
+    dHeight: number,
+    sx: number,
+    sy: number,
+    sWidth: number,
+    sHeight: number,
   ): void {
     const i = this.#reserve(10);
     const f = this.#f32;
@@ -292,11 +298,7 @@ export class CommandBuffer {
     this.#write4(Op.QuadraticTo, cx, cy, x, y);
   }
 
-  cubicTo(
-    c1x: number, c1y: number,
-    c2x: number, c2y: number,
-    x: number, y: number,
-  ): void {
+  cubicTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void {
     const i = this.#reserve(7);
     const f = this.#f32;
     this.#u32[i] = Op.CubicTo;

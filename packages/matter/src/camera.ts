@@ -1,4 +1,4 @@
-import type { CommandBuffer } from '@matter/graphics';
+import type { CommandBuffer } from "@matter/graphics";
 
 /** Mutable point accepted as an allocation-free coordinate-conversion target. */
 export interface CameraPoint {
@@ -57,11 +57,7 @@ function cameraOutput(out: CameraPoint | undefined): CameraPoint {
   return out ?? { x: 0, y: 0 };
 }
 
-export function createCamera2D(
-  buffer: CommandBuffer,
-  width: number,
-  height: number,
-): CameraBundle {
+export function createCamera2D(buffer: CommandBuffer, width: number, height: number): CameraBundle {
   let centreX = width / 2;
   let centreY = height / 2;
   let x = centreX;
@@ -96,8 +92,8 @@ export function createCamera2D(
     },
 
     lookAt: (nextX: number, nextY: number): void => {
-      assertFinite(nextX, 'camera x');
-      assertFinite(nextY, 'camera y');
+      assertFinite(nextX, "camera x");
+      assertFinite(nextY, "camera y");
       followsCanvasCentre = false;
       if (nextX === x && nextY === y) return;
       x = nextX;
@@ -106,10 +102,10 @@ export function createCamera2D(
     },
 
     follow: (targetX: number, targetY: number, amount = 1): void => {
-      assertFinite(targetX, 'camera target x');
-      assertFinite(targetY, 'camera target y');
+      assertFinite(targetX, "camera target x");
+      assertFinite(targetY, "camera target y");
       if (!Number.isFinite(amount) || amount < 0 || amount > 1) {
-        throw new RangeError('camera follow amount must be between 0 and 1');
+        throw new RangeError("camera follow amount must be between 0 and 1");
       }
       const nextX = x + (targetX - x) * amount;
       const nextY = y + (targetY - y) * amount;
@@ -122,7 +118,7 @@ export function createCamera2D(
 
     setZoom: (nextZoom: number): void => {
       if (!Number.isFinite(nextZoom) || nextZoom <= 0) {
-        throw new RangeError('camera zoom must be a finite positive number');
+        throw new RangeError("camera zoom must be a finite positive number");
       }
       if (nextZoom === zoom) return;
       zoom = nextZoom;

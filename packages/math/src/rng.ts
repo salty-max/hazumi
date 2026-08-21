@@ -54,8 +54,8 @@ function create(seed: number, initialState: number): Rng {
     range,
     int: (min: number, max: number): number => Math.floor(range(min, max)),
     bool: (p = 0.5): boolean => next() < p,
-    pick: <T,>(items: readonly T[]): T => {
-      if (items.length === 0) throw new Error('pick() needs a non-empty array');
+    pick: <T>(items: readonly T[]): T => {
+      if (items.length === 0) throw new Error("pick() needs a non-empty array");
       return items[Math.floor(next() * items.length)] as T;
     },
     gaussian: (): number => {

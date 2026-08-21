@@ -9,12 +9,12 @@
  * The main comparison harness cannot cover this: it checks the GPU against
  * Canvas2D, which has no shader stage, so the combination only exists here.
  */
-import { CommandBuffer } from '@matter/graphics';
-import { Webgl2Renderer } from '@matter/backend-webgl2';
+import { CommandBuffer } from "@matter/graphics";
+import { Webgl2Renderer } from "@matter/backend-webgl2";
 
 const W = 200;
 const H = 200;
-const out = document.getElementById('out') as HTMLElement;
+const out = document.getElementById("out") as HTMLElement;
 
 function drawPath(b: CommandBuffer): void {
   b.reset();
@@ -31,7 +31,7 @@ function drawPath(b: CommandBuffer): void {
 }
 
 function coverage(canvas: HTMLCanvasElement): number {
-  const gl = canvas.getContext('webgl2') as WebGL2RenderingContext;
+  const gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
   const px = new Uint8Array(W * H * 4);
   gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
   let lit = 0;
@@ -40,7 +40,7 @@ function coverage(canvas: HTMLCanvasElement): number {
 }
 
 function run(withPasses: boolean): number {
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   document.body.append(canvas);
@@ -50,7 +50,7 @@ function run(withPasses: boolean): number {
   if (withPasses) {
     // An identity pass: it changes nothing visually, so any difference is the
     // render target, not the shader.
-    renderer.setPasses([{ fragment: 'void main() { fragColor = texture(u_texture, v_uv); }' }]);
+    renderer.setPasses([{ fragment: "void main() { fragColor = texture(u_texture, v_uv); }" }]);
   }
 
   const buffer = new CommandBuffer();
@@ -65,7 +65,7 @@ const viaPass = run(true);
 out.textContent = [
   `to canvas       ${direct.toFixed(1)}% lit`,
   `through a pass  ${viaPass.toFixed(1)}% lit`,
-  '',
+  "",
   `expected: both about 16.5% — the triangle, not its 33% bounding box`,
-  `VERDICT: ${Math.abs(direct - viaPass) < 2 ? 'MATCH' : 'MISMATCH — stencil lost through the pass'}`,
-].join('\n');
+  `VERDICT: ${Math.abs(direct - viaPass) < 2 ? "MATCH" : "MISMATCH — stencil lost through the pass"}`,
+].join("\n");

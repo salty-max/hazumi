@@ -5,7 +5,7 @@
  * about: antialiasing, stroke geometry, painter order, transform composition,
  * or blend state.
  */
-import { Blend, type CommandBuffer, type ImageSource } from '@matter/graphics';
+import { Blend, type CommandBuffer, type ImageSource } from "@matter/graphics";
 
 /**
  * A 2x2 sheet with a distinct colour per quadrant, built once.
@@ -21,26 +21,28 @@ import { Blend, type CommandBuffer, type ImageSource } from '@matter/graphics';
  */
 function paintSheet(ctx: CanvasRenderingContext2D): void {
   const quadrants: ReadonlyArray<[number, number, string]> = [
-    [0, 0, '#ff2d2d'], [32, 0, '#22c55e'],
-    [0, 32, '#3b82f6'], [32, 32, '#eab308'],
+    [0, 0, "#ff2d2d"],
+    [32, 0, "#22c55e"],
+    [0, 32, "#3b82f6"],
+    [32, 32, "#eab308"],
   ];
   for (const [x, y, colour] of quadrants) {
     ctx.fillStyle = colour;
     ctx.fillRect(x, y, 32, 32);
     // Top-left marker and a bottom bar: mirroring the cell in either axis
     // moves both, so a flip cannot cancel itself out.
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(x + 3, y + 3, 8, 8);
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = "#111111";
     ctx.fillRect(x + 3, y + 26, 26, 3);
   }
 }
 
 function drawSheet(): HTMLCanvasElement {
-  const c = document.createElement('canvas');
+  const c = document.createElement("canvas");
   c.width = 64;
   c.height = 64;
-  paintSheet(c.getContext('2d') as CanvasRenderingContext2D);
+  paintSheet(c.getContext("2d") as CanvasRenderingContext2D);
   return c;
 }
 
@@ -61,7 +63,7 @@ function testSheet(): ImageSource {
  */
 let bitmap: ImageSource | null = null;
 function bitmapSheet(): ImageSource {
-  if (bitmap === null) throw new Error('call prepareScenes() before rendering');
+  if (bitmap === null) throw new Error("call prepareScenes() before rendering");
   return bitmap;
 }
 
@@ -72,7 +74,12 @@ export async function prepareScenes(): Promise<void> {
 
 function drawFrames(b: CommandBuffer, img: ImageSource): void {
   b.background(0, 0, 0, 1);
-  const cells: ReadonlyArray<[number, number]> = [[0, 0], [32, 0], [0, 32], [32, 32]];
+  const cells: ReadonlyArray<[number, number]> = [
+    [0, 0],
+    [32, 0],
+    [0, 32],
+    [32, 32],
+  ];
   for (const [i, [sx, sy]] of cells.entries()) {
     const dx = 40 + (i % 2) * 170;
     const dy = 40 + Math.floor(i / 2) * 170;
@@ -93,7 +100,7 @@ export interface Scene {
 
 export const SCENES: readonly Scene[] = [
   {
-    name: 'filled circles',
+    name: "filled circles",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setFill(0.9, 0.2, 0.3, 1);
@@ -105,7 +112,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'filled rects',
+    name: "filled rects",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setFill(0.85, 0.6, 0.1, 1);
@@ -117,7 +124,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'non-square rect strokes',
+    name: "non-square rect strokes",
     // The case that fails if half-extents are folded into the affine: the
     // stroke comes out thicker on two sides than the other two.
     draw: (b) => {
@@ -131,7 +138,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'circle strokes',
+    name: "circle strokes",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setFill(0.15, 0.35, 0.6, 1);
@@ -145,7 +152,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'lines',
+    name: "lines",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setStroke(0.95, 0.4, 0.7, 1);
@@ -156,7 +163,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'overlapping transparency',
+    name: "overlapping transparency",
     // Painter order is the whole point: any reordering changes the result.
     draw: (b) => {
       b.background(0, 0, 0, 1);
@@ -169,7 +176,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'interleaved blend modes',
+    name: "interleaved blend modes",
     // Alternating pipelines: merging non-adjacent instances would reorder these.
     draw: (b) => {
       b.background(0, 0, 0, 1);
@@ -181,7 +188,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'transform stack',
+    name: "transform stack",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setFill(0.9, 0.5, 0.1, 1);
@@ -201,7 +208,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'camera world and screen space',
+    name: "camera world and screen space",
     // The world view is a pan/zoom affine. resetTransform is the HUD boundary;
     // the final world shape proves the view can be restored afterwards.
     draw: (b) => {
@@ -224,7 +231,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'uniform scale with stroke',
+    name: "uniform scale with stroke",
     // Stroke width is in user units, so it scales with the transform in both
     // backends. Anisotropic scale is a documented divergence and not tested.
     draw: (b) => {
@@ -241,7 +248,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'ellipses',
+    name: "ellipses",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setFill(0.9, 0.45, 0.2, 1);
@@ -256,7 +263,7 @@ export const SCENES: readonly Scene[] = [
     // tolerance — no override, so a regression here fails like anything else.
   },
   {
-    name: 'translucent background over content',
+    name: "translucent background over content",
     // The trail idiom: a translucent background must blend over what is
     // already there rather than clear it.
     draw: (b) => {
@@ -271,7 +278,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'filled bezier path',
+    name: "filled bezier path",
     // The abstraction test made visual: curves reach the GPU as control
     // points and are flattened there, while SVG exports them as curves.
     draw: (b) => {
@@ -286,7 +293,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'path with a hole',
+    name: "path with a hole",
     // Two contours winding oppositely: the nonzero rule must leave the inner
     // one empty, which is what the stencil pass reproduces.
     draw: (b) => {
@@ -307,7 +314,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'stroked path',
+    name: "stroked path",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setFill(0, 0, 0, 0);
@@ -324,17 +331,17 @@ export const SCENES: readonly Scene[] = [
     // inside the standard tolerance, so no override.
   },
   {
-    name: 'spritesheet frames',
+    name: "spritesheet frames",
     // Every quadrant drawn from one texture, from a canvas source.
     draw: (b) => drawFrames(b, testSheet()),
   },
   {
-    name: 'spritesheet frames from an ImageBitmap',
+    name: "spritesheet frames from an ImageBitmap",
     // The same frames from the source type `loadImage()` actually returns.
     draw: (b) => drawFrames(b, bitmapSheet()),
   },
   {
-    name: 'whole image',
+    name: "whole image",
     // The non-region path, which must agree with the region path above.
     draw: (b) => {
       b.background(0, 0, 0, 1);
@@ -343,7 +350,7 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
-    name: 'push/pop restores style',
+    name: "push/pop restores style",
     draw: (b) => {
       b.background(0, 0, 0, 1);
       b.setFill(0.9, 0.3, 0.3, 1);

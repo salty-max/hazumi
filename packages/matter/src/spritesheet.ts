@@ -1,9 +1,5 @@
-import type { ImageSource } from '@matter/graphics';
-import {
-  type AnimationClip,
-  type ClipOptions,
-  createClip,
-} from './animation';
+import type { ImageSource } from "@matter/graphics";
+import { type AnimationClip, type ClipOptions, createClip } from "./animation";
 
 /**
  * One sprite: a rectangle of source pixels within a sheet.
@@ -46,9 +42,9 @@ export class UnknownClipError extends Error {
   constructor(name: string, available: readonly string[]) {
     super(
       `No animation named ${JSON.stringify(name)}. ` +
-        `Available: ${available.length === 0 ? '(none)' : available.join(', ')}`,
+        `Available: ${available.length === 0 ? "(none)" : available.join(", ")}`,
     );
-    this.name = 'UnknownClipError';
+    this.name = "UnknownClipError";
     this.clipName = name;
   }
 }
@@ -59,9 +55,9 @@ export class UnknownFrameError extends Error {
   constructor(name: string, available: readonly string[]) {
     super(
       `No frame named ${JSON.stringify(name)}. ` +
-        `Available: ${available.length === 0 ? '(none)' : available.join(', ')}`,
+        `Available: ${available.length === 0 ? "(none)" : available.join(", ")}`,
     );
-    this.name = 'UnknownFrameError';
+    this.name = "UnknownFrameError";
     this.frameName = name;
   }
 }
@@ -100,7 +96,7 @@ export interface Spritesheet {
 }
 
 function isNamed(options: SpritesheetOptions): options is NamedOptions {
-  return 'frames' in options;
+  return "frames" in options;
 }
 
 /** Positive modulo, so a negative or oversized index wraps rather than failing. */
@@ -118,10 +114,7 @@ function wrap(value: number, size: number): number {
  * image(sheet.at(3, 1), x, y);
  * ```
  */
-export function spritesheet(
-  source: ImageSource,
-  options: SpritesheetOptions,
-): Spritesheet {
+export function spritesheet(source: ImageSource, options: SpritesheetOptions): Spritesheet {
   const all: SpriteFrame[] = [];
   const byName = new Map<string, SpriteFrame>();
   let columns = 0;
@@ -140,7 +133,7 @@ export function spritesheet(
     const spacing = options.spacing ?? 0;
     const margin = options.margin ?? 0;
 
-    if (fw <= 0 || fh <= 0) throw new Error('spritesheet frame size must be positive');
+    if (fw <= 0 || fh <= 0) throw new Error("spritesheet frame size must be positive");
 
     // How many whole cells fit, accounting for the gaps between them.
     columns = Math.max(0, Math.floor((source.width - margin * 2 + spacing) / (fw + spacing)));
@@ -168,7 +161,7 @@ export function spritesheet(
   };
 
   const resolve = (ref: number | string): SpriteFrame => {
-    if (typeof ref === 'number') {
+    if (typeof ref === "number") {
       return all.length === 0 ? fallback : (all[wrap(ref, all.length)] as SpriteFrame);
     }
     const named = byName.get(ref);
@@ -216,5 +209,5 @@ export function spritesheet(
 
 /** True when a draw target is a sheet frame rather than a whole image. */
 export function isSpriteFrame(value: ImageSource | SpriteFrame): value is SpriteFrame {
-  return 'source' in value;
+  return "source" in value;
 }

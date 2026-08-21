@@ -1,10 +1,5 @@
-import { describe, expect, test } from 'bun:test';
-import {
-  type GlLike,
-  ProgramLinkError,
-  ResourceRegistry,
-  ShaderCompileError,
-} from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { type GlLike, ProgramLinkError, ResourceRegistry, ShaderCompileError } from "../src/index";
 
 /**
  * The registry is pure bookkeeping over GL handles, so context-loss recovery is
@@ -91,7 +86,7 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     shaderSource: () => {},
     compileShader: () => {},
     getShaderParameter: () => options.failCompile !== true,
-    getShaderInfoLog: () => 'syntax error',
+    getShaderInfoLog: () => "syntax error",
     deleteShader: () => void deleted.shaders++,
     createProgram: () => {
       created.programs++;
@@ -100,26 +95,26 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     attachShader: () => {},
     linkProgram: () => {},
     getProgramParameter: () => options.failLink !== true,
-    getProgramInfoLog: () => 'link error',
+    getProgramInfoLog: () => "link error",
     deleteProgram: () => void deleted.programs++,
   };
 }
 
-describe('ResourceRegistry', () => {
-  test('realizes registered descriptors', () => {
+describe("ResourceRegistry", () => {
+  test("realizes registered descriptors", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
 
     const buf = registry.register({
-      kind: 'buffer',
+      kind: "buffer",
       target: 34962,
       usage: 35044,
       byteLength: 64,
     });
     const prog = registry.register({
-      kind: 'program',
-      vertex: 'v',
-      fragment: 'f',
+      kind: "program",
+      vertex: "v",
+      fragment: "f",
     });
 
     registry.realize(gl);
@@ -130,10 +125,10 @@ describe('ResourceRegistry', () => {
     expect(gl.created.programs).toBe(1);
   });
 
-  test('accessing an unrealized resource throws rather than returning null', () => {
+  test("accessing an unrealized resource throws rather than returning null", () => {
     const registry = new ResourceRegistry();
     const id = registry.register({
-      kind: 'buffer',
+      kind: "buffer",
       target: 34962,
       usage: 35044,
       byteLength: 4,
@@ -142,20 +137,20 @@ describe('ResourceRegistry', () => {
     expect(() => registry.buffer(id)).toThrow(/not realized/);
   });
 
-  test('recovers every resource after a simulated context loss', () => {
+  test("recovers every resource after a simulated context loss", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
 
     const buf = registry.register({
-      kind: 'buffer',
+      kind: "buffer",
       target: 34962,
       usage: 35044,
       byteLength: 64,
     });
     const prog = registry.register({
-      kind: 'program',
-      vertex: 'v',
-      fragment: 'f',
+      kind: "program",
+      vertex: "v",
+      fragment: "f",
     });
 
     registry.realize(gl);
@@ -179,10 +174,10 @@ describe('ResourceRegistry', () => {
     expect(gl.created.programs).toBe(2);
   });
 
-  test('survives repeated loss and restore cycles', () => {
+  test("survives repeated loss and restore cycles", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'buffer', target: 34962, usage: 35044, byteLength: 4 });
+    registry.register({ kind: "buffer", target: 34962, usage: 35044, byteLength: 4 });
 
     for (let i = 0; i < 5; i++) {
       registry.invalidate();
@@ -193,11 +188,11 @@ describe('ResourceRegistry', () => {
     expect(gl.created.buffers).toBe(5);
   });
 
-  test('realizes and releases textures', () => {
+  test("realizes and releases textures", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
     const id = registry.register({
-      kind: 'texture',
+      kind: "texture",
       width: 4,
       height: 4,
       data: new Uint8Array(16),
@@ -212,21 +207,21 @@ describe('ResourceRegistry', () => {
     expect(() => registry.texture(id)).toThrow(/not realized/);
   });
 
-  test('sets unpack alignment for single-channel rows', () => {
+  test("sets unpack alignment for single-channel rows", () => {
     // A one-byte-per-texel atlas has rows that are not 4-byte aligned; leaving
     // the default in place skews every row after the first.
     const gl = fakeGl();
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'texture', width: 3, height: 3, data: new Uint8Array(9) });
+    registry.register({ kind: "texture", width: 3, height: 3, data: new Uint8Array(9) });
     registry.realize(gl);
     expect(gl.unpackAlignment).toBe(1);
   });
 
-  test('updates one retained RGBA texture without growing the registry', () => {
+  test("updates one retained RGBA texture without growing the registry", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
     const id = registry.register({
-      kind: 'rgba-texture',
+      kind: "rgba-texture",
       width: 1,
       height: 1,
       data: new Uint8Array(4),
@@ -240,16 +235,16 @@ describe('ResourceRegistry', () => {
     expect(registry.size).toBe(1);
     expect(gl.subUploads).toEqual([new Uint8Array([1, 2, 3, 4])]);
     expect(registry.descriptor(id)).toMatchObject({
-      kind: 'rgba-texture',
+      kind: "rgba-texture",
       data: new Uint8Array([1, 2, 3, 4]),
     });
   });
 
-  test('reallocates resized RGBA textures and restores their latest pixels', () => {
+  test("reallocates resized RGBA textures and restores their latest pixels", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
     const id = registry.register({
-      kind: 'rgba-texture',
+      kind: "rgba-texture",
       width: 1,
       height: 1,
       data: new Uint8Array(4),
@@ -266,29 +261,25 @@ describe('ResourceRegistry', () => {
     expect(gl.uploads.at(-1)).toEqual(latest);
   });
 
-  test('reports which shader stage failed to compile', () => {
+  test("reports which shader stage failed to compile", () => {
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'program', vertex: 'v', fragment: 'f' });
+    registry.register({ kind: "program", vertex: "v", fragment: "f" });
 
-    expect(() => registry.realize(fakeGl({ failCompile: true }))).toThrow(
-      ShaderCompileError,
-    );
+    expect(() => registry.realize(fakeGl({ failCompile: true }))).toThrow(ShaderCompileError);
   });
 
-  test('surfaces link failures with the driver log', () => {
+  test("surfaces link failures with the driver log", () => {
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'program', vertex: 'v', fragment: 'f' });
+    registry.register({ kind: "program", vertex: "v", fragment: "f" });
 
-    expect(() => registry.realize(fakeGl({ failLink: true }))).toThrow(
-      ProgramLinkError,
-    );
+    expect(() => registry.realize(fakeGl({ failLink: true }))).toThrow(ProgramLinkError);
   });
 
-  test('destroy deletes GPU objects, invalidate does not', () => {
+  test("destroy deletes GPU objects, invalidate does not", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'buffer', target: 34962, usage: 35044, byteLength: 4 });
-    registry.register({ kind: 'program', vertex: 'v', fragment: 'f' });
+    registry.register({ kind: "buffer", target: 34962, usage: 35044, byteLength: 4 });
+    registry.register({ kind: "program", vertex: "v", fragment: "f" });
     registry.realize(gl);
 
     // Context-loss path: the driver already freed them, so nothing is deleted.
@@ -303,10 +294,10 @@ describe('ResourceRegistry', () => {
     expect(gl.deleted.programs).toBe(1);
   });
 
-  test('realizing twice on a live context replaces rather than orphans', () => {
+  test("realizing twice on a live context replaces rather than orphans", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'buffer', target: 34962, usage: 35044, byteLength: 4 });
+    registry.register({ kind: "buffer", target: 34962, usage: 35044, byteLength: 4 });
 
     registry.realize(gl);
     registry.realize(gl);
@@ -316,10 +307,10 @@ describe('ResourceRegistry', () => {
     expect(gl.deleted.buffers).toBe(1);
   });
 
-  test('destroy on a lost context degrades to invalidate', () => {
+  test("destroy on a lost context degrades to invalidate", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'buffer', target: 34962, usage: 35044, byteLength: 4 });
+    registry.register({ kind: "buffer", target: 34962, usage: 35044, byteLength: 4 });
     registry.realize(gl);
 
     registry.invalidate(); // context lost
@@ -329,10 +320,10 @@ describe('ResourceRegistry', () => {
     expect(() => registry.buffer(0)).toThrow(/not realized/);
   });
 
-  test('deletes shaders after linking so they are not leaked', () => {
+  test("deletes shaders after linking so they are not leaked", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'program', vertex: 'v', fragment: 'f' });
+    registry.register({ kind: "program", vertex: "v", fragment: "f" });
     registry.realize(gl);
 
     expect(gl.created.shaders).toBe(2);
@@ -345,12 +336,12 @@ describe('ResourceRegistry', () => {
  * to mush the moment it is drawn larger than its source, which in a game is
  * most of the time.
  */
-describe('image texture filtering', () => {
-  test('smoothing on uses linear', () => {
+describe("image texture filtering", () => {
+  test("smoothing on uses linear", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
     registry.register({
-      kind: 'image-texture',
+      kind: "image-texture",
       source: {} as never,
       smoothing: true,
     });
@@ -358,11 +349,11 @@ describe('image texture filtering', () => {
     expect(gl.filters).toEqual([9729, 9729]);
   });
 
-  test('smoothing off uses nearest', () => {
+  test("smoothing off uses nearest", () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
     registry.register({
-      kind: 'image-texture',
+      kind: "image-texture",
       source: {} as never,
       smoothing: false,
     });
@@ -370,7 +361,7 @@ describe('image texture filtering', () => {
     expect(gl.filters).toEqual([9728, 9728]);
   });
 
-  test('image textures upload unflipped', () => {
+  test("image textures upload unflipped", () => {
     // UNPACK_FLIP_Y_WEBGL is honoured for canvas and <img> but IGNORED for
     // ImageBitmap, so a flip on upload makes a texture's orientation depend on
     // how the caller decoded the image. `loadImage()` returns an ImageBitmap,
@@ -380,7 +371,7 @@ describe('image texture filtering', () => {
     const gl = fakeGl();
     const registry = new ResourceRegistry();
     registry.register({
-      kind: 'image-texture',
+      kind: "image-texture",
       source: {} as never,
       smoothing: false,
     });
@@ -388,12 +379,12 @@ describe('image texture filtering', () => {
     expect(gl.unpacks).toEqual([]);
   });
 
-  test('the SDF atlas stays linear either way', () => {
+  test("the SDF atlas stays linear either way", () => {
     // A distance field is interpolated by design; nearest would make text
     // blocky at exactly the sizes SDF exists to handle.
     const gl = fakeGl();
     const registry = new ResourceRegistry();
-    registry.register({ kind: 'texture', width: 4, height: 4, data: new Uint8Array(16) });
+    registry.register({ kind: "texture", width: 4, height: 4, data: new Uint8Array(16) });
     registry.realize(gl);
     expect(gl.filters).toEqual([9729, 9729]);
   });

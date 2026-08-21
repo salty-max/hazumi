@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from "bun:test";
 import {
   clampToGamut,
   fromSrgb,
@@ -8,40 +8,47 @@ import {
   oklch,
   toLinearRgb,
   toSrgb,
-} from '../src/index';
+} from "../src/index";
 
-describe('sRGB transfer function', () => {
-  test('round-trips', () => {
+describe("sRGB transfer function", () => {
+  test("round-trips", () => {
     for (let i = 0; i <= 100; i++) {
       const c = i / 100;
       expect(delinearize(linearize(c))).toBeCloseTo(c, 10);
     }
   });
 
-  test('pins its endpoints', () => {
+  test("pins its endpoints", () => {
     expect(linearize(0)).toBe(0);
     expect(linearize(1)).toBeCloseTo(1, 10);
     expect(delinearize(0)).toBe(0);
     expect(delinearize(1)).toBeCloseTo(1, 10);
   });
 
-  test('is continuous across the piecewise boundary', () => {
+  test("is continuous across the piecewise boundary", () => {
     const below = linearize(0.04045 - 1e-9);
     const above = linearize(0.04045 + 1e-9);
     expect(Math.abs(above - below)).toBeLessThan(1e-6);
   });
 });
 
-describe('sRGB <-> OKLCH round-trip', () => {
+describe("sRGB <-> OKLCH round-trip", () => {
   /**
    * The strongest available check on the conversion chain: sRGB -> linear ->
    * Oklab -> Oklch and all the way back must be the identity. A wrong
    * coefficient anywhere shows up here.
    */
-  test('recovers arbitrary colours', () => {
+  test("recovers arbitrary colours", () => {
     const samples = [
-      [0, 0, 0], [1, 1, 1], [1, 0, 0], [0, 1, 0], [0, 0, 1],
-      [0.5, 0.25, 0.75], [0.2, 0.9, 0.4], [0.13, 0.13, 0.13], [0.99, 0.01, 0.5],
+      [0, 0, 0],
+      [1, 1, 1],
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+      [0.5, 0.25, 0.75],
+      [0.2, 0.9, 0.4],
+      [0.13, 0.13, 0.13],
+      [0.99, 0.01, 0.5],
     ] as const;
 
     for (const [r, g, b] of samples) {
@@ -52,53 +59,48 @@ describe('sRGB <-> OKLCH round-trip', () => {
     }
   });
 
-  test('recovers a dense sweep of the cube', () => {
+  test("recovers a dense sweep of the cube", () => {
     let worst = 0;
     for (let r = 0; r <= 1.0001; r += 0.2) {
       for (let g = 0; g <= 1.0001; g += 0.2) {
         for (let b = 0; b <= 1.0001; b += 0.2) {
           const back = toSrgb(fromSrgb({ r, g, b, alpha: 1 }));
-          worst = Math.max(
-            worst,
-            Math.abs(back.r - r),
-            Math.abs(back.g - g),
-            Math.abs(back.b - b),
-          );
+          worst = Math.max(worst, Math.abs(back.r - r), Math.abs(back.g - g), Math.abs(back.b - b));
         }
       }
     }
     expect(worst).toBeLessThan(1e-5);
   });
 
-  test('preserves alpha', () => {
+  test("preserves alpha", () => {
     expect(toSrgb(fromSrgb({ r: 0.5, g: 0.5, b: 0.5, alpha: 0.25 })).alpha).toBeCloseTo(0.25);
   });
 });
 
-describe('known landmarks', () => {
-  test('white is L=1 with no chroma', () => {
+describe("known landmarks", () => {
+  test("white is L=1 with no chroma", () => {
     const white = fromSrgb({ r: 1, g: 1, b: 1, alpha: 1 });
     expect(white.l).toBeCloseTo(1, 3);
     expect(white.c).toBeCloseTo(0, 3);
   });
 
-  test('black is L=0', () => {
+  test("black is L=0", () => {
     const black = fromSrgb({ r: 0, g: 0, b: 0, alpha: 1 });
     expect(black.l).toBeCloseTo(0, 5);
     expect(black.c).toBeCloseTo(0, 5);
   });
 
-  test('greys have no chroma at any lightness', () => {
+  test("greys have no chroma at any lightness", () => {
     for (const v of [0.1, 0.25, 0.5, 0.75, 0.9]) {
       expect(fromSrgb({ r: v, g: v, b: v, alpha: 1 }).c).toBeCloseTo(0, 4);
     }
   });
 
-  test('hue is reported as 0 for achromatic colours rather than noise', () => {
+  test("hue is reported as 0 for achromatic colours rather than noise", () => {
     expect(fromSrgb({ r: 0.5, g: 0.5, b: 0.5, alpha: 1 }).h).toBe(0);
   });
 
-  test('primaries land in the expected hue quadrants', () => {
+  test("primaries land in the expected hue quadrants", () => {
     const red = fromSrgb({ r: 1, g: 0, b: 0, alpha: 1 });
     const green = fromSrgb({ r: 0, g: 1, b: 0, alpha: 1 });
     const blue = fromSrgb({ r: 0, g: 0, b: 1, alpha: 1 });
@@ -112,19 +114,19 @@ describe('known landmarks', () => {
   });
 });
 
-describe('gamut mapping', () => {
-  test('recognises in- and out-of-gamut colours', () => {
+describe("gamut mapping", () => {
+  test("recognises in- and out-of-gamut colours", () => {
     expect(inGamut(fromSrgb({ r: 0.5, g: 0.5, b: 0.5, alpha: 1 }))).toBe(true);
     // Far more chroma than sRGB can show.
     expect(inGamut(oklch(0.7, 0.4, 250))).toBe(false);
   });
 
-  test('leaves in-gamut colours untouched', () => {
+  test("leaves in-gamut colours untouched", () => {
     const c = fromSrgb({ r: 0.3, g: 0.6, b: 0.9, alpha: 1 });
     expect(clampToGamut(c)).toBe(c);
   });
 
-  test('reduces chroma while preserving hue and lightness', () => {
+  test("reduces chroma while preserving hue and lightness", () => {
     const wild = oklch(0.7, 0.4, 250);
     const mapped = clampToGamut(wild);
     expect(mapped.c).toBeLessThan(wild.c);
@@ -133,12 +135,12 @@ describe('gamut mapping', () => {
     expect(inGamut(mapped)).toBe(true);
   });
 
-  test('handles lightness outside [0, 1]', () => {
+  test("handles lightness outside [0, 1]", () => {
     expect(inGamut(clampToGamut(oklch(1.5, 0.2, 100)))).toBe(true);
     expect(inGamut(clampToGamut(oklch(-0.5, 0.2, 100)))).toBe(true);
   });
 
-  test('toSrgb never emits components outside [0, 1]', () => {
+  test("toSrgb never emits components outside [0, 1]", () => {
     for (let h = 0; h < 360; h += 15) {
       const srgb = toSrgb(oklch(0.7, 0.4, h));
       for (const v of [srgb.r, srgb.g, srgb.b]) {
@@ -148,7 +150,7 @@ describe('gamut mapping', () => {
     }
   });
 
-  test('toLinearRgb is deliberately unclamped', () => {
+  test("toLinearRgb is deliberately unclamped", () => {
     // The GPU path wants the raw value; clamping is the display step's job.
     const rgb = toLinearRgb(oklch(0.7, 0.4, 250));
     expect(rgb.r < 0 || rgb.g < 0 || rgb.b < 0 || rgb.r > 1 || rgb.g > 1 || rgb.b > 1).toBe(true);

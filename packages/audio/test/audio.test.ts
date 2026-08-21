@@ -57,10 +57,7 @@ class FakeSource {
   }
 
   finish(): void {
-    this.endedListener?.call(
-      this as unknown as AudioScheduledSourceNode,
-      new Event("ended"),
-    );
+    this.endedListener?.call(this as unknown as AudioScheduledSourceNode, new Event("ended"));
   }
 }
 

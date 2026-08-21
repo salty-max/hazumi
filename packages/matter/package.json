@@ -2,12 +2,12 @@
   "name": "matter",
   "version": "0.1.0",
   "description": "A typed 2D graphics library built on a retained command buffer.",
-  "type": "module",
   "license": "MIT",
-  "sideEffects": false,
   "files": [
     "dist"
   ],
+  "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

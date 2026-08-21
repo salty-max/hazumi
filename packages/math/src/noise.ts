@@ -6,7 +6,7 @@
  * reproducible alongside its randomness.
  */
 
-import { seeded, type Rng } from './rng';
+import { seeded, type Rng } from "./rng";
 
 const F2 = 0.5 * (Math.sqrt(3) - 1);
 const G2 = (3 - Math.sqrt(3)) / 6;
@@ -14,9 +14,18 @@ const F3 = 1 / 3;
 const G3 = 1 / 6;
 
 const GRAD3: ReadonlyArray<readonly [number, number, number]> = [
-  [1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0],
-  [1, 0, 1], [-1, 0, 1], [1, 0, -1], [-1, 0, -1],
-  [0, 1, 1], [0, -1, 1], [0, 1, -1], [0, -1, -1],
+  [1, 1, 0],
+  [-1, 1, 0],
+  [1, -1, 0],
+  [-1, -1, 0],
+  [1, 0, 1],
+  [-1, 0, 1],
+  [1, 0, -1],
+  [-1, 0, -1],
+  [0, 1, 1],
+  [0, -1, 1],
+  [0, 1, -1],
+  [0, -1, -1],
 ];
 
 export interface Noise {
@@ -29,7 +38,7 @@ export interface Noise {
 }
 
 export function createNoise(source: Rng | number = 0): Noise {
-  const rng = typeof source === 'number' ? seeded(source) : source;
+  const rng = typeof source === "number" ? seeded(source) : source;
 
   // Fisher-Yates over 0..255, then doubled to avoid an index wrap in the hot path.
   const p = new Uint8Array(256);
@@ -115,23 +124,55 @@ export function createNoise(source: Rng | number = 0): Noise {
     const z0 = zin - (k - t);
 
     // Rank the coordinates to find which of the six tetrahedra we are in.
-    let i1 = 0, j1 = 0, k1 = 0;
-    let i2 = 0, j2 = 0, k2 = 0;
+    let i1 = 0,
+      j1 = 0,
+      k1 = 0;
+    let i2 = 0,
+      j2 = 0,
+      k2 = 0;
     if (x0 >= y0) {
-      if (y0 >= z0) { i1 = 1; i2 = 1; j2 = 1; }
-      else if (x0 >= z0) { i1 = 1; i2 = 1; k2 = 1; }
-      else { k1 = 1; i2 = 1; k2 = 1; }
+      if (y0 >= z0) {
+        i1 = 1;
+        i2 = 1;
+        j2 = 1;
+      } else if (x0 >= z0) {
+        i1 = 1;
+        i2 = 1;
+        k2 = 1;
+      } else {
+        k1 = 1;
+        i2 = 1;
+        k2 = 1;
+      }
     } else {
-      if (y0 < z0) { k1 = 1; j2 = 1; k2 = 1; }
-      else if (x0 < z0) { j1 = 1; j2 = 1; k2 = 1; }
-      else { j1 = 1; i2 = 1; j2 = 1; }
+      if (y0 < z0) {
+        k1 = 1;
+        j2 = 1;
+        k2 = 1;
+      } else if (x0 < z0) {
+        j1 = 1;
+        j2 = 1;
+        k2 = 1;
+      } else {
+        j1 = 1;
+        i2 = 1;
+        j2 = 1;
+      }
     }
 
-    const x1 = x0 - i1 + G3, y1 = y0 - j1 + G3, z1 = z0 - k1 + G3;
-    const x2 = x0 - i2 + 2 * G3, y2 = y0 - j2 + 2 * G3, z2 = z0 - k2 + 2 * G3;
-    const x3 = x0 - 1 + 3 * G3, y3 = y0 - 1 + 3 * G3, z3 = z0 - 1 + 3 * G3;
+    const x1 = x0 - i1 + G3,
+      y1 = y0 - j1 + G3,
+      z1 = z0 - k1 + G3;
+    const x2 = x0 - i2 + 2 * G3,
+      y2 = y0 - j2 + 2 * G3,
+      z2 = z0 - k2 + 2 * G3;
+    const x3 = x0 - 1 + 3 * G3,
+      y3 = y0 - 1 + 3 * G3,
+      z3 = z0 - 1 + 3 * G3;
 
-    const ii = i & 255, jj = j & 255, kk = k & 255;
+    const ii = i & 255,
+      jj = j & 255,
+      kk = k & 255;
     let n = 0;
 
     let t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
@@ -144,14 +185,18 @@ export function createNoise(source: Rng | number = 0): Noise {
     let t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
     if (t1 > 0) {
       t1 *= t1;
-      const gi = permMod12[ii + i1 + (perm[jj + j1 + (perm[kk + k1] as number)] as number)] as number;
+      const gi = permMod12[
+        ii + i1 + (perm[jj + j1 + (perm[kk + k1] as number)] as number)
+      ] as number;
       n += t1 * t1 * grad3(gi, x1, y1, z1);
     }
 
     let t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
     if (t2 > 0) {
       t2 *= t2;
-      const gi = permMod12[ii + i2 + (perm[jj + j2 + (perm[kk + k2] as number)] as number)] as number;
+      const gi = permMod12[
+        ii + i2 + (perm[jj + j2 + (perm[kk + k2] as number)] as number)
+      ] as number;
       n += t2 * t2 * grad3(gi, x2, y2, z2);
     }
 

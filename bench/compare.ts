@@ -7,11 +7,11 @@
  * noticeably — enough to catch a wrong stroke width, a flipped painter order
  * or a broken transform, without failing on a half-intensity edge pixel.
  */
-import { CommandBuffer } from '@matter/graphics';
-import { Webgl2Renderer } from '@matter/backend-webgl2';
-import { Canvas2dRenderer } from '@matter/backend-canvas2d';
-import { toSvg } from '@matter/backend-svg';
-import { SCENES, prepareScenes } from './scenes';
+import { CommandBuffer } from "@matter/graphics";
+import { Webgl2Renderer } from "@matter/backend-webgl2";
+import { Canvas2dRenderer } from "@matter/backend-canvas2d";
+import { toSvg } from "@matter/backend-svg";
+import { SCENES, prepareScenes } from "./scenes";
 
 const W = 400;
 const H = 400;
@@ -25,11 +25,11 @@ const DEFAULT_TOLERANCE = 3.0;
 const SVG_TOLERANCE = 2.0;
 const BAD_PIXEL_THRESHOLD = 48;
 
-const out = document.getElementById('out') as HTMLElement;
-const strip = document.getElementById('strip') as HTMLElement;
+const out = document.getElementById("out") as HTMLElement;
+const strip = document.getElementById("strip") as HTMLElement;
 
 function makeCanvas(): HTMLCanvasElement {
-  const c = document.createElement('canvas');
+  const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
   return c;
@@ -61,20 +61,20 @@ interface Result {
  * not write it can tell the difference.
  */
 async function rasterizeSvg(svg: string): Promise<Uint8ClampedArray> {
-  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const blob = new Blob([svg], { type: "image/svg+xml" });
   const url = URL.createObjectURL(blob);
   try {
     const img = new Image();
     img.width = W;
     img.height = H;
     await new Promise<void>((resolve, reject) => {
-      img.addEventListener('load', () => resolve());
-      img.addEventListener('error', () => reject(new Error('SVG failed to load')));
+      img.addEventListener("load", () => resolve());
+      img.addEventListener("error", () => reject(new Error("SVG failed to load")));
       img.src = url;
     });
 
     const canvas = makeCanvas();
-    const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
     ctx.drawImage(img, 0, 0, W, H);
     return ctx.getImageData(0, 0, W, H).data;
   } finally {
@@ -84,7 +84,7 @@ async function rasterizeSvg(svg: string): Promise<Uint8ClampedArray> {
 
 function readPixels(canvas: HTMLCanvasElement, webgl: boolean): Uint8ClampedArray {
   if (webgl) {
-    const gl = canvas.getContext('webgl2') as WebGL2RenderingContext;
+    const gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
     const raw = new Uint8Array(W * H * 4);
     gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, raw);
     // WebGL reads bottom-up; flip to match Canvas2D's top-down order.
@@ -97,7 +97,7 @@ function readPixels(canvas: HTMLCanvasElement, webgl: boolean): Uint8ClampedArra
   }
   // This harness reads back every frame; without the hint Chrome keeps the
   // surface on the GPU and every read is a stall.
-  const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
   return ctx.getImageData(0, 0, W, H).data;
 }
 
@@ -230,20 +230,20 @@ for (const [index, item] of captured.entries()) {
   });
 
   // Keep a visual copy of each triple for eyeballing.
-  const row = document.createElement('div');
-  row.className = 'row';
-  const label = document.createElement('div');
-  label.className = 'label';
+  const row = document.createElement("div");
+  row.className = "row";
+  const label = document.createElement("div");
+  label.className = "label";
   label.textContent = item.scene.name;
   row.append(label);
 
   for (const [tag, image] of [
-    ['webgl2', item.glImage],
-    ['canvas2d', item.refImage],
-    ['svg', new ImageData(svgPixels, W, H)],
+    ["webgl2", item.glImage],
+    ["canvas2d", item.refImage],
+    ["svg", new ImageData(svgPixels, W, H)],
   ] as const) {
     const copy = makeCanvas();
-    const ctx = copy.getContext('2d') as CanvasRenderingContext2D;
+    const ctx = copy.getContext("2d") as CanvasRenderingContext2D;
     ctx.putImageData(image, 0, 0);
     copy.title = `${item.scene.name} — ${tag}`;
     row.append(copy);
@@ -254,8 +254,13 @@ for (const [index, item] of captured.entries()) {
 
 const failures = results.filter((r) => !r.pass);
 const lines = [
-  'scene'.padEnd(30) + 'gl/2d'.padStart(8) + 'svg/2d'.padStart(9) + 'calls'.padStart(7) + 'inst'.padStart(6) + '  ',
-  '-'.repeat(70),
+  "scene".padEnd(30) +
+    "gl/2d".padStart(8) +
+    "svg/2d".padStart(9) +
+    "calls".padStart(7) +
+    "inst".padStart(6) +
+    "  ",
+  "-".repeat(70),
 ];
 for (const r of results) {
   lines.push(
@@ -264,11 +269,11 @@ for (const r of results) {
       r.svgMean.toFixed(2).padStart(9) +
       String(r.drawCalls).padStart(7) +
       String(r.instances).padStart(6) +
-      (r.pass ? '  OK' : '  FAIL'),
+      (r.pass ? "  OK" : "  FAIL"),
   );
 }
-lines.push('');
+lines.push("");
 lines.push(`scenes: ${results.length}   failures: ${failures.length}`);
-lines.push(`STATUS: ${failures.length === 0 ? 'ALL AGREE' : 'MISMATCH'}`);
+lines.push(`STATUS: ${failures.length === 0 ? "ALL AGREE" : "MISMATCH"}`);
 
-out.textContent = lines.join('\n');
+out.textContent = lines.join("\n");

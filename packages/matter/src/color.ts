@@ -1,1 +1,1 @@
-export * from '@matter/color';
+export * from "@matter/color";

@@ -24,14 +24,14 @@ browser involved. Shaders are a normal feature rather than an escape hatch.
 ## A scene
 
 ```ts
-import { start } from 'matter';
-import { webgl2 } from 'matter/backends/webgl2';
+import { start } from "matter";
+import { webgl2 } from "matter/backends/webgl2";
 
 start({ backend: webgl2(), width: 600, height: 600 }, () => {
   return {
     draw(_alpha, { background, circle, fill, width, height, t }) {
-      background('oklch(0.15 0.02 260)');
-      fill('oklch(0.7 0.18 250)');
+      background("oklch(0.15 0.02 260)");
+      fill("oklch(0.7 0.18 250)");
       circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
     },
   };
@@ -46,12 +46,15 @@ mutated in place, reading `t` or `width` costs nothing per frame.
 Style can be scoped instead of pushed and popped:
 
 ```ts
-with({ fill: 'red', stroke: null }, () => {
-  drawPetals();
-});
+with (
+  ({ fill: "red", stroke: null },
+  () => {
+    drawPetals();
+  })
+);
 ```
 
-It restores on exit *including when the body throws*, which is the failure
+It restores on exit _including when the body throws_, which is the failure
 `push()`/`pop()` cannot protect you from.
 
 ## A fixed-step game
@@ -61,26 +64,23 @@ runs at the configured fixed rate; rendering still follows the display and
 receives an interpolation alpha:
 
 ```ts
-start(
-  { backend: webgl2(), clock: { fixedStep: 1 / 60 } },
-  () => {
-    let previousX = 100;
-    let x = 100;
+start({ backend: webgl2(), clock: { fixedStep: 1 / 60 } }, () => {
+  let previousX = 100;
+  let x = 100;
 
-    return {
-      update(dt, { keyIsDown, keyJustPressed }) {
-        previousX = x;
-        if (keyIsDown('ArrowRight')) x += 120 * dt;
-        if (keyJustPressed(' ')) jump();
-      },
-      draw(alpha, { background, circle, fill }) {
-        background('#111827');
-        fill('#60a5fa');
-        circle(previousX + (x - previousX) * alpha, 300, 32);
-      },
-    };
-  },
-);
+  return {
+    update(dt, { keyIsDown, keyJustPressed }) {
+      previousX = x;
+      if (keyIsDown("ArrowRight")) x += 120 * dt;
+      if (keyJustPressed(" ")) jump();
+    },
+    draw(alpha, { background, circle, fill }) {
+      background("#111827");
+      fill("#60a5fa");
+      circle(previousX + (x - previousX) * alpha, 300, 32);
+    },
+  };
+});
 ```
 
 Catch-up is capped by default, so returning to a backgrounded tab cannot trap
@@ -142,11 +142,11 @@ return {
     camera.setZoom(2);
   },
   draw(alpha, { background, camera, circle, text }) {
-    background('#111827'); // always covers the screen
+    background("#111827"); // always covers the screen
     circle(player.x, player.y, 32); // world space
 
     camera.screen(() => {
-      text('HP 100', 16, 24); // HUD, unaffected by pan or zoom
+      text("HP 100", 16, 24); // HUD, unaffected by pan or zoom
     });
   },
 };
@@ -188,8 +188,8 @@ http://localhost:5199/examples to see the twelve scenes in
 
 ## Design in one page
 
-The user's `draw()` does not paint. It encodes high-level commands — *circle at
-xy, radius r* — into a struct-of-arrays typed-array buffer, which a backend then
+The user's `draw()` does not paint. It encodes high-level commands — _circle at
+xy, radius r_ — into a struct-of-arrays typed-array buffer, which a backend then
 consumes. Immediate-mode ergonomics on the outside, retained-mode data inside.
 
 Four things fall out of that:
@@ -220,17 +220,17 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 All nine phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
 state, remaining library gaps, and deferred work.
 
-| Phase | Work | Done when |
-| --- | --- | --- |
-| P1 ✅ | Command buffer + minimal instanced WebGL2 path | **Met** — see measurements below |
-| P2 ✅ | core, math, color | **Met** — 253 tests; plugin types verified at compile time |
-| P3 ✅ | Renderer subsystems + Canvas2D oracle | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255 |
-| P4 ✅ | First vertical slice, `0.1.0` | **Met** — five scenes in `examples/`, no escape hatches |
-| P5 ✅ | Text, then SVG backend | **Met** — 12 scenes export and rasterise to within 0.31/255 |
-| P6 ✅ | Docs + playground | **Met** — landing page, live editor, 184-symbol reference |
-| P7 ✅ | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below |
-| P8 ✅ | Typed runtime plugins + audio | **Met** — load, play, loop, gain, lifecycle, bounded voice pool |
-| P9 ✅ | Canvas resize, pixels + PNG capture | **Met** — DPR-aware Canvas2D/WebGL2, top-down RGBA round-trip |
+| Phase | Work                                                         | Done when                                                       |
+| ----- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| P1 ✅ | Command buffer + minimal instanced WebGL2 path               | **Met** — see measurements below                                |
+| P2 ✅ | core, math, color                                            | **Met** — 253 tests; plugin types verified at compile time      |
+| P3 ✅ | Renderer subsystems + Canvas2D oracle                        | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255               |
+| P4 ✅ | First vertical slice, `0.1.0`                                | **Met** — five scenes in `examples/`, no escape hatches         |
+| P5 ✅ | Text, then SVG backend                                       | **Met** — 12 scenes export and rasterise to within 0.31/255     |
+| P6 ✅ | Docs + playground                                            | **Met** — landing page, live editor, 184-symbol reference       |
+| P7 ✅ | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below                |
+| P8 ✅ | Typed runtime plugins + audio                                | **Met** — load, play, loop, gain, lifecycle, bounded voice pool |
+| P9 ✅ | Canvas resize, pixels + PNG capture                          | **Met** — DPR-aware Canvas2D/WebGL2, top-down RGBA round-trip   |
 
 ## P1 measurements
 
@@ -238,23 +238,23 @@ Encode path, Bun, 100k circles per frame over 200 frames. Two workloads, because
 a single shared fill and a fill per shape are different amounts of work — the GPU
 bench below uses the second:
 
-| Metric | Flat fill | Fill per shape |
-| --- | --- | --- |
-| Encode time per frame | 0.97 ms (5.8%) | 1.84 ms (11.0%) |
-| Throughput | 103M shapes/sec | 54M shapes/sec |
-| Buffer growths in steady state | 0 | 0 |
-| Heap delta over 200 frames | 0.0 KB | 0.0 KB |
+| Metric                         | Flat fill       | Fill per shape  |
+| ------------------------------ | --------------- | --------------- |
+| Encode time per frame          | 0.97 ms (5.8%)  | 1.84 ms (11.0%) |
+| Throughput                     | 103M shapes/sec | 54M shapes/sec  |
+| Buffer growths in steady state | 0               | 0               |
+| Heap delta over 200 frames     | 0.0 KB          | 0.0 KB          |
 
 GPU path, Chrome, 100k circles per frame over 120 frames, each frame forced to
 complete with a 1×1 `readPixels`:
 
-| Metric | Result |
-| --- | --- |
-| Frame time (median) | 10.00 ms (60% of the 16.67 ms budget) |
-| Frame time (p95) | 11.50 ms |
-| Draw calls per frame | 1 |
-| Instance-array growths in steady state | 0 |
-| Forced context loss | Recovered without reload, 1 draw call after restore |
+| Metric                                 | Result                                              |
+| -------------------------------------- | --------------------------------------------------- |
+| Frame time (median)                    | 10.00 ms (60% of the 16.67 ms budget)               |
+| Frame time (p95)                       | 11.50 ms                                            |
+| Draw calls per frame                   | 1                                                   |
+| Instance-array growths in steady state | 0                                                   |
+| Forced context loss                    | Recovered without reload, 1 draw call after restore |
 
 P3 grew instances from 7 floats to 14 to carry transform, extents and stroke,
 moving the median from 7.50 ms to 10.00 ms. Packing colour into a `u32` would
@@ -266,27 +266,27 @@ Canvas2D is the reference renderer. Nineteen scenes render through both backends
 and are compared pixel by pixel — mean per-channel difference over the frame,
 out of 255. The worst is 1.81; the image scenes are exact:
 
-| Scene | Mean diff | Draw calls |
-| --- | --- | --- |
-| filled circles | 0.42 | 1 |
-| filled rects | 0.68 | 1 |
-| non-square rect strokes | 1.75 | 1 |
-| circle strokes | 0.93 | 1 |
-| lines | 1.81 | 1 |
-| overlapping transparency | 0.34 | 1 |
-| interleaved blend modes | 0.56 | 10 |
-| transform stack | 0.61 | 1 |
-| camera world and screen space | 0.42 | 1 |
-| uniform scale with stroke | 0.62 | 1 |
-| ellipses | 1.69 | 1 |
-| translucent background over content | 0.42 | 1 |
-| filled bezier path | 0.25 | 2 |
-| path with a hole | 0.00 | 2 |
-| stroked path | 0.35 | 1 |
-| spritesheet frames | 0.00 | 1 |
-| spritesheet frames from an ImageBitmap | 0.00 | 1 |
-| whole image | 0.00 | 2 |
-| push/pop restores style | 0.43 | 1 |
+| Scene                                  | Mean diff | Draw calls |
+| -------------------------------------- | --------- | ---------- |
+| filled circles                         | 0.42      | 1          |
+| filled rects                           | 0.68      | 1          |
+| non-square rect strokes                | 1.75      | 1          |
+| circle strokes                         | 0.93      | 1          |
+| lines                                  | 1.81      | 1          |
+| overlapping transparency               | 0.34      | 1          |
+| interleaved blend modes                | 0.56      | 10         |
+| transform stack                        | 0.61      | 1          |
+| camera world and screen space          | 0.42      | 1          |
+| uniform scale with stroke              | 0.62      | 1          |
+| ellipses                               | 1.69      | 1          |
+| translucent background over content    | 0.42      | 1          |
+| filled bezier path                     | 0.25      | 2          |
+| path with a hole                       | 0.00      | 2          |
+| stroked path                           | 0.35      | 1          |
+| spritesheet frames                     | 0.00      | 1          |
+| spritesheet frames from an ImageBitmap | 0.00      | 1          |
+| whole image                            | 0.00      | 2          |
+| push/pop restores style                | 0.43      | 1          |
 
 Two independent rasterisers never match bit-for-bit on antialiased edges, so
 the bar is "no visible difference", not "identical". The interleaved-blend
@@ -298,7 +298,7 @@ http://localhost:5199/bench/compare.html.
 
 SVG is rasterised through the browser and diffed against Canvas2D as well.
 Several scenes come out pixel-identical and the worst is 1.22, because both go
-through the same engine — so that tolerance is set *tighter* than the GPU one.
+through the same engine — so that tolerance is set _tighter_ than the GPU one.
 
 ## WebGPU
 
@@ -324,11 +324,11 @@ construction.
 wherever it takes an image:
 
 ```ts
-const sheet = spritesheet(await loadImage('tiles.png'), { frame: [16, 16] });
+const sheet = spritesheet(await loadImage("tiles.png"), { frame: [16, 16] });
 image(sheet.at(3, 1), x, y);
 ```
 
-This is what makes 2D games viable. Batching merges only *adjacent* instances —
+This is what makes 2D games viable. Batching merges only _adjacent_ instances —
 which is what keeps transparency correct — so separate images never merge and
 sprites always interleave. Measured: 400 draws across 8 images cost **400 draw
 calls**; 400 sprites across 16 frames of one sheet cost **one**.
@@ -336,7 +336,7 @@ calls**; 400 sprites across 16 frames of one sheet cost **one**.
 Frames are precomputed and returned by reference, so a draw loop asking for the
 same frame every frame allocates nothing. Indices wrap, so `frame(t)` loops.
 
-Image textures upload *unflipped*, and the quad's UVs run top-down to match.
+Image textures upload _unflipped_, and the quad's UVs run top-down to match.
 This is deliberate: WebGL honours `UNPACK_FLIP_Y_WEBGL` for a canvas or `<img>`
 but silently ignores it for an `ImageBitmap`, which is exactly what
 `loadImage()` returns — so flipping on upload makes a texture's orientation
@@ -349,16 +349,16 @@ A sheet can declare its own clips, so a scene asks for an animation rather than
 tracking frame indices:
 
 ```ts
-const hero = spritesheet(await loadImage('hero.png'), {
+const hero = spritesheet(await loadImage("hero.png"), {
   frame: [16, 24],
   clips: {
     idle: { frames: [0, 1, 2, 3], fps: 6 },
-    run:  { frames: [8, 9, 10, 11, 12, 13], fps: 14 },
+    run: { frames: [8, 9, 10, 11, 12, 13], fps: 14 },
     jump: { frames: [16], end: ClipEnd.Hold },
   },
 });
 
-image(hero.clip('run').at(t), x, y);
+image(hero.clip("run").at(t), x, y);
 ```
 
 Sampling is stateless — `at(seconds)` is a pure function of time — so any
@@ -381,8 +381,8 @@ const world = tilemap({
   tileWidth: 16,
   tileHeight: 16,
   layers: [
-    { name: 'ground', sheet, tiles: groundTiles },
-    { name: 'detail', sheet, tiles: detailTiles },
+    { name: "ground", sheet, tiles: groundTiles },
+    { name: "detail", sheet, tiles: detailTiles },
   ],
 });
 
@@ -406,10 +406,10 @@ Loading more than one is normal — tiles, a character, effects. They cannot
 share a texture, so **draw order decides the cost**. Measured with three sheets
 and 300 sprites:
 
-| Draw order | Draw calls |
-| --- | --- |
-| Grouped by sheet | 3 |
-| Interleaved | 300 |
+| Draw order       | Draw calls |
+| ---------------- | ---------- |
+| Grouped by sheet | 3          |
+| Interleaved      | 300        |
 
 Group draws by sheet where you can. `app.stats.drawCalls` reports the number
 for the last frame.
@@ -445,10 +445,12 @@ Post-processing is a normal feature, not an escape hatch. A pass is only a
 
 ```ts
 s.setPasses([
-  { fragment: `void main() {
+  {
+    fragment: `void main() {
       vec4 c = texture(u_texture, v_uv);
       fragColor = vec4(1.0 - c.rgb, c.a);
-    }` },
+    }`,
+  },
 ]);
 ```
 
@@ -489,15 +491,15 @@ Build the packages, then start the Vite development server:
 bun run dev
 ```
 
-| Page | What it is |
-| --- | --- |
-| `/` | Landing page |
-| `/playground` | Live editor, seven starters, SVG export |
-| `/reference` | Generated API reference |
-| `/examples` | The twelve example scenes |
-| `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
-| `/bench/gpu.html` | 100k-shape GPU benchmark |
-| `/bench/probe.html` | Stencil-through-a-render-pass regression check |
+| Page                  | What it is                                         |
+| --------------------- | -------------------------------------------------- |
+| `/`                   | Landing page                                       |
+| `/playground`         | Live editor, seven starters, SVG export            |
+| `/reference`          | Generated API reference                            |
+| `/examples`           | The twelve example scenes                          |
+| `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG  |
+| `/bench/gpu.html`     | 100k-shape GPU benchmark                           |
+| `/bench/probe.html`   | Stencil-through-a-render-pass regression check     |
 | `/bench/sprites.html` | Sprite orientation, across both image source types |
 
 The reference is generated from the emitted `.d.ts` files rather than by

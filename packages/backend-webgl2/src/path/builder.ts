@@ -1,4 +1,4 @@
-import { DEFAULT_TOLERANCE, flattenCubic, flattenQuadratic } from './flatten';
+import { DEFAULT_TOLERANCE, flattenCubic, flattenQuadratic } from "./flatten";
 
 /**
  * Accumulates path commands into flattened contours.
@@ -95,23 +95,31 @@ export class PathBuilder {
     const target = this.#current as number[];
     flattenQuadratic(
       { push: (px, py) => void target.push(px, py) },
-      this.#x, this.#y, cx, cy, x, y,
+      this.#x,
+      this.#y,
+      cx,
+      cy,
+      x,
+      y,
       this.#tolerance,
     );
     this.#x = x;
     this.#y = y;
   }
 
-  cubicTo(
-    c1x: number, c1y: number,
-    c2x: number, c2y: number,
-    x: number, y: number,
-  ): void {
+  cubicTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void {
     if (this.#current === null) this.moveTo(this.#x, this.#y);
     const target = this.#current as number[];
     flattenCubic(
       { push: (px, py) => void target.push(px, py) },
-      this.#x, this.#y, c1x, c1y, c2x, c2y, x, y,
+      this.#x,
+      this.#y,
+      c1x,
+      c1y,
+      c2x,
+      c2y,
+      x,
+      y,
       this.#tolerance,
     );
     this.#x = x;

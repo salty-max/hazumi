@@ -1,9 +1,9 @@
-import { describe, expect, test } from 'bun:test';
-import { PathBuilder } from '../src/path/builder';
-import { fanTriangles, quadTriangles, strokeTriangles } from '../src/path/geometry';
+import { describe, expect, test } from "bun:test";
+import { PathBuilder } from "../src/path/builder";
+import { fanTriangles, quadTriangles, strokeTriangles } from "../src/path/geometry";
 
-describe('PathBuilder', () => {
-  test('collects a contour of straight segments', () => {
+describe("PathBuilder", () => {
+  test("collects a contour of straight segments", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.lineTo(10, 0);
@@ -11,7 +11,7 @@ describe('PathBuilder', () => {
     expect(b.contours).toEqual([[0, 0, 10, 0, 10, 10]]);
   });
 
-  test('a moveTo starts a new contour', () => {
+  test("a moveTo starts a new contour", () => {
     // A letter O is two contours; merging them would destroy the winding
     // relationship the fill rule depends on.
     const b = new PathBuilder();
@@ -22,7 +22,7 @@ describe('PathBuilder', () => {
     expect(b.contours).toHaveLength(2);
   });
 
-  test('close returns to the contour start', () => {
+  test("close returns to the contour start", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.lineTo(10, 0);
@@ -32,7 +32,7 @@ describe('PathBuilder', () => {
     expect(contour.slice(-2)).toEqual([0, 0]);
   });
 
-  test('drawing after close continues from the start point', () => {
+  test("drawing after close continues from the start point", () => {
     // Matching Canvas2D, where the current point after closePath is the
     // subpath's origin rather than wherever the pen was.
     const b = new PathBuilder();
@@ -44,13 +44,13 @@ describe('PathBuilder', () => {
     expect((b.contours[1] as readonly number[]).slice(0, 2)).toEqual([5, 5]);
   });
 
-  test('a lineTo without a moveTo starts from the origin', () => {
+  test("a lineTo without a moveTo starts from the origin", () => {
     const b = new PathBuilder();
     b.lineTo(10, 10);
     expect((b.contours[0] as readonly number[]).slice(0, 2)).toEqual([0, 0]);
   });
 
-  test('curves are flattened into the current contour', () => {
+  test("curves are flattened into the current contour", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.cubicTo(0, 100, 100, 100, 100, 0);
@@ -61,7 +61,7 @@ describe('PathBuilder', () => {
     expect(contour.slice(-2).map(Math.round)).toEqual([100, 0]);
   });
 
-  test('reports bounds over every contour', () => {
+  test("reports bounds over every contour", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.lineTo(10, 5);
@@ -70,11 +70,11 @@ describe('PathBuilder', () => {
     expect(b.bounds()).toEqual({ minX: -4, minY: -8, maxX: 10, maxY: 5 });
   });
 
-  test('an empty path has no bounds', () => {
+  test("an empty path has no bounds", () => {
     expect(new PathBuilder().bounds()).toBeNull();
   });
 
-  test('reset clears everything', () => {
+  test("reset clears everything", () => {
     const b = new PathBuilder();
     b.moveTo(1, 2);
     b.lineTo(3, 4);
@@ -83,7 +83,7 @@ describe('PathBuilder', () => {
     expect(b.bounds()).toBeNull();
   });
 
-  test('isEmpty is true until a contour can enclose area', () => {
+  test("isEmpty is true until a contour can enclose area", () => {
     const b = new PathBuilder();
     expect(b.isEmpty).toBe(true);
     b.moveTo(0, 0);
@@ -95,20 +95,20 @@ describe('PathBuilder', () => {
   });
 });
 
-describe('fanTriangles', () => {
-  test('a triangle produces one fan triangle', () => {
+describe("fanTriangles", () => {
+  test("a triangle produces one fan triangle", () => {
     const out: number[] = [];
     fanTriangles([0, 0, 10, 0, 10, 10], out);
     expect(out).toEqual([0, 0, 10, 0, 10, 10]);
   });
 
-  test('an n-gon produces n-2 triangles', () => {
+  test("an n-gon produces n-2 triangles", () => {
     const out: number[] = [];
     fanTriangles([0, 0, 10, 0, 10, 10, 0, 10], out);
     expect(out.length / 6).toBe(2);
   });
 
-  test('degenerate contours produce nothing', () => {
+  test("degenerate contours produce nothing", () => {
     const out: number[] = [];
     fanTriangles([0, 0], out);
     fanTriangles([0, 0, 1, 1], out);
@@ -116,8 +116,8 @@ describe('fanTriangles', () => {
   });
 });
 
-describe('quadTriangles', () => {
-  test('covers the rectangle with two triangles', () => {
+describe("quadTriangles", () => {
+  test("covers the rectangle with two triangles", () => {
     const out: number[] = [];
     quadTriangles(0, 0, 10, 20, out);
     expect(out.length / 6).toBe(2);
@@ -126,14 +126,14 @@ describe('quadTriangles', () => {
   });
 });
 
-describe('strokeTriangles', () => {
-  test('one segment produces two triangles', () => {
+describe("strokeTriangles", () => {
+  test("one segment produces two triangles", () => {
     const out: number[] = [];
     strokeTriangles([0, 0, 10, 0], 4, out);
     expect(out.length / 6).toBe(2);
   });
 
-  test('the quad spans the stroke width', () => {
+  test("the quad spans the stroke width", () => {
     const out: number[] = [];
     strokeTriangles([0, 0, 10, 0], 4, out);
     const ys = out.filter((_, i) => i % 2 === 1);
@@ -141,7 +141,7 @@ describe('strokeTriangles', () => {
     expect(Math.max(...ys)).toBeCloseTo(2);
   });
 
-  test('interior vertices get a round join', () => {
+  test("interior vertices get a round join", () => {
     // Two segments alone would be four triangles; the extra ones are the join.
     const straight: number[] = [];
     strokeTriangles([0, 0, 10, 0], 4, straight);
@@ -150,7 +150,7 @@ describe('strokeTriangles', () => {
     expect(bent.length).toBeGreaterThan(straight.length * 2);
   });
 
-  test('a zero-length segment is skipped rather than producing NaN', () => {
+  test("a zero-length segment is skipped rather than producing NaN", () => {
     // Normalising a zero-length direction is the classic source of NaN
     // vertices, which poison the whole draw call.
     const out: number[] = [];
@@ -159,13 +159,13 @@ describe('strokeTriangles', () => {
     expect(out.length).toBeGreaterThan(0);
   });
 
-  test('a single point produces nothing', () => {
+  test("a single point produces nothing", () => {
     const out: number[] = [];
     strokeTriangles([5, 5], 4, out);
     expect(out).toEqual([]);
   });
 
-  test('zero width produces nothing', () => {
+  test("zero width produces nothing", () => {
     const out: number[] = [];
     strokeTriangles([0, 0, 10, 0], 0, out);
     expect(out).toEqual([]);
@@ -177,8 +177,8 @@ describe('strokeTriangles', () => {
  * frame is the per-frame allocation AGENTS.md rules out. The arrays are pooled
  * and truncated instead.
  */
-describe('contour pooling', () => {
-  test('reuses the same arrays across resets', () => {
+describe("contour pooling", () => {
+  test("reuses the same arrays across resets", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.lineTo(1, 1);
@@ -193,7 +193,7 @@ describe('contour pooling', () => {
     expect(b.contours[0]).toEqual([2, 2, 3, 3]);
   });
 
-  test('a reset path reports no contours', () => {
+  test("a reset path reports no contours", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.moveTo(5, 5);
@@ -203,7 +203,7 @@ describe('contour pooling', () => {
     expect(b.contours).toEqual([]);
   });
 
-  test('stale points never leak into a reused contour', () => {
+  test("stale points never leak into a reused contour", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.lineTo(1, 1);
@@ -213,7 +213,7 @@ describe('contour pooling', () => {
     expect(b.contours[0]).toEqual([9, 9]);
   });
 
-  test('forEachContour visits the same contours as the getter', () => {
+  test("forEachContour visits the same contours as the getter", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);
     b.lineTo(1, 1);
@@ -229,7 +229,7 @@ describe('contour pooling', () => {
     expect(seen).toEqual(viaGetter);
   });
 
-  test('the pool grows to the deepest path and stops', () => {
+  test("the pool grows to the deepest path and stops", () => {
     const b = new PathBuilder();
     for (let i = 0; i < 5; i++) b.moveTo(i, i);
     expect(b.contourCount).toBe(5);

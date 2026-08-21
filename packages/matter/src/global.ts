@@ -6,7 +6,7 @@
  * the backend define a `ShaderPass`, and `export *` from both would be an
  * ambiguous name rather than a useful one.
  */
-export * from './index';
+export * from "./index";
 export {
   Webgl2Renderer,
   webgl2,
@@ -17,5 +17,5 @@ export {
   ResourceRegistry,
   PingPongTargets,
   PassCache,
-} from './backends/webgl2';
-export type { Webgl2Options, FrameStats, Batch, RenderTarget } from './backends/webgl2';
+} from "./backends/webgl2";
+export type { Webgl2Options, FrameStats, Batch, RenderTarget } from "./backends/webgl2";

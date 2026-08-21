@@ -1,4 +1,4 @@
-import { Blend } from '@matter/graphics';
+import { Blend } from "@matter/graphics";
 
 /**
  * Which program a batch draws with.

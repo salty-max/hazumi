@@ -7,11 +7,11 @@
  * resolution, and forfeits the analytic SDF shader path. See AGENTS.md.
  */
 
-export { Op, OP_SIZE, Blend, Align, Baseline } from './op';
-export { CommandBuffer } from './command-buffer';
-export type { ImageSource } from './command-buffer';
-export { decode, UnknownOpcodeError } from './decode';
-export type { CommandVisitor } from './decode';
+export { Op, OP_SIZE, Blend, Align, Baseline } from "./op";
+export { CommandBuffer } from "./command-buffer";
+export type { ImageSource } from "./command-buffer";
+export { decode, UnknownOpcodeError } from "./decode";
+export type { CommandVisitor } from "./decode";
 export {
   identityAffine,
   copyAffine,
@@ -20,6 +20,6 @@ export {
   rotateAffine,
   scaleAffine,
   scaleFactor,
-} from './affine';
-export type { Affine } from './affine';
-export type { Renderer, BackendFactory, PixelData } from './renderer';
+} from "./affine";
+export type { Affine } from "./affine";
+export type { Renderer, BackendFactory, PixelData } from "./renderer";

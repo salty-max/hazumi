@@ -1,5 +1,5 @@
-import { angleDelta, clamp, lerp, wrap } from '@matter/math';
-import type { Oklch } from './oklch';
+import { angleDelta, clamp, lerp, wrap } from "@matter/math";
+import type { Oklch } from "./oklch";
 
 /**
  * Interpolate two colours in OKLCH.
@@ -27,7 +27,7 @@ export function mix(a: Oklch, b: Oklch, t: number): Oklch {
 
 /** Evenly spaced samples along a mix, inclusive of both endpoints. */
 export function gradient(a: Oklch, b: Oklch, steps: number): Oklch[] {
-  if (steps < 2) throw new Error('gradient() needs at least 2 steps');
+  if (steps < 2) throw new Error("gradient() needs at least 2 steps");
   const out: Oklch[] = [];
   for (let i = 0; i < steps; i++) out.push(mix(a, b, i / (steps - 1)));
   return out;

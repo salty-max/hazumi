@@ -8,7 +8,7 @@
  * document something the package does not actually ship.
  */
 
-export type DocKind = 'function' | 'class' | 'interface' | 'type' | 'const';
+export type DocKind = "function" | "class" | "interface" | "type" | "const";
 
 export interface DocParam {
   readonly name: string;
@@ -44,10 +44,15 @@ interface ParsedComment {
 /** Strip the leading `*` and indentation from a block comment body. */
 function stripCommentMarkers(raw: string): string[] {
   return raw
-    .replace(/^\/\*\*/, '')
-    .replace(/\*\/$/, '')
-    .split('\n')
-    .map((line) => line.replace(/^\s*\*ic?/, '').replace(/^\s*\*/, '').trim());
+    .replace(/^\/\*\*/, "")
+    .replace(/\*\/$/, "")
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/^\s*\*ic?/, "")
+        .replace(/^\s*\*/, "")
+        .trim(),
+    );
 }
 
 export function parseDocComment(raw: string): ParsedComment {
@@ -56,16 +61,16 @@ export function parseDocComment(raw: string): ParsedComment {
   const description: string[] = [];
   const params: DocParam[] = [];
   const examples: string[] = [];
-  let returns = '';
-  let deprecated = '';
+  let returns = "";
+  let deprecated = "";
 
   // Which tag the current line belongs to, so continuations attach correctly.
-  let mode: 'description' | 'param' | 'returns' | 'example' | 'deprecated' = 'description';
+  let mode: "description" | "param" | "returns" | "example" | "deprecated" = "description";
   let exampleBuffer: string[] = [];
 
   const flushExample = (): void => {
     if (exampleBuffer.length > 0) {
-      examples.push(exampleBuffer.join('\n').trim());
+      examples.push(exampleBuffer.join("\n").trim());
       exampleBuffer = [];
     }
   };
@@ -73,42 +78,42 @@ export function parseDocComment(raw: string): ParsedComment {
   for (const line of lines) {
     const tag = /^@(\w+)\s*(.*)$/.exec(line);
     if (tag !== null) {
-      const [, name = '', rest = ''] = tag;
-      if (name !== 'example') flushExample();
+      const [, name = "", rest = ""] = tag;
+      if (name !== "example") flushExample();
 
       switch (name) {
-        case 'param': {
+        case "param": {
           const m = /^(\S+)\s*-?\s*(.*)$/.exec(rest);
-          params.push({ name: m?.[1] ?? '', description: m?.[2] ?? '' });
-          mode = 'param';
+          params.push({ name: m?.[1] ?? "", description: m?.[2] ?? "" });
+          mode = "param";
           break;
         }
-        case 'returns':
-        case 'return':
+        case "returns":
+        case "return":
           returns = rest;
-          mode = 'returns';
+          mode = "returns";
           break;
-        case 'example':
+        case "example":
           flushExample();
-          mode = 'example';
+          mode = "example";
           if (rest.length > 0) exampleBuffer.push(rest);
           break;
-        case 'deprecated':
-          deprecated = rest.length > 0 ? rest : 'Deprecated.';
-          mode = 'deprecated';
+        case "deprecated":
+          deprecated = rest.length > 0 ? rest : "Deprecated.";
+          mode = "deprecated";
           break;
         default:
           // Unknown tags end the current block rather than corrupting it.
-          mode = 'description';
+          mode = "description";
       }
       continue;
     }
 
     switch (mode) {
-      case 'description':
+      case "description":
         description.push(line);
         break;
-      case 'param': {
+      case "param": {
         const last = params.at(-1);
         if (last !== undefined && line.length > 0) {
           params[params.length - 1] = {
@@ -118,13 +123,13 @@ export function parseDocComment(raw: string): ParsedComment {
         }
         break;
       }
-      case 'returns':
+      case "returns":
         if (line.length > 0) returns = `${returns} ${line}`.trim();
         break;
-      case 'example':
+      case "example":
         exampleBuffer.push(line);
         break;
-      case 'deprecated':
+      case "deprecated":
         if (line.length > 0) deprecated = `${deprecated} ${line}`.trim();
         break;
     }
@@ -135,15 +140,15 @@ export function parseDocComment(raw: string): ParsedComment {
   // A fenced block in the prose is an example too. Authors reach for markdown
   // fences at least as often as @example, and the renderer should not have to
   // know which one was used.
-  const prose = description.join('\n').trim();
+  const prose = description.join("\n").trim();
   const fenced: string[] = [];
   const withoutFences = prose.replace(/```[a-z]*\n([\s\S]*?)```/g, (_match, code: string) => {
     fenced.push(code.trim());
-    return '';
+    return "";
   });
 
   return {
-    description: withoutFences.replace(/\n{3,}/g, '\n\n').trim(),
+    description: withoutFences.replace(/\n{3,}/g, "\n\n").trim(),
     params,
     returns,
     examples: [...fenced, ...examples],
@@ -163,9 +168,9 @@ const DECLARATION =
 export function collectExportedNames(source: string): Set<string> {
   const names = new Set<string>();
   for (const match of source.matchAll(/export\s*(?:type\s*)?\{([^}]*)\}/g)) {
-    for (const part of (match[1] ?? '').split(',')) {
+    for (const part of (match[1] ?? "").split(",")) {
       // Handles `a`, `a as b`, and `type a`.
-      const cleaned = part.trim().replace(/^type\s+/, '');
+      const cleaned = part.trim().replace(/^type\s+/, "");
       const alias = /\bas\s+([A-Za-z_$][\w$]*)/.exec(cleaned);
       const name = alias?.[1] ?? cleaned;
       if (name.length > 0) names.add(name);
@@ -185,24 +190,24 @@ function captureSignature(lines: readonly string[], start: number): { text: stri
     parts.push(line);
 
     for (const char of line) {
-      if (char === '{') {
+      if (char === "{") {
         depth++;
         seenBrace = true;
-      } else if (char === '}') depth--;
+      } else if (char === "}") depth--;
     }
 
-    if (seenBrace && depth <= 0) return { text: parts.join('\n'), next: i + 1 };
-    if (!seenBrace && line.trimEnd().endsWith(';')) {
-      return { text: parts.join('\n'), next: i + 1 };
+    if (seenBrace && depth <= 0) return { text: parts.join("\n"), next: i + 1 };
+    if (!seenBrace && line.trimEnd().endsWith(";")) {
+      return { text: parts.join("\n"), next: i + 1 };
     }
   }
 
-  return { text: parts.join('\n'), next: lines.length };
+  return { text: parts.join("\n"), next: lines.length };
 }
 
 export function extractModule(name: string, source: string): DocModule {
   const exported = collectExportedNames(source);
-  const lines = source.split('\n');
+  const lines = source.split("\n");
   const entries: DocEntry[] = [];
 
   let pending: string | null = null;
@@ -212,34 +217,35 @@ export function extractModule(name: string, source: string): DocModule {
     const line = lines[i] as string;
     const trimmed = line.trim();
 
-    if (trimmed.startsWith('/**')) {
+    if (trimmed.startsWith("/**")) {
       const commentLines: string[] = [];
       let j = i;
       while (j < lines.length) {
         commentLines.push(lines[j] as string);
-        if ((lines[j] as string).includes('*/')) break;
+        if ((lines[j] as string).includes("*/")) break;
         j++;
       }
-      pending = commentLines.join('\n');
+      pending = commentLines.join("\n");
       i = j + 1;
       continue;
     }
 
     const decl = DECLARATION.exec(trimmed);
     if (decl !== null) {
-      const kindRaw = (decl[1] ?? '').replace('abstract ', '');
-      const entryName = decl[2] ?? '';
+      const kindRaw = (decl[1] ?? "").replace("abstract ", "");
+      const entryName = decl[2] ?? "";
       const captured = captureSignature(lines, i);
 
       if (exported.has(entryName)) {
-        const doc = pending === null
-          ? { description: '', params: [], returns: '', examples: [], deprecated: '' }
-          : parseDocComment(pending);
+        const doc =
+          pending === null
+            ? { description: "", params: [], returns: "", examples: [], deprecated: "" }
+            : parseDocComment(pending);
 
         entries.push({
           name: entryName,
           kind: kindRaw as DocKind,
-          signature: captured.text.replace(/^declare\s+/, '').trim(),
+          signature: captured.text.replace(/^declare\s+/, "").trim(),
           ...doc,
         });
       }
@@ -251,13 +257,17 @@ export function extractModule(name: string, source: string): DocModule {
 
     // Anything else between a comment and a declaration drops the comment, so
     // prose never attaches to the wrong symbol.
-    if (trimmed.length > 0 && !trimmed.startsWith('//')) pending = null;
+    if (trimmed.length > 0 && !trimmed.startsWith("//")) pending = null;
     i++;
   }
 
   // Types and interfaces first, then values — reads better as a reference.
   const order: Record<DocKind, number> = {
-    class: 0, interface: 1, type: 2, function: 3, const: 4,
+    class: 0,
+    interface: 1,
+    type: 2,
+    function: 3,
+    const: 4,
   };
   const sorted = entries.toSorted(
     (a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name),

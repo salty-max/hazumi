@@ -1,4 +1,4 @@
-import type { Vec2 } from './vec2';
+import type { Vec2 } from "./vec2";
 
 /** Axis-aligned bounds stored as normalized minimum and maximum edges. */
 export interface Aabb {
@@ -46,7 +46,7 @@ export function aabb(x: number, y: number, width: number, height: number): Aabb 
 
 export function circle(x: number, y: number, radius: number): Circle {
   if (!Number.isFinite(radius) || radius < 0) {
-    throw new RangeError('Circle radius must be a finite non-negative number');
+    throw new RangeError("Circle radius must be a finite non-negative number");
   }
   return { x, y, radius };
 }
@@ -61,12 +61,7 @@ export function createSweepHit(): SweepHit {
 
 /** Edges count as contained. */
 export function containsPointAabb(box: Aabb, point: Vec2): boolean {
-  return (
-    point.x >= box.minX &&
-    point.x <= box.maxX &&
-    point.y >= box.minY &&
-    point.y <= box.maxY
-  );
+  return point.x >= box.minX && point.x <= box.maxX && point.y >= box.minY && point.y <= box.maxY;
 }
 
 /** The circumference counts as contained. */
@@ -246,7 +241,10 @@ function writeInitialAabbHit(
   const pushDown = target.maxY - moving.minY;
   const horizontal = Math.min(pushLeft, pushRight);
   const vertical = Math.min(pushUp, pushDown);
-  if (horizontal < vertical || (horizontal === vertical && Math.abs(delta.x) >= Math.abs(delta.y))) {
+  if (
+    horizontal < vertical ||
+    (horizontal === vertical && Math.abs(delta.x) >= Math.abs(delta.y))
+  ) {
     if (pushLeft === pushRight) return writeSweepHit(out, 0, delta.x > 0 ? -1 : 1, 0);
     return writeSweepHit(out, 0, pushLeft < pushRight ? -1 : 1, 0);
   }

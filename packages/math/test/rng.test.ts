@@ -1,8 +1,8 @@
-import { describe, expect, test } from 'bun:test';
-import { seeded } from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { seeded } from "../src/index";
 
-describe('seeded', () => {
-  test('the same seed produces the same sequence', () => {
+describe("seeded", () => {
+  test("the same seed produces the same sequence", () => {
     const a = seeded(1234);
     const b = seeded(1234);
     const seqA = Array.from({ length: 100 }, () => a.next());
@@ -10,13 +10,25 @@ describe('seeded', () => {
     expect(seqA).toEqual(seqB);
   });
 
-  test('different seeds produce different sequences', () => {
-    const a = Array.from({ length: 20 }, ((r) => () => r.next())(seeded(1)));
-    const b = Array.from({ length: 20 }, ((r) => () => r.next())(seeded(2)));
+  test("different seeds produce different sequences", () => {
+    const a = Array.from(
+      { length: 20 },
+      (
+        (r) => () =>
+          r.next()
+      )(seeded(1)),
+    );
+    const b = Array.from(
+      { length: 20 },
+      (
+        (r) => () =>
+          r.next()
+      )(seeded(2)),
+    );
     expect(a).not.toEqual(b);
   });
 
-  test('output stays in [0, 1)', () => {
+  test("output stays in [0, 1)", () => {
     const rng = seeded(99);
     for (let i = 0; i < 10_000; i++) {
       const v = rng.next();
@@ -25,7 +37,7 @@ describe('seeded', () => {
     }
   });
 
-  test('is reasonably uniform across ten buckets', () => {
+  test("is reasonably uniform across ten buckets", () => {
     const rng = seeded(7);
     const buckets: number[] = Array.from({ length: 10 }, () => 0);
     const n = 100_000;
@@ -40,7 +52,7 @@ describe('seeded', () => {
     }
   });
 
-  test('range and int respect their bounds', () => {
+  test("range and int respect their bounds", () => {
     const rng = seeded(3);
     for (let i = 0; i < 1000; i++) {
       const f = rng.range(-5, 5);
@@ -54,14 +66,14 @@ describe('seeded', () => {
     }
   });
 
-  test('int covers every value in a small range', () => {
+  test("int covers every value in a small range", () => {
     const rng = seeded(11);
     const seen = new Set<number>();
     for (let i = 0; i < 500; i++) seen.add(rng.int(0, 3));
     expect([...seen].toSorted((a, b) => a - b)).toEqual([0, 1, 2]);
   });
 
-  test('bool honours its probability', () => {
+  test("bool honours its probability", () => {
     const rng = seeded(5);
     let trues = 0;
     for (let i = 0; i < 10_000; i++) if (rng.bool(0.25)) trues++;
@@ -71,14 +83,14 @@ describe('seeded', () => {
     expect(seeded(1).bool(1)).toBe(true);
   });
 
-  test('pick returns members and rejects empty arrays', () => {
+  test("pick returns members and rejects empty arrays", () => {
     const rng = seeded(42);
-    const items = ['a', 'b', 'c'] as const;
+    const items = ["a", "b", "c"] as const;
     for (let i = 0; i < 50; i++) expect(items).toContain(rng.pick(items));
     expect(() => rng.pick([])).toThrow(/non-empty/);
   });
 
-  test('gaussian has roughly unit mean and deviation', () => {
+  test("gaussian has roughly unit mean and deviation", () => {
     const rng = seeded(8);
     const n = 50_000;
     let sum = 0;
@@ -94,7 +106,7 @@ describe('seeded', () => {
     expect(sd).toBeCloseTo(1, 1);
   });
 
-  test('clone continues the sequence rather than restarting it', () => {
+  test("clone continues the sequence rather than restarting it", () => {
     const rng = seeded(77);
     for (let i = 0; i < 10; i++) rng.next();
 
@@ -105,7 +117,7 @@ describe('seeded', () => {
     expect(fromCopy).toEqual(fromOriginal);
   });
 
-  test('a clone is independent of its source', () => {
+  test("a clone is independent of its source", () => {
     const rng = seeded(77);
     const copy = rng.clone();
     rng.next();
@@ -114,7 +126,7 @@ describe('seeded', () => {
     expect(copy.next()).toEqual(seeded(77).next());
   });
 
-  test('exposes the seed it was built from', () => {
+  test("exposes the seed it was built from", () => {
     expect(seeded(1234).seed).toBe(1234);
     expect(seeded(1234).clone().seed).toBe(1234);
   });

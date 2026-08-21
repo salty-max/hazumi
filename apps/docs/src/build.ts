@@ -3,54 +3,67 @@
  *
  * Run with: bun run apps/docs/src/build.ts
  */
-import { mkdir } from 'node:fs/promises';
+import { mkdir } from "node:fs/promises";
 
-import { extractModule, type DocEntry, type DocModule } from './extract';
-import { highlightCode } from './highlight';
+import { extractModule, type DocEntry, type DocModule } from "./extract";
+import { highlightCode } from "./highlight";
 
-const ROOT = new URL('../../../', import.meta.url).pathname;
+const ROOT = new URL("../../../", import.meta.url).pathname;
 const FONT_FILES = [
-  'bricolage-grotesque-vietnamese-wght-normal.woff2',
-  'bricolage-grotesque-latin-ext-wght-normal.woff2',
-  'bricolage-grotesque-latin-wght-normal.woff2',
+  "bricolage-grotesque-vietnamese-wght-normal.woff2",
+  "bricolage-grotesque-latin-ext-wght-normal.woff2",
+  "bricolage-grotesque-latin-wght-normal.woff2",
 ] as const;
 
 /** Order matters: the reference reads top-down as the layer stack. */
 const PACKAGES: ReadonlyArray<[string, string, string]> = [
-  ['matter', 'packages/matter/dist/index.d.ts', 'The batteries-included entry point.'],
-  ['@matter/audio', 'packages/audio/dist/index.d.ts', 'Audio loading, playback, gain, and pooled voices.'],
-  ['@matter/core', 'packages/core/dist/index.d.ts', 'L0 — lifecycle, clock, plugins.'],
-  ['@matter/math', 'packages/math/dist/index.d.ts', 'L1 — vectors, matrices, randomness, noise.'],
-  ['@matter/color', 'packages/color/dist/index.d.ts', 'L2 — OKLCH colour.'],
-  ['@matter/graphics', 'packages/graphics/dist/index.d.ts', 'L3 — the command buffer.'],
-  ['@matter/backend-webgl2', 'packages/backend-webgl2/dist/index.d.ts', 'L4 — the primary renderer.'],
-  ['@matter/backend-canvas2d', 'packages/backend-canvas2d/dist/index.d.ts', 'L4 — reference renderer.'],
-  ['@matter/backend-svg', 'packages/backend-svg/dist/index.d.ts', 'L4 — vector export.'],
-  ['@matter/backend-headless', 'packages/backend-headless/dist/index.d.ts', 'L4 — command recorder.'],
+  ["matter", "packages/matter/dist/index.d.ts", "The batteries-included entry point."],
+  [
+    "@matter/audio",
+    "packages/audio/dist/index.d.ts",
+    "Audio loading, playback, gain, and pooled voices.",
+  ],
+  ["@matter/core", "packages/core/dist/index.d.ts", "L0 — lifecycle, clock, plugins."],
+  ["@matter/math", "packages/math/dist/index.d.ts", "L1 — vectors, matrices, randomness, noise."],
+  ["@matter/color", "packages/color/dist/index.d.ts", "L2 — OKLCH colour."],
+  ["@matter/graphics", "packages/graphics/dist/index.d.ts", "L3 — the command buffer."],
+  [
+    "@matter/backend-webgl2",
+    "packages/backend-webgl2/dist/index.d.ts",
+    "L4 — the primary renderer.",
+  ],
+  [
+    "@matter/backend-canvas2d",
+    "packages/backend-canvas2d/dist/index.d.ts",
+    "L4 — reference renderer.",
+  ],
+  ["@matter/backend-svg", "packages/backend-svg/dist/index.d.ts", "L4 — vector export."],
+  [
+    "@matter/backend-headless",
+    "packages/backend-headless/dist/index.d.ts",
+    "L4 — command recorder.",
+  ],
 ];
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /** Just enough markdown for doc prose: inline code, emphasis, paragraphs. */
 function renderProse(text: string): string {
-  if (text.length === 0) return '';
+  if (text.length === 0) return "";
   return text
     .split(/\n{2,}/)
     .map((paragraph) => {
       const html = escapeHtml(paragraph)
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
         // Bold before italic, or the double asterisks match as two italics.
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-        .replace(/\n/g, ' ');
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
+        .replace(/\n/g, " ");
       return `<p>${html}</p>`;
     })
-    .join('');
+    .join("");
 }
 
 function renderEntry(entry: DocEntry, moduleId: string): string {
@@ -62,15 +75,20 @@ function renderEntry(entry: DocEntry, moduleId: string): string {
   ];
 
   if (entry.deprecated.length > 0) {
-    parts.push(`<p class="deprecated"><strong>Deprecated.</strong> ${escapeHtml(entry.deprecated)}</p>`);
+    parts.push(
+      `<p class="deprecated"><strong>Deprecated.</strong> ${escapeHtml(entry.deprecated)}</p>`,
+    );
   }
   if (entry.description.length > 0) {
     parts.push(`<div class="prose">${renderProse(entry.description)}</div>`);
   }
   if (entry.params.length > 0) {
     const rows = entry.params
-      .map((p) => `<tr><td><code>${escapeHtml(p.name)}</code></td><td>${escapeHtml(p.description)}</td></tr>`)
-      .join('');
+      .map(
+        (p) =>
+          `<tr><td><code>${escapeHtml(p.name)}</code></td><td>${escapeHtml(p.description)}</td></tr>`,
+      )
+      .join("");
     parts.push(`<table class="params"><tbody>${rows}</tbody></table>`);
   }
   if (entry.returns.length > 0) {
@@ -80,31 +98,31 @@ function renderEntry(entry: DocEntry, moduleId: string): string {
     parts.push(`<pre class="example"><code>${highlightCode(example)}</code></pre>`);
   }
 
-  parts.push('</article>');
-  return parts.join('');
+  parts.push("</article>");
+  return parts.join("");
 }
 
 function renderModule(mod: DocModule, blurb: string): string {
-  const id = mod.name.replace(/[@/]/g, '');
+  const id = mod.name.replace(/[@/]/g, "");
   return [
     `<section class="module" id="${id}">`,
     `<h2>${escapeHtml(mod.name)}</h2>`,
     `<p class="blurb">${escapeHtml(blurb)}</p>`,
-    mod.entries.map((e) => renderEntry(e, id)).join(''),
-    '</section>',
-  ].join('');
+    mod.entries.map((e) => renderEntry(e, id)).join(""),
+    "</section>",
+  ].join("");
 }
 
 function renderNav(modules: ReadonlyArray<[DocModule, string]>): string {
   return modules
     .map(([mod]) => {
-      const id = mod.name.replace(/[@/]/g, '');
+      const id = mod.name.replace(/[@/]/g, "");
       const links = mod.entries
         .map((e) => `<li><a href="#${id}-${e.name}">${escapeHtml(e.name)}</a></li>`)
-        .join('');
+        .join("");
       return `<div class="nav-group"><a class="nav-module" href="#${id}">${escapeHtml(mod.name)}</a><ul>${links}</ul></div>`;
     })
-    .join('');
+    .join("");
 }
 
 // Read every declaration file at once, then assemble in declared order — the
@@ -150,7 +168,7 @@ const html = `<!doctype html>
     <h1>API reference</h1>
     <p>${total} exported symbols across ${modules.length} modules, generated directly from the published type declarations.</p>
   </header>
-  ${modules.map(([mod, blurb]) => renderModule(mod, blurb)).join('')}
+  ${modules.map(([mod, blurb]) => renderModule(mod, blurb)).join("")}
 </main>
 <script src="/apps/docs/dist/filter.js"></script>
 </body>
@@ -160,13 +178,17 @@ const html = `<!doctype html>
 await Bun.write(`${ROOT}apps/docs/dist/index.html`, html);
 await Bun.write(
   `${ROOT}apps/docs/dist/reference.json`,
-  JSON.stringify(modules.map(([mod]) => mod), null, 2),
+  JSON.stringify(
+    modules.map(([mod]) => mod),
+    null,
+    2,
+  ),
 );
 await Bun.write(`${ROOT}apps/docs/dist/filter.js`, Bun.file(`${ROOT}apps/docs/src/filter.js`));
 
 const fontSource = new URL(
-  './files/',
-  import.meta.resolve('@fontsource-variable/bricolage-grotesque'),
+  "./files/",
+  import.meta.resolve("@fontsource-variable/bricolage-grotesque"),
 );
 const fontOutput = `${ROOT}apps/docs/dist/files/`;
 await mkdir(fontOutput, { recursive: true });

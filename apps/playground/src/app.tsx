@@ -4,10 +4,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { Download, Play, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
-import type {
-  KeyboardEvent as ReactKeyboardEvent,
-  PointerEvent as ReactPointerEvent,
-} from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { toSvg } from "@matter/backend-svg";
 import {
   audio,
@@ -295,7 +292,9 @@ export function App(): JSX.Element {
           <span className="matter-mark">
             <span />
           </span>
-          <span className="hidden font-display text-base font-semibold tracking-tight sm:block">Matter</span>
+          <span className="hidden font-display text-base font-semibold tracking-tight sm:block">
+            Matter
+          </span>
         </a>
 
         <div className="mx-1 h-5 w-px bg-border" />

@@ -7,7 +7,7 @@
  * actually doing something rather than silently passing everything through.
  */
 
-import { Blend } from '@matter/graphics';
+import { Blend } from "@matter/graphics";
 
 export interface BlendCapableGl {
   enable(cap: number): void;

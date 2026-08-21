@@ -1,4 +1,4 @@
-import { type Oklch, parse, toSrgb } from '@matter/color';
+import { type Oklch, parse, toSrgb } from "@matter/color";
 
 /** Anything the drawing API accepts as a colour. */
 export type ColorLike = string | Oklch;
@@ -47,7 +47,7 @@ export class ColorCache {
   #evictions = 0;
 
   constructor(capacity: number = DEFAULT_CAPACITY) {
-    if (capacity < 2) throw new Error('ColorCache capacity must be at least 2');
+    if (capacity < 2) throw new Error("ColorCache capacity must be at least 2");
     this.#capacity = capacity;
   }
 
@@ -69,7 +69,7 @@ export class ColorCache {
   }
 
   resolve(color: ColorLike): Rgba {
-    if (typeof color !== 'string') return ColorCache.#convert(color);
+    if (typeof color !== "string") return ColorCache.#convert(color);
 
     const cached = this.#cache.get(color);
     if (cached !== undefined) {

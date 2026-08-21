@@ -22,23 +22,25 @@ export function fanTriangles(contour: readonly number[], out: number[]): void {
 
   for (let i = 1; i < count - 1; i++) {
     out.push(
-      px, py,
-      contour[i * 2] as number, contour[i * 2 + 1] as number,
-      contour[(i + 1) * 2] as number, contour[(i + 1) * 2 + 1] as number,
+      px,
+      py,
+      contour[i * 2] as number,
+      contour[i * 2 + 1] as number,
+      contour[(i + 1) * 2] as number,
+      contour[(i + 1) * 2 + 1] as number,
     );
   }
 }
 
 /** Two triangles covering a rectangle, as a flat vertex list. */
 export function quadTriangles(
-  minX: number, minY: number,
-  maxX: number, maxY: number,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
   out: number[],
 ): void {
-  out.push(
-    minX, minY, maxX, minY, maxX, maxY,
-    minX, minY, maxX, maxY, minX, maxY,
-  );
+  out.push(minX, minY, maxX, minY, maxX, maxY, minX, minY, maxX, maxY, minX, maxY);
 }
 
 /** Segments per round join, chosen from the stroke width. */
@@ -53,11 +55,7 @@ function joinSegments(halfWidth: number): number {
  * miter would be cheaper but spikes without bound at a sharp angle; a round
  * join costs a handful of triangles and never does.
  */
-export function strokeTriangles(
-  contour: readonly number[],
-  width: number,
-  out: number[],
-): void {
+export function strokeTriangles(contour: readonly number[], width: number, out: number[]): void {
   const half = width / 2;
   const count = contour.length / 2;
   if (count < 2 || half <= 0) return;
@@ -80,8 +78,18 @@ export function strokeTriangles(
     const ny = (dx / len) * half;
 
     out.push(
-      ax + nx, ay + ny, bx + nx, by + ny, bx - nx, by - ny,
-      ax + nx, ay + ny, bx - nx, by - ny, ax - nx, ay - ny,
+      ax + nx,
+      ay + ny,
+      bx + nx,
+      by + ny,
+      bx - nx,
+      by - ny,
+      ax + nx,
+      ay + ny,
+      bx - nx,
+      by - ny,
+      ax - nx,
+      ay - ny,
     );
   }
 
@@ -94,9 +102,12 @@ export function strokeTriangles(
       const a0 = (s / segments) * Math.PI * 2;
       const a1 = ((s + 1) / segments) * Math.PI * 2;
       out.push(
-        cx, cy,
-        cx + Math.cos(a0) * half, cy + Math.sin(a0) * half,
-        cx + Math.cos(a1) * half, cy + Math.sin(a1) * half,
+        cx,
+        cy,
+        cx + Math.cos(a0) * half,
+        cy + Math.sin(a0) * half,
+        cx + Math.cos(a1) * half,
+        cy + Math.sin(a1) * half,
       );
     }
   }

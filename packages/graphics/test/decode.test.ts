@@ -1,13 +1,8 @@
-import { describe, expect, test } from 'bun:test';
-import {
-  CommandBuffer,
-  decode,
-  UnknownOpcodeError,
-  type CommandVisitor,
-} from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { CommandBuffer, decode, UnknownOpcodeError, type CommandVisitor } from "../src/index";
 
-describe('decode', () => {
-  test('dispatches commands in stream order', () => {
+describe("decode", () => {
+  test("dispatches commands in stream order", () => {
     const buf = new CommandBuffer();
     buf.setFill(1, 0, 0, 1);
     buf.circle(1, 2, 3);
@@ -16,16 +11,16 @@ describe('decode', () => {
 
     const seen: string[] = [];
     const visitor: CommandVisitor = {
-      setFill: (): void => void seen.push('fill'),
-      circle: (): void => void seen.push('circle'),
-      rect: (): void => void seen.push('rect'),
+      setFill: (): void => void seen.push("fill"),
+      circle: (): void => void seen.push("circle"),
+      rect: (): void => void seen.push("rect"),
     };
 
     decode(buf, visitor);
-    expect(seen).toEqual(['fill', 'circle', 'rect', 'circle']);
+    expect(seen).toEqual(["fill", "circle", "rect", "circle"]);
   });
 
-  test('passes operands through exactly', () => {
+  test("passes operands through exactly", () => {
     const buf = new CommandBuffer();
     buf.circle(1.5, -2.5, 0.25);
 
@@ -39,7 +34,7 @@ describe('decode', () => {
     expect(got).toEqual([1.5, -2.5, 0.25]);
   });
 
-  test('skips commands the visitor does not implement', () => {
+  test("skips commands the visitor does not implement", () => {
     const buf = new CommandBuffer();
     buf.setFill(1, 1, 1, 1);
     buf.circle(1, 2, 3);
@@ -51,14 +46,14 @@ describe('decode', () => {
     expect(circles).toBe(1);
   });
 
-  test('walking an empty buffer is a no-op', () => {
+  test("walking an empty buffer is a no-op", () => {
     const buf = new CommandBuffer();
     let calls = 0;
     decode(buf, { circle: (): void => void calls++ });
     expect(calls).toBe(0);
   });
 
-  test('rejects an opcode this build does not know', () => {
+  test("rejects an opcode this build does not know", () => {
     const buf = new CommandBuffer();
     buf.circle(1, 2, 3);
     // Corrupt the opcode in place, simulating a stream from a newer build.
@@ -67,7 +62,7 @@ describe('decode', () => {
     expect(() => decode(buf, {})).toThrow(UnknownOpcodeError);
   });
 
-  test('the unknown-opcode error reports what and where', () => {
+  test("the unknown-opcode error reports what and where", () => {
     const buf = new CommandBuffer();
     buf.circle(1, 2, 3);
     buf.circle(4, 5, 6);
@@ -75,7 +70,7 @@ describe('decode', () => {
 
     try {
       decode(buf, {});
-      throw new Error('expected decode to throw');
+      throw new Error("expected decode to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(UnknownOpcodeError);
       expect((error as UnknownOpcodeError).opcode).toBe(999);
@@ -83,7 +78,7 @@ describe('decode', () => {
     }
   });
 
-  test('a reset buffer decodes as empty', () => {
+  test("a reset buffer decodes as empty", () => {
     const buf = new CommandBuffer();
     buf.circle(1, 2, 3);
     buf.reset();
@@ -94,16 +89,16 @@ describe('decode', () => {
   });
 });
 
-describe('text decoding', () => {
-  test('resolves string ids so backends never see the table', () => {
+describe("text decoding", () => {
+  test("resolves string ids so backends never see the table", () => {
     const buf = new CommandBuffer();
-    buf.setFont('Georgia');
+    buf.setFont("Georgia");
     buf.setTextSize(24);
-    buf.text(10, 20, 'hello');
+    buf.text(10, 20, "hello");
 
-    let font = '';
+    let font = "";
     let size = 0;
-    let content = '';
+    let content = "";
     let position: number[] = [];
 
     decode(buf, {
@@ -119,47 +114,47 @@ describe('text decoding', () => {
       },
     });
 
-    expect(font).toBe('Georgia');
+    expect(font).toBe("Georgia");
     expect(size).toBe(24);
-    expect(content).toBe('hello');
+    expect(content).toBe("hello");
     expect(position).toEqual([10, 20]);
   });
 
-  test('text commands interleave correctly with shapes', () => {
+  test("text commands interleave correctly with shapes", () => {
     const buf = new CommandBuffer();
     buf.circle(0, 0, 1);
-    buf.text(0, 0, 'a');
+    buf.text(0, 0, "a");
     buf.rect(0, 0, 1, 1);
 
     const seen: string[] = [];
     decode(buf, {
-      circle: (): void => void seen.push('circle'),
-      text: (): void => void seen.push('text'),
-      rect: (): void => void seen.push('rect'),
+      circle: (): void => void seen.push("circle"),
+      text: (): void => void seen.push("text"),
+      rect: (): void => void seen.push("rect"),
     });
-    expect(seen).toEqual(['circle', 'text', 'rect']);
+    expect(seen).toEqual(["circle", "text", "rect"]);
   });
 
-  test('an unresolvable string id degrades to empty rather than undefined', () => {
+  test("an unresolvable string id degrades to empty rather than undefined", () => {
     const buf = new CommandBuffer();
-    buf.text(0, 0, 'x');
+    buf.text(0, 0, "x");
     buf.u32[3] = 99; // point past the table
 
-    let content = 'unset';
+    let content = "unset";
     decode(buf, { text: (_x, _y, value: string): void => void (content = value) });
-    expect(content).toBe('');
+    expect(content).toBe("");
   });
 });
 
-describe('text with non-ASCII characters', () => {
-  test('the buffer carries the string unchanged', () => {
+describe("text with non-ASCII characters", () => {
+  test("the buffer carries the string unchanged", () => {
     // Whether a backend can draw a character is the backend's problem; the
     // format must not mangle it on the way through.
     const buf = new CommandBuffer();
-    const content = 'Café · 100% — “quoted” ¿qué?';
+    const content = "Café · 100% — “quoted” ¿qué?";
     buf.text(0, 0, content);
 
-    let seen = '';
+    let seen = "";
     decode(buf, { text: (_x, _y, value: string): void => void (seen = value) });
     expect(seen).toBe(content);
   });

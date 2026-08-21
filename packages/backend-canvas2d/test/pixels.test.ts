@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test';
-import { Canvas2dRenderer } from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { Canvas2dRenderer } from "../src/index";
 
 function pixelHarness(): {
   readonly canvas: HTMLCanvasElement;
@@ -13,8 +13,8 @@ function pixelHarness(): {
     data: new Uint8ClampedArray([1, 2, 3, 255, 4, 5, 6, 128]),
   } as ImageData;
   const context = {
-    lineCap: 'butt',
-    lineJoin: 'miter',
+    lineCap: "butt",
+    lineJoin: "miter",
     getImageData: (): ImageData => source,
     createImageData: (width: number, height: number): ImageData =>
       ({ width, height, data: new Uint8ClampedArray(width * height * 4) }) as ImageData,
@@ -28,8 +28,8 @@ function pixelHarness(): {
   return { canvas, source, written };
 }
 
-describe('Canvas2dRenderer pixels', () => {
-  test('returns an owned top-down snapshot', () => {
+describe("Canvas2dRenderer pixels", () => {
+  test("returns an owned top-down snapshot", () => {
     const h = pixelHarness();
     const renderer = new Canvas2dRenderer(h.canvas, { willReadFrequently: true });
 
@@ -42,7 +42,7 @@ describe('Canvas2dRenderer pixels', () => {
     expect(h.source.data[0]).toBe(1);
   });
 
-  test('writes through ImageData and validates physical dimensions', () => {
+  test("writes through ImageData and validates physical dimensions", () => {
     const h = pixelHarness();
     const renderer = new Canvas2dRenderer(h.canvas);
     const data = new Uint8ClampedArray([9, 8, 7, 6, 5, 4, 3, 2]);
@@ -53,6 +53,6 @@ describe('Canvas2dRenderer pixels', () => {
     expect(h.written[0]!.data).toEqual(data);
     expect(() =>
       renderer.writePixels({ width: 1, height: 1, data: new Uint8ClampedArray(4) }),
-    ).toThrow('expected 2x1');
+    ).toThrow("expected 2x1");
   });
 });

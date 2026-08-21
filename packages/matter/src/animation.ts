@@ -1,4 +1,4 @@
-import type { SpriteFrame } from './spritesheet';
+import type { SpriteFrame } from "./spritesheet";
 
 /**
  * How a clip behaves once it reaches the end.
@@ -32,7 +32,7 @@ export interface ClipOptions {
 export class EmptyClipError extends Error {
   constructor(name: string) {
     super(`Animation clip ${JSON.stringify(name)} has no frames`);
-    this.name = 'EmptyClipError';
+    this.name = "EmptyClipError";
   }
 }
 
@@ -111,7 +111,6 @@ export function createClip(
     end,
     duration,
     at,
-    finished: (seconds: number): boolean =>
-      end !== ClipEnd.Loop && seconds >= duration - 1 / fps,
+    finished: (seconds: number): boolean => end !== ClipEnd.Loop && seconds >= duration - 1 / fps,
   };
 }

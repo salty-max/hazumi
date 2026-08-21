@@ -86,10 +86,22 @@ export function perspective(
 
 /** out = a * b. Safe when `out` aliases `a` or `b`. */
 export function multiply(out: Mat4, a: Mat4, b: Mat4): Mat4 {
-  const a00 = a[0] as number, a01 = a[1] as number, a02 = a[2] as number, a03 = a[3] as number;
-  const a10 = a[4] as number, a11 = a[5] as number, a12 = a[6] as number, a13 = a[7] as number;
-  const a20 = a[8] as number, a21 = a[9] as number, a22 = a[10] as number, a23 = a[11] as number;
-  const a30 = a[12] as number, a31 = a[13] as number, a32 = a[14] as number, a33 = a[15] as number;
+  const a00 = a[0] as number,
+    a01 = a[1] as number,
+    a02 = a[2] as number,
+    a03 = a[3] as number;
+  const a10 = a[4] as number,
+    a11 = a[5] as number,
+    a12 = a[6] as number,
+    a13 = a[7] as number;
+  const a20 = a[8] as number,
+    a21 = a[9] as number,
+    a22 = a[10] as number,
+    a23 = a[11] as number;
+  const a30 = a[12] as number,
+    a31 = a[13] as number,
+    a32 = a[14] as number,
+    a33 = a[15] as number;
 
   for (let i = 0; i < 4; i++) {
     const b0 = b[i * 4] as number;
@@ -106,9 +118,18 @@ export function multiply(out: Mat4, a: Mat4, b: Mat4): Mat4 {
 
 export function translate(out: Mat4, m: Mat4, x: number, y: number, z: number): Mat4 {
   if (out !== m) out.set(m);
-  const m00 = m[0] as number, m01 = m[1] as number, m02 = m[2] as number, m03 = m[3] as number;
-  const m10 = m[4] as number, m11 = m[5] as number, m12 = m[6] as number, m13 = m[7] as number;
-  const m20 = m[8] as number, m21 = m[9] as number, m22 = m[10] as number, m23 = m[11] as number;
+  const m00 = m[0] as number,
+    m01 = m[1] as number,
+    m02 = m[2] as number,
+    m03 = m[3] as number;
+  const m10 = m[4] as number,
+    m11 = m[5] as number,
+    m12 = m[6] as number,
+    m13 = m[7] as number;
+  const m20 = m[8] as number,
+    m21 = m[9] as number,
+    m22 = m[10] as number,
+    m23 = m[11] as number;
 
   out[12] = m00 * x + m10 * y + m20 * z + (m[12] as number);
   out[13] = m01 * x + m11 * y + m21 * z + (m[13] as number);
@@ -132,8 +153,14 @@ export function rotateZ(out: Mat4, m: Mat4, radians: number): Mat4 {
   const s = Math.sin(radians);
   const c = Math.cos(radians);
 
-  const a00 = m[0] as number, a01 = m[1] as number, a02 = m[2] as number, a03 = m[3] as number;
-  const a10 = m[4] as number, a11 = m[5] as number, a12 = m[6] as number, a13 = m[7] as number;
+  const a00 = m[0] as number,
+    a01 = m[1] as number,
+    a02 = m[2] as number,
+    a03 = m[3] as number;
+  const a10 = m[4] as number,
+    a11 = m[5] as number,
+    a12 = m[6] as number,
+    a13 = m[7] as number;
 
   if (out !== m) out.set(m);
 
