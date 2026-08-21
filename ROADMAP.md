@@ -4,7 +4,7 @@ What is built, what is built but not reachable, and what is next. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 577 unit tests, 19
+**Where it stands:** 0.1.0, pre-alpha. 10 packages, 582 unit tests, 19
 backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
@@ -40,6 +40,12 @@ The Matter context also carries a 2D camera with pan, zoom, deterministic
 following, screen↔world conversion, and an explicit screen-space block for HUD
 drawing. Its identity default keeps existing scenes byte-for-byte unchanged.
 
+Keyboard and mouse transitions are buffered into fixed-update snapshots:
+`keyJustPressed`, `keyJustReleased`, `mouseJustPressed` and
+`mouseJustReleased` each stay true for exactly one simulation tick. A complete
+tap between ticks is retained, key repeat is ignored, and blur synthesises the
+missing release edges.
+
 ## Built but not reachable
 
 One subsystem is implemented and tested but nothing consumes it. This is a
@@ -58,10 +64,8 @@ available.
 Sprites and animation clips landed; these are what still stands between the
 library and a real 2D game, roughly in dependency order.
 
-1. **Input edge detection.** `keyIsDown`, `mouseX/Y`, `mouseIsPressed` and
-   friends report *state*. A game needs *transitions* — `justPressed`,
-   `justReleased` — which cannot be derived correctly by a scene polling once
-   per frame. Also missing: pointer/touch events, wheel, and gamepad.
+1. **Input breadth.** Keyboard and mouse state plus edge detection work. Still
+   missing: pointer/touch events, wheel, and gamepad.
    → [app.ts](packages/matter/src/app.ts)
 2. **Collision math** in `@matter/math`: AABB and circle overlap, point
    containment, ray casts, and swept tests for tunnelling at speed. Pure

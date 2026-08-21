@@ -99,6 +99,17 @@ function harness(): RuntimeHarness {
   };
 }
 
+function inputEvent(type: string, properties: Readonly<Record<string, unknown>>): Event {
+  const event = new Event(type);
+  Object.defineProperties(
+    event,
+    Object.fromEntries(
+      Object.entries(properties).map(([name, value]) => [name, { value, configurable: true }]),
+    ),
+  );
+  return event;
+}
+
 describe("canvas sizing", () => {
   test("preserves the logical aspect ratio when CSS constrains its width", async () => {
     const h = harness();
@@ -285,6 +296,129 @@ describe("fixed loop", () => {
     expect(draws).toBe(1);
     expect(app.context.isLooping()).toBe(false);
 
+    app.stop();
+  });
+});
+
+describe("input transitions", () => {
+  test("a key edge belongs to one fixed update, even during catch-up", async () => {
+    const h = harness();
+    const snapshots: Array<readonly [boolean, boolean, boolean]> = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        clock: { fixedStep: 0.1, maxDelta: 1 },
+      },
+      {
+        update: (_dt, { keyIsDown, keyJustPressed, keyJustReleased }): void => {
+          snapshots.push([keyIsDown("a"), keyJustPressed("a"), keyJustReleased("a")]);
+        },
+        draw: (): void => {},
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    globalThis.dispatchEvent(inputEvent("keydown", { key: "a" }));
+    h.runFrame(350);
+
+    expect(snapshots).toEqual([
+      [true, true, false],
+      [true, false, false],
+      [true, false, false],
+    ]);
+
+    // Browser key repeat must not manufacture a second press edge.
+    globalThis.dispatchEvent(inputEvent("keydown", { key: "a", repeat: true }));
+    h.runFrame(450);
+    expect(snapshots.at(-1)).toEqual([true, false, false]);
+
+    globalThis.dispatchEvent(inputEvent("keyup", { key: "a" }));
+    h.runFrame(550);
+    expect(snapshots.at(-1)).toEqual([false, false, true]);
+
+    app.stop();
+  });
+
+  test("a press and release between ticks are both observable", async () => {
+    const h = harness();
+    const snapshots: Array<readonly [boolean, boolean, boolean]> = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        clock: { fixedStep: 0.1, maxDelta: 1 },
+      },
+      {
+        update: (_dt, { keyIsDown, keyJustPressed, keyJustReleased }): void => {
+          snapshots.push([keyIsDown("x"), keyJustPressed("x"), keyJustReleased("x")]);
+        },
+        draw: (): void => {},
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    globalThis.dispatchEvent(inputEvent("keydown", { key: "x" }));
+    globalThis.dispatchEvent(inputEvent("keyup", { key: "x" }));
+    h.runFrame(120);
+
+    expect(snapshots).toEqual([[false, true, true]]);
+    app.stop();
+  });
+
+  test("mouse button edges survive a click between ticks", async () => {
+    const h = harness();
+    const snapshots: Array<readonly [boolean, boolean, boolean]> = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        clock: { fixedStep: 0.1, maxDelta: 1 },
+      },
+      {
+        update: (_dt, { mouseIsPressed, mouseJustPressed, mouseJustReleased }): void => {
+          snapshots.push([mouseIsPressed, mouseJustPressed(2), mouseJustReleased(2)]);
+        },
+        draw: (): void => {},
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    h.canvas.dispatchEvent(inputEvent("mousedown", { button: 2 }));
+    globalThis.dispatchEvent(inputEvent("mouseup", { button: 2 }));
+    h.runFrame(120);
+
+    expect(snapshots).toEqual([[false, true, true]]);
+    app.stop();
+  });
+
+  test("blur releases held inputs on the next update", async () => {
+    const h = harness();
+    const releases: boolean[] = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        clock: { fixedStep: 0.1, maxDelta: 1 },
+      },
+      {
+        update: (_dt, { keyJustReleased }): void => void releases.push(keyJustReleased("w")),
+        draw: (): void => {},
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    globalThis.dispatchEvent(inputEvent("keydown", { key: "w" }));
+    h.runFrame(120);
+    globalThis.dispatchEvent(new Event("blur"));
+    h.runFrame(240);
+
+    expect(releases).toEqual([false, true]);
+    expect(app.context.keyIsDown("w")).toBe(false);
     app.stop();
   });
 });

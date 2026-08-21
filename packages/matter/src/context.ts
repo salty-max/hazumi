@@ -52,6 +52,14 @@ export interface MatterContext {
    * than a numeric code, so it reads the same as what the event reports.
    */
   keyIsDown: (key: string) => boolean;
+  /** True only during the first update after this key goes down. */
+  keyJustPressed: (key: string) => boolean;
+  /** True only during the first update after this key goes up. */
+  keyJustReleased: (key: string) => boolean;
+  /** True only during the first update after this mouse button goes down. */
+  mouseJustPressed: (button?: number) => boolean;
+  /** True only during the first update after this mouse button goes up. */
+  mouseJustReleased: (button?: number) => boolean;
 
   /** Seeded by default, so an application renders identically on every run. */
   readonly random: Rng;
@@ -173,6 +181,10 @@ export interface ContextState {
   keyIsPressed: boolean;
   key: string;
   readonly keysDown: Set<string>;
+  keysPressed: Set<string>;
+  keysReleased: Set<string>;
+  mouseButtonsPressed: Set<number>;
+  mouseButtonsReleased: Set<number>;
   looping: boolean;
 }
 
@@ -285,6 +297,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
       return state.key;
     },
     keyIsDown: (key: string): boolean => state.keysDown.has(key),
+    keyJustPressed: (key: string): boolean => state.keysPressed.has(key),
+    keyJustReleased: (key: string): boolean => state.keysReleased.has(key),
+    mouseJustPressed: (button = 0): boolean => state.mouseButtonsPressed.has(button),
+    mouseJustReleased: (button = 0): boolean => state.mouseButtonsReleased.has(button),
     random,
     noise,
     camera,

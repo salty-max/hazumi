@@ -20,6 +20,10 @@ function makeState(width: number, height: number): ContextState {
     keyIsPressed: false,
     key: "",
     keysDown: new Set<string>(),
+    keysPressed: new Set<string>(),
+    keysReleased: new Set<string>(),
+    mouseButtonsPressed: new Set<number>(),
+    mouseButtonsReleased: new Set<number>(),
     looping: true,
   };
 }
@@ -305,6 +309,20 @@ describe("input", () => {
     const h = makeContext();
     for (const k of ["w", "a", "s", "d"]) h.state.keysDown.add(k);
     expect(["w", "a", "s", "d"].every((k) => h.ctx.keyIsDown(k))).toBe(true);
+  });
+
+  test("edge queries read the active fixed-update snapshot", () => {
+    const h = makeContext();
+    h.state.keysPressed.add("Enter");
+    h.state.keysReleased.add("Escape");
+    h.state.mouseButtonsPressed.add(0);
+    h.state.mouseButtonsReleased.add(2);
+
+    expect(h.ctx.keyJustPressed("Enter")).toBe(true);
+    expect(h.ctx.keyJustPressed("Escape")).toBe(false);
+    expect(h.ctx.keyJustReleased("Escape")).toBe(true);
+    expect(h.ctx.mouseJustPressed()).toBe(true);
+    expect(h.ctx.mouseJustReleased(2)).toBe(true);
   });
 });
 

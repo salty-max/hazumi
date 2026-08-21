@@ -209,8 +209,18 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     keyIsPressed: false,
     key: "",
     keysDown: new Set<string>(),
+    keysPressed: new Set<string>(),
+    keysReleased: new Set<string>(),
+    mouseButtonsPressed: new Set<number>(),
+    mouseButtonsReleased: new Set<number>(),
     looping: true,
   };
+
+  let pendingKeysPressed = new Set<string>();
+  let pendingKeysReleased = new Set<string>();
+  let pendingMouseButtonsPressed = new Set<number>();
+  let pendingMouseButtonsReleased = new Set<number>();
+  const mouseButtonsDown = new Set<number>();
 
   const applyPasses = (passes: readonly ShaderPass[]): void => {
     if (!supportsPasses(renderer)) {
@@ -238,26 +248,33 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     state.mouseY = (event.clientY - rect.top) * scaleY;
   };
   const onDown = (event: MouseEvent): void => {
+    if (!mouseButtonsDown.has(event.button)) pendingMouseButtonsPressed.add(event.button);
+    mouseButtonsDown.add(event.button);
     state.mouseIsPressed = true;
     state.mouseButton = event.button;
   };
-  const onUp = (): void => {
-    state.mouseIsPressed = false;
+  const onUp = (event: MouseEvent): void => {
+    if (mouseButtonsDown.delete(event.button)) pendingMouseButtonsReleased.add(event.button);
+    state.mouseIsPressed = mouseButtonsDown.size > 0;
   };
   const onKeyDown = (event: KeyboardEvent): void => {
+    if (!state.keysDown.has(event.key)) pendingKeysPressed.add(event.key);
     state.keyIsPressed = true;
     state.key = event.key;
     state.keysDown.add(event.key);
   };
   const onKeyUp = (event: KeyboardEvent): void => {
-    state.keysDown.delete(event.key);
+    if (state.keysDown.delete(event.key)) pendingKeysReleased.add(event.key);
     state.keyIsPressed = state.keysDown.size > 0;
   };
   const onBlur = (): void => {
     // A key released while the window is unfocused never fires keyup, so it
     // would stay held forever. Clearing on blur is the only way to notice.
+    for (const key of state.keysDown) pendingKeysReleased.add(key);
     state.keysDown.clear();
     state.keyIsPressed = false;
+    for (const button of mouseButtonsDown) pendingMouseButtonsReleased.add(button);
+    mouseButtonsDown.clear();
     state.mouseIsPressed = false;
   };
 
@@ -272,10 +289,38 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
   let sceneRevision = 0;
   let frameHandle = 0;
   let stopped = false;
+  const beginInputStep = (): void => {
+    let previous = state.keysPressed;
+    state.keysPressed = pendingKeysPressed;
+    pendingKeysPressed = previous;
+
+    previous = state.keysReleased;
+    state.keysReleased = pendingKeysReleased;
+    pendingKeysReleased = previous;
+
+    let previousButtons = state.mouseButtonsPressed;
+    state.mouseButtonsPressed = pendingMouseButtonsPressed;
+    pendingMouseButtonsPressed = previousButtons;
+
+    previousButtons = state.mouseButtonsReleased;
+    state.mouseButtonsReleased = pendingMouseButtonsReleased;
+    pendingMouseButtonsReleased = previousButtons;
+  };
+  const endInputStep = (): void => {
+    state.keysPressed.clear();
+    state.keysReleased.clear();
+    state.mouseButtonsPressed.clear();
+    state.mouseButtonsReleased.clear();
+  };
   // Stable callback: stepFixed may call it several times per frame, so do not
   // allocate a closure in the per-frame path.
   const runSceneUpdate = (fixedDt: number): void => {
-    activeScene?.update?.(fixedDt, context);
+    beginInputStep();
+    try {
+      activeScene?.update?.(fixedDt, context);
+    } finally {
+      endInputStep();
+    }
   };
 
   const renderFrame = (nowMs: number): void => {

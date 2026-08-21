@@ -68,9 +68,10 @@ start(
     let x = 100;
 
     return {
-      update(dt, { keyIsDown }) {
+      update(dt, { keyIsDown, keyJustPressed }) {
         previousX = x;
         if (keyIsDown('ArrowRight')) x += 120 * dt;
+        if (keyJustPressed(' ')) jump();
       },
       draw(alpha, { background, circle, fill }) {
         background('#111827');
@@ -85,6 +86,11 @@ start(
 Catch-up is capped by default, so returning to a backgrounded tab cannot trap
 the simulation in an ever-growing backlog. `maxDelta` and `maxFixedSteps` are
 available under `clock` when a game needs different limits.
+
+`keyJustPressed`, `keyJustReleased`, `mouseJustPressed` and
+`mouseJustReleased` are visible for exactly one fixed update. A complete tap
+between two updates still reports both edges, while browser key repeat does
+not create extra presses.
 
 ## World and screen space
 
