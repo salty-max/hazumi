@@ -264,6 +264,12 @@ export class Canvas2dRenderer {
         this.#drawCalls++;
       },
 
+      image: (source, x: number, y: number, width: number, height: number): void => {
+        this.#applyBlend();
+        ctx.drawImage(source, x, y, width, height);
+        this.#drawCalls++;
+      },
+
       line: (x1: number, y1: number, x2: number, y2: number): void => {
         // A line has no fill; it is stroke-only in both backends.
         const style = this.#style;

@@ -31,10 +31,17 @@ export interface TextureDescriptor {
   readonly data: Uint8Array;
 }
 
+/** An RGBA texture uploaded from a decoded image. */
+export interface ImageTextureDescriptor {
+  readonly kind: 'image-texture';
+  readonly source: TexImageSource;
+}
+
 export type ResourceDescriptor =
   | BufferDescriptor
   | ProgramDescriptor
-  | TextureDescriptor;
+  | TextureDescriptor
+  | ImageTextureDescriptor;
 
 /** Minimal slice of WebGL2 the registry needs, so it can be tested with a fake. */
 export interface GlLike {
@@ -54,6 +61,10 @@ export interface GlLike {
     target: number, level: number, internalformat: number,
     width: number, height: number, border: number,
     format: number, type: number, pixels: ArrayBufferView | null,
+  ): void;
+  texImage2D(
+    target: number, level: number, internalformat: number,
+    format: number, type: number, source: TexImageSource,
   ): void;
   texParameteri(target: number, pname: number, param: number): void;
   pixelStorei(pname: number, param: number): void;
@@ -79,6 +90,8 @@ export interface GlLike {
   readonly LINEAR: number;
   readonly CLAMP_TO_EDGE: number;
   readonly UNPACK_ALIGNMENT: number;
+  readonly RGBA: number;
+  readonly UNPACK_FLIP_Y_WEBGL: number;
 }
 
 export class ShaderCompileError extends Error {
@@ -182,7 +195,9 @@ export class ResourceRegistry {
     const id = this.register(descriptor);
     if (descriptor.kind === 'buffer') this.#buffers.set(id, createBuffer(gl, descriptor));
     else if (descriptor.kind === 'texture') this.#textures.set(id, createTexture(gl, descriptor));
-    else this.#programs.set(id, createProgram(gl, descriptor));
+    else if (descriptor.kind === 'image-texture') {
+      this.#textures.set(id, createImageTexture(gl, descriptor));
+    } else this.#programs.set(id, createProgram(gl, descriptor));
     return id;
   }
 
@@ -201,6 +216,8 @@ export class ResourceRegistry {
         this.#buffers.set(id, createBuffer(gl, desc));
       } else if (desc.kind === 'texture') {
         this.#textures.set(id, createTexture(gl, desc));
+      } else if (desc.kind === 'image-texture') {
+        this.#textures.set(id, createImageTexture(gl, desc));
       } else {
         this.#programs.set(id, createProgram(gl, desc));
       }
@@ -230,6 +247,23 @@ function createTexture(gl: GlLike, desc: TextureDescriptor): WebGLTexture {
     desc.width, desc.height, 0,
     gl.RED, gl.UNSIGNED_BYTE, desc.data,
   );
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return texture;
+}
+
+function createImageTexture(gl: GlLike, desc: ImageTextureDescriptor): WebGLTexture {
+  const texture = gl.createTexture();
+  if (texture === null) throw new Error('gl.createTexture() returned null');
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  // Images are top-down and GL texture space is bottom-up; flipping on upload
+  // is cheaper than flipping the quad's UVs and keeps them shared with glyphs.
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, desc.source);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

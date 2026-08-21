@@ -81,6 +81,9 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     text: (x: number, y: number, content: string): void => {
       out.push({ op: 'text', args: [x, y], text: content });
     },
+    image: (_source, x: number, y: number, w: number, h: number): void => {
+      out.push({ op: 'image', args: [x, y, w, h] });
+    },
   };
 
   decode(buffer, visitor);

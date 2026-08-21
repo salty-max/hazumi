@@ -18,11 +18,13 @@ import { GlStateCache } from './state';
 import {
   GLYPH_FRAGMENT_SHADER,
   GLYPH_VERTEX_SHADER,
+  IMAGE_FRAGMENT_SHADER,
   SDF_FRAGMENT_SHADER,
   SDF_VERTEX_SHADER,
 } from './shaders';
 import { SdfAtlas } from './text/atlas';
 import { type ResourceId, ResourceRegistry } from './resource';
+import type { ImageSource } from '@matter/graphics';
 
 /** a, b, c, d | tx, ty, hx, hy | r, g, b, alpha | edge, shape. */
 const INSTANCE_FLOATS = 14;
@@ -131,6 +133,12 @@ export class Webgl2Renderer {
   // string built from a variable would be far more expensive than the colour
   // cache equivalent. Failing loudly beats degrading silently.
   #atlases = new Map<string, { atlas: SdfAtlas; textureId: ResourceId }>();
+  #imageProgramId: ResourceId;
+  #imageAtlasLocation: WebGLUniformLocation | null = null;
+  #imageViewProjLocation: WebGLUniformLocation | null = null;
+  // Keyed by the source object, so the same image uploads once no matter how
+  // many times a sketch draws it. Weak, so unloading an image frees the entry.
+  #imageTextures = new WeakMap<ImageSource, ResourceId>();
   #fontFamily = 'sans-serif';
   #textSize = 16;
   #align: Align = Align.Left;
@@ -180,6 +188,12 @@ export class Webgl2Renderer {
       kind: 'program',
       vertex: GLYPH_VERTEX_SHADER,
       fragment: GLYPH_FRAGMENT_SHADER,
+    });
+    // Shares the glyph vertex shader: same textured quad, different sampling.
+    this.#imageProgramId = this.#registry.register({
+      kind: 'program',
+      vertex: GLYPH_VERTEX_SHADER,
+      fragment: IMAGE_FRAGMENT_SHADER,
     });
 
     this.#visitor = this.#makeVisitor();
@@ -290,16 +304,23 @@ export class Webgl2Renderer {
     for (const batch of batches) {
       state.setBlend(batch.blend);
 
-      if (batch.pipeline === Pipeline.Glyph) {
+      if (batch.pipeline === Pipeline.Glyph || batch.pipeline === Pipeline.Image) {
         if (batch.texture < 0) continue;
-        state.useProgram(this.#registry.program(this.#glyphProgramId));
+        const isGlyph = batch.pipeline === Pipeline.Glyph;
+        state.useProgram(
+          this.#registry.program(isGlyph ? this.#glyphProgramId : this.#imageProgramId),
+        );
         state.bindVertexArray(this.#glyphVao as WebGLVertexArrayObject);
-        gl.uniformMatrix4fv(this.#glyphViewProjLocation, false, this.#viewProj);
+        gl.uniformMatrix4fv(
+          isGlyph ? this.#glyphViewProjLocation : this.#imageViewProjLocation,
+          false,
+          this.#viewProj,
+        );
         gl.activeTexture(gl.TEXTURE0);
-        // From the batch, not from "whichever font was used last": two fonts
-        // in one frame would otherwise share the second one's atlas.
+        // From the batch, not from "whichever texture was used last": two
+        // images in one frame would otherwise share the second one's texture.
         gl.bindTexture(gl.TEXTURE_2D, this.#registry.texture(batch.texture));
-        gl.uniform1i(this.#glyphAtlasLocation, 0);
+        gl.uniform1i(isGlyph ? this.#glyphAtlasLocation : this.#imageAtlasLocation, 0);
         this.#setGlyphOffset(gl, batch.start);
       } else {
         state.useProgram(this.#registry.program(this.#programId));
@@ -432,6 +453,9 @@ export class Webgl2Renderer {
       },
       text: (x: number, y: number, content: string): void => {
         this.#emitText(x, y, content);
+      },
+      image: (source, x: number, y: number, width: number, height: number): void => {
+        this.#emitImage(source, x, y, width, height);
       },
 
       line: (x1: number, y1: number, x2: number, y2: number): void => {
@@ -605,6 +629,38 @@ export class Webgl2Renderer {
     }
   }
 
+  /** Upload an image once and reuse its texture for every later draw. */
+  #textureFor(source: ImageSource): ResourceId | null {
+    const gl = this.#gl;
+    if (gl === null) return null;
+
+    const existing = this.#imageTextures.get(source);
+    if (existing !== undefined) return existing;
+
+    const id = this.#registry.add(gl, { kind: 'image-texture', source });
+    this.#imageTextures.set(source, id);
+    return id;
+  }
+
+  #emitImage(
+    source: ImageSource,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void {
+    const textureId = this.#textureFor(source);
+    if (textureId === null) return;
+
+    const m = identityAffine();
+    copyAffine(m, this.#xform);
+    translateAffine(m, x + width / 2, y + height / 2);
+    scaleAffine(m, width / 2, height / 2);
+
+    // Images reuse the glyph instance layout; the fill colour acts as a tint.
+    this.#pushTextured(m, 0, 0, 1, 1, textureId, Pipeline.Image);
+  }
+
   #pushGlyph(
     m: Affine,
     u0: number, v0: number, u1: number, v1: number,
@@ -622,6 +678,28 @@ export class Webgl2Renderer {
     arr[i + 12] = style.fillB; arr[i + 13] = style.fillA;
 
     this.#batches.push(style.blend, Pipeline.Glyph, textureId);
+    this.#glyphCount++;
+  }
+
+  /** Glyphs and images share the instance array; only the pipeline differs. */
+  #pushTextured(
+    m: Affine,
+    u0: number, v0: number, u1: number, v1: number,
+    textureId: ResourceId,
+    pipeline: Pipeline,
+  ): void {
+    if (this.#glyphCount === this.#glyphCapacity) this.#growGlyphs();
+
+    const i = this.#glyphCount * GLYPH_FLOATS;
+    const arr = this.#glyphs;
+    const style = this.#style;
+    arr[i] = m.a; arr[i + 1] = m.b; arr[i + 2] = m.c; arr[i + 3] = m.d;
+    arr[i + 4] = m.tx; arr[i + 5] = m.ty;
+    arr[i + 6] = u0; arr[i + 7] = v0; arr[i + 8] = u1; arr[i + 9] = v1;
+    // Tint: white fill leaves the image untouched.
+    arr[i + 10] = 1; arr[i + 11] = 1; arr[i + 12] = 1; arr[i + 13] = style.fillA;
+
+    this.#batches.push(style.blend, pipeline, textureId);
     this.#glyphCount++;
   }
 
@@ -695,9 +773,10 @@ export class Webgl2Renderer {
     this.#state = new GlStateCache(gl);
     this.#buildVao(gl);
     this.#buildGlyphVao(gl);
-    // Atlases are keyed to textures that died with the context; drop them so
-    // the next draw rebuilds both together.
+    // Atlases and image textures died with the context; drop the caches so the
+    // next draw re-uploads them.
     this.#atlases.clear();
+    this.#imageTextures = new WeakMap<ImageSource, ResourceId>();
   }
 
   #buildVao(gl: WebGL2RenderingContext): void {
@@ -734,6 +813,10 @@ export class Webgl2Renderer {
     const program = this.#registry.program(this.#glyphProgramId);
     this.#glyphViewProjLocation = gl.getUniformLocation(program, 'u_viewProj');
     this.#glyphAtlasLocation = gl.getUniformLocation(program, 'u_atlas');
+
+    const imageProgram = this.#registry.program(this.#imageProgramId);
+    this.#imageViewProjLocation = gl.getUniformLocation(imageProgram, 'u_viewProj');
+    this.#imageAtlasLocation = gl.getUniformLocation(imageProgram, 'u_image');
 
     const vao = gl.createVertexArray();
     if (vao === null) throw new Error('gl.createVertexArray() returned null');

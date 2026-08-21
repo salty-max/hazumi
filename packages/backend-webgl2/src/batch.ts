@@ -3,13 +3,18 @@ import { Blend } from '@matter/graphics';
 /**
  * Which program a batch draws with.
  *
- * Shapes and glyphs cannot share a draw call: glyphs sample the atlas texture
- * and shapes evaluate an analytic distance, and their instance layouts differ.
- * Adding text is what turned the pipeline key from "blend mode" into a pair.
+ * Shapes, glyphs and images cannot share a draw call: glyphs sample a distance
+ * atlas, images sample RGBA, and shapes evaluate an analytic distance. Adding
+ * text is what turned the pipeline key from "blend mode" into a tuple; images
+ * then joined it.
+ *
+ * Glyphs and images share an instance array — the layouts match — so their
+ * batch starts advance together.
  */
 export const Pipeline = {
   Shape: 0,
   Glyph: 1,
+  Image: 2,
 } as const;
 
 export type Pipeline = (typeof Pipeline)[keyof typeof Pipeline];
@@ -50,7 +55,12 @@ export class BatchList {
   #texture = -1;
   #count = 0;
   // Each pipeline indexes its own instance array, so starts advance separately.
-  #starts: Record<Pipeline, number> = { [Pipeline.Shape]: 0, [Pipeline.Glyph]: 0 };
+  #starts: Record<Pipeline, number> = {
+    [Pipeline.Shape]: 0,
+    // Glyphs and images write into the same array, so they share a cursor.
+    [Pipeline.Glyph]: 0,
+    [Pipeline.Image]: 0,
+  };
 
   get batches(): readonly Batch[] {
     return this.#batches;
@@ -68,6 +78,7 @@ export class BatchList {
     this.#count = 0;
     this.#starts[Pipeline.Shape] = 0;
     this.#starts[Pipeline.Glyph] = 0;
+    this.#starts[Pipeline.Image] = 0;
   }
 
   /**
@@ -103,7 +114,9 @@ export class BatchList {
 
   #flush(): void {
     const pipeline = this.#pipeline ?? Pipeline.Shape;
-    const start = this.#starts[pipeline];
+    // Glyphs and images index one shared array, so their cursor is shared too.
+    const cursor = pipeline === Pipeline.Shape ? Pipeline.Shape : Pipeline.Glyph;
+    const start = this.#starts[cursor];
     this.#batches.push({
       start,
       count: this.#count,
@@ -111,7 +124,7 @@ export class BatchList {
       pipeline,
       texture: this.#texture,
     });
-    this.#starts[pipeline] = start + this.#count;
+    this.#starts[cursor] = start + this.#count;
     this.#count = 0;
   }
 }

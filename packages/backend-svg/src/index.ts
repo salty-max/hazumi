@@ -257,6 +257,20 @@ export class SvgRenderer {
         );
       },
 
+      image: (source, x, y, width, height): void => {
+        // Inlined as a data URI so the document stands alone — an export that
+        // depends on a live page is not really an export.
+        const canvas = document.createElement('canvas');
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx === null) return;
+        ctx.drawImage(source, 0, 0);
+        this.#elements.push(
+          `<image x="${this.#n(x)}" y="${this.#n(y)}" width="${this.#n(width)}" height="${this.#n(height)}" href="${canvas.toDataURL()}"${this.#transformAttr()}/>`,
+        );
+      },
+
       line: (x1, y1, x2, y2): void => {
         const s = this.#style;
         if (s.strokeWidth <= 0 || s.stroke[3] <= 0) return;

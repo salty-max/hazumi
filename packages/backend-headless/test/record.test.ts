@@ -80,6 +80,7 @@ describe('recorder coverage', () => {
       ['setTextSize', () => buf.setTextSize(24)],
       ['setTextAlign', () => buf.setTextAlign(1, 2)],
       ['setFont', () => buf.setFont('serif')],
+      ['image', () => buf.image({ width: 1, height: 1 } as never, 1, 2, 3, 4)],
     ];
 
     for (const [name, emit] of emitters) {

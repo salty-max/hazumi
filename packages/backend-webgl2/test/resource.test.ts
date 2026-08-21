@@ -42,6 +42,8 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     LINEAR: 9729,
     CLAMP_TO_EDGE: 33071,
     UNPACK_ALIGNMENT: 3317,
+    RGBA: 6408,
+    UNPACK_FLIP_Y_WEBGL: 37440,
     createTexture: () => {
       created.textures++;
       return { id: nextId++ } as unknown as WebGLTexture;
