@@ -218,6 +218,31 @@ export class CommandBuffer {
     this.#f32[i + 5] = height;
   }
 
+  /**
+   * Draw a sub-rectangle of an image.
+   *
+   * Source coordinates are in image pixels, which is what a sprite sheet is
+   * described in; backends convert to whatever they need.
+   */
+  imageRegion(
+    source: ImageSource,
+    dx: number, dy: number, dWidth: number, dHeight: number,
+    sx: number, sy: number, sWidth: number, sHeight: number,
+  ): void {
+    const i = this.#reserve(10);
+    const f = this.#f32;
+    this.#u32[i] = Op.ImageRegion;
+    this.#u32[i + 1] = this.#internImage(source);
+    f[i + 2] = dx;
+    f[i + 3] = dy;
+    f[i + 4] = dWidth;
+    f[i + 5] = dHeight;
+    f[i + 6] = sx;
+    f[i + 7] = sy;
+    f[i + 8] = sWidth;
+    f[i + 9] = sHeight;
+  }
+
   #internImage(source: ImageSource): number {
     const id = this.#images.length;
     this.#images.push(source);

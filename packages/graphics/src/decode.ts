@@ -37,6 +37,12 @@ export interface CommandVisitor {
   closePath?: () => void;
   fillPath?: () => void;
   strokePath?: () => void;
+  /** Source-pixel sub-rectangle of an image. */
+  imageRegion?: (
+    source: ImageSource,
+    dx: number, dy: number, dWidth: number, dHeight: number,
+    sx: number, sy: number, sWidth: number, sHeight: number,
+  ) => void;
   /** Receives the resolved image, not its id — backends never see the table. */
   image?: (
     source: ImageSource,
@@ -167,6 +173,19 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
       case Op.StrokePath:
         visitor.strokePath?.();
         break;
+      case Op.ImageRegion: {
+        const source = images[u32[i + 1] as number];
+        if (source !== undefined) {
+          visitor.imageRegion?.(
+            source,
+            f32[i + 2] as number, f32[i + 3] as number,
+            f32[i + 4] as number, f32[i + 5] as number,
+            f32[i + 6] as number, f32[i + 7] as number,
+            f32[i + 8] as number, f32[i + 9] as number,
+          );
+        }
+        break;
+      }
       case Op.Image: {
         const source = images[u32[i + 1] as number];
         if (source !== undefined) {

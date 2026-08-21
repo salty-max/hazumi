@@ -35,6 +35,7 @@ describe('Op', () => {
     expect(Op.QuadraticTo).toBe(24);
     expect(Op.CubicTo).toBe(25);
     expect(Op.ClosePath).toBe(26);
+    expect(Op.ImageRegion).toBe(27);
   });
 
   test('no duplicate opcode values', () => {
@@ -72,6 +73,8 @@ describe('encoder width matches OP_SIZE', () => {
     ['setTextAlign', Op.SetTextAlign, (b) => b.setTextAlign(1, 2)],
     ['setFont', Op.SetFont, (b) => b.setFont('serif')],
     ['image', Op.Image, (b) => b.image({ width: 1, height: 1 } as never, 1, 2, 3, 4)],
+    ['imageRegion', Op.ImageRegion, (b) =>
+      b.imageRegion({ width: 1, height: 1 } as never, 1, 2, 3, 4, 5, 6, 7, 8)],
     ['beginPath', Op.BeginPath, (b) => b.beginPath()],
     ['moveTo', Op.MoveTo, (b) => b.moveTo(1, 2)],
     ['lineTo', Op.LineTo, (b) => b.lineTo(1, 2)],

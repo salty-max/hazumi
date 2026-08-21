@@ -38,6 +38,14 @@ export const Op = {
   QuadraticTo: 24,
   CubicTo: 25,
   ClosePath: 26,
+  /**
+   * A sub-rectangle of an image, in source pixels.
+   *
+   * Separate from Image rather than widening it: changing an existing
+   * opcode's width would desync every previously recorded stream, and the
+   * whole-image case stays four words cheaper.
+   */
+  ImageRegion: 27,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -75,6 +83,7 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.QuadraticTo]: 5, // op, cx, cy, x, y
   [Op.CubicTo]: 7, // op, c1x, c1y, c2x, c2y, x, y
   [Op.ClosePath]: 1,
+  [Op.ImageRegion]: 10, // op, imageId, dx, dy, dw, dh, sx, sy, sw, sh
 };
 
 /** Horizontal text anchor. */
