@@ -9,7 +9,7 @@ describe('BatchList', () => {
     const batches = list.finish();
 
     expect(batches).toHaveLength(1);
-    expect(batches[0]).toEqual({ start: 0, count: 1000, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1 });
+    expect(batches[0]).toEqual({ start: 0, count: 1000, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 });
   });
 
   test('splits when the pipeline changes', () => {
@@ -20,9 +20,9 @@ describe('BatchList', () => {
     list.push(Blend.Normal);
 
     expect(list.finish()).toEqual([
-      { start: 0, count: 2, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1 },
-      { start: 2, count: 1, blend: Blend.Add, pipeline: Pipeline.Shape, texture: -1 },
-      { start: 3, count: 1, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1 },
+      { start: 0, count: 2, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 },
+      { start: 2, count: 1, blend: Blend.Add, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 },
+      { start: 3, count: 1, blend: Blend.Normal, pipeline: Pipeline.Shape, texture: -1, fanCount: 0 },
     ]);
   });
 
@@ -88,6 +88,48 @@ describe('BatchList', () => {
     ]);
   });
 
+  test('path fills and strokes share one vertex cursor', () => {
+    const list = new BatchList();
+    list.pushSolo(Blend.Normal, Pipeline.PathFill, 9, 3);
+    list.pushSolo(Blend.Normal, Pipeline.PathStroke, 6);
+    list.pushSolo(Blend.Normal, Pipeline.PathFill, 12, 6);
+
+    const batches = list.finish();
+    // One array, so starts advance by vertex count rather than restarting.
+    expect(batches.map((b) => b.start)).toEqual([0, 9, 15]);
+    expect(batches.map((b) => b.fanCount)).toEqual([3, 0, 6]);
+  });
+
+  test('solo batches never merge, even when identical', () => {
+    // Two fills in a row must stay separate: one stencil pass each, or the
+    // first path's winding count decides the second one's interior.
+    const list = new BatchList();
+    list.pushSolo(Blend.Normal, Pipeline.PathFill, 6, 3);
+    list.pushSolo(Blend.Normal, Pipeline.PathFill, 6, 3);
+    expect(list.finish()).toHaveLength(2);
+  });
+
+  test('a solo batch closes any open run first, preserving order', () => {
+    const list = new BatchList();
+    list.push(Blend.Normal, Pipeline.Shape);
+    list.push(Blend.Normal, Pipeline.Shape);
+    list.pushSolo(Blend.Normal, Pipeline.PathFill, 3);
+    list.push(Blend.Normal, Pipeline.Shape);
+
+    const batches = list.finish();
+    expect(batches.map((b) => b.pipeline)).toEqual([
+      Pipeline.Shape, Pipeline.PathFill, Pipeline.Shape,
+    ]);
+    // The shape cursor resumes where it left off.
+    expect(batches[2]?.start).toBe(2);
+  });
+
+  test('an empty solo batch is ignored', () => {
+    const list = new BatchList();
+    list.pushSolo(Blend.Normal, Pipeline.PathFill, 0);
+    expect(list.finish()).toEqual([]);
+  });
+
   test('each pipeline indexes its own instance array', () => {
     const list = new BatchList();
     list.push(Blend.Normal, Pipeline.Shape);
@@ -120,6 +162,7 @@ describe('BatchList', () => {
     const list = new BatchList();
     list.push(Blend.Normal);
     expect(list.finish()[0]?.texture).toBe(-1);
+    expect(new BatchList().finish()).toEqual([]);
   });
 
   test('an empty list produces no batches', () => {

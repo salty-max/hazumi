@@ -15,6 +15,14 @@ export const Pipeline = {
   Shape: 0,
   Glyph: 1,
   Image: 2,
+  /**
+   * A filled path. Its vertex range is the stencil fan followed by six cover
+   * vertices — the renderer draws the fan into the stencil buffer, then the
+   * cover quad through it.
+   */
+  PathFill: 3,
+  /** A stroked path: plain triangles, no stencil. */
+  PathStroke: 4,
 } as const;
 
 export type Pipeline = (typeof Pipeline)[keyof typeof Pipeline];
@@ -35,6 +43,11 @@ export interface Batch {
    * second font's texture.
    */
   readonly texture: number;
+  /**
+   * For a path fill: how many of the batch's vertices are the stencil fan.
+   * The rest are the cover quad. Zero for every other pipeline.
+   */
+  readonly fanCount: number;
 }
 
 /**
@@ -60,6 +73,9 @@ export class BatchList {
     // Glyphs and images write into the same array, so they share a cursor.
     [Pipeline.Glyph]: 0,
     [Pipeline.Image]: 0,
+    // Path fills and strokes share a vertex array too.
+    [Pipeline.PathFill]: 0,
+    [Pipeline.PathStroke]: 0,
   };
 
   get batches(): readonly Batch[] {
@@ -79,6 +95,8 @@ export class BatchList {
     this.#starts[Pipeline.Shape] = 0;
     this.#starts[Pipeline.Glyph] = 0;
     this.#starts[Pipeline.Image] = 0;
+    this.#starts[Pipeline.PathFill] = 0;
+    this.#starts[Pipeline.PathStroke] = 0;
   }
 
   /**
@@ -106,6 +124,30 @@ export class BatchList {
     this.#count = 1;
   }
 
+  /**
+   * Emit a batch that never merges with its neighbours.
+   *
+   * A path fill runs its own stencil pass, so merging two of them would let
+   * one path's winding count decide the other's interior. Strokes could merge
+   * in principle, but they are already one draw per path and keeping both on
+   * the same rule is simpler than a special case that saves nothing.
+   */
+  pushSolo(blend: Blend, pipeline: Pipeline, count: number, fanCount = 0): void {
+    if (count <= 0) return;
+    if (this.#count > 0) this.#flush();
+
+    const cursor = cursorFor(pipeline);
+    const start = this.#starts[cursor];
+    this.#batches.push({ start, count, blend, pipeline, texture: -1, fanCount });
+    this.#starts[cursor] = start + count;
+
+    // Nothing is open afterwards, so the next push starts fresh.
+    this.#blend = null;
+    this.#pipeline = null;
+    this.#texture = -1;
+    this.#count = 0;
+  }
+
   /** Close the open batch. Call once after the last push. */
   finish(): readonly Batch[] {
     if (this.#count > 0) this.#flush();
@@ -114,8 +156,7 @@ export class BatchList {
 
   #flush(): void {
     const pipeline = this.#pipeline ?? Pipeline.Shape;
-    // Glyphs and images index one shared array, so their cursor is shared too.
-    const cursor = pipeline === Pipeline.Shape ? Pipeline.Shape : Pipeline.Glyph;
+    const cursor = cursorFor(pipeline);
     const start = this.#starts[cursor];
     this.#batches.push({
       start,
@@ -123,8 +164,24 @@ export class BatchList {
       blend: this.#blend ?? Blend.Normal,
       pipeline,
       texture: this.#texture,
+      fanCount: 0,
     });
     this.#starts[cursor] = start + this.#count;
     this.#count = 0;
   }
+}
+
+/**
+ * Which vertex array a pipeline indexes.
+ *
+ * Three arrays, five pipelines: glyphs and images share one because their
+ * instance layouts match, path fills and strokes share another, and shapes
+ * have their own.
+ */
+function cursorFor(pipeline: Pipeline): Pipeline {
+  if (pipeline === Pipeline.Shape) return Pipeline.Shape;
+  if (pipeline === Pipeline.PathFill || pipeline === Pipeline.PathStroke) {
+    return Pipeline.PathFill;
+  }
+  return Pipeline.Glyph;
 }

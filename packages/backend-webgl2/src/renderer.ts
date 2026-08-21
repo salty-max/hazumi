@@ -19,9 +19,13 @@ import {
   GLYPH_FRAGMENT_SHADER,
   GLYPH_VERTEX_SHADER,
   IMAGE_FRAGMENT_SHADER,
+  PATH_FRAGMENT_SHADER,
+  PATH_VERTEX_SHADER,
   SDF_FRAGMENT_SHADER,
   SDF_VERTEX_SHADER,
 } from './shaders';
+import { PathBuilder } from './path/builder';
+import { fanTriangles, quadTriangles, strokeTriangles } from './path/geometry';
 import { SdfAtlas } from './text/atlas';
 import { type ResourceId, ResourceRegistry } from './resource';
 import type { ImageSource } from '@matter/graphics';
@@ -50,6 +54,11 @@ const MAX_ATLASES = 8;
 /** a, b, c, d | tx, ty | u0, v0, u1, v1 | r, g, b, alpha. */
 const GLYPH_FLOATS = 14;
 const GLYPH_BYTES = GLYPH_FLOATS * 4;
+
+/** x, y | r, g, b, alpha — paths are unique geometry, not instances. */
+const PATH_FLOATS = 6;
+const PATH_BYTES = PATH_FLOATS * 4;
+const INITIAL_PATH_VERTICES = 4096;
 
 export interface Webgl2Options {
   readonly samples?: number;
@@ -148,6 +157,17 @@ export class Webgl2Renderer {
   // many times a sketch draws it. Weak, so unloading an image frees the entry.
   #imageTextures = new WeakMap<ImageSource, ResourceId>();
 
+  #pathProgramId: ResourceId;
+  #pathBufferId: ResourceId;
+  #pathVao: WebGLVertexArrayObject | null = null;
+  #pathViewProjLocation: WebGLUniformLocation | null = null;
+
+  #pathVertices: Float32Array;
+  #pathCapacity: number;
+  #pathCount = 0;
+  #builder = new PathBuilder();
+  #scratch: number[] = [];
+
   #targets: PingPongTargets | null = null;
   #passes = new PassCache(this.#registry);
   #chain: readonly ShaderPass[] = [];
@@ -207,6 +227,20 @@ export class Webgl2Renderer {
       kind: 'program',
       vertex: GLYPH_VERTEX_SHADER,
       fragment: IMAGE_FRAGMENT_SHADER,
+    });
+
+    this.#pathCapacity = INITIAL_PATH_VERTICES;
+    this.#pathVertices = new Float32Array(INITIAL_PATH_VERTICES * PATH_FLOATS);
+    this.#pathBufferId = this.#registry.register({
+      kind: 'buffer',
+      target: WebGL2RenderingContext.ARRAY_BUFFER,
+      usage: WebGL2RenderingContext.DYNAMIC_DRAW,
+      byteLength: this.#pathVertices.byteLength,
+    });
+    this.#pathProgramId = this.#registry.register({
+      kind: 'program',
+      vertex: PATH_VERTEX_SHADER,
+      fragment: PATH_FRAGMENT_SHADER,
     });
 
     this.#visitor = this.#makeVisitor();
@@ -289,6 +323,8 @@ export class Webgl2Renderer {
     this.#drawCalls = 0;
     this.#count = 0;
     this.#glyphCount = 0;
+    this.#pathCount = 0;
+    this.#builder.reset();
     this.#batches.reset();
     this.#state?.resetCounters();
 
@@ -324,10 +360,10 @@ export class Webgl2Renderer {
     if (clear !== null) {
       // Premultiplied, matching the drawing buffer's storage.
       gl.clearColor(clear[0] * clear[3], clear[1] * clear[3], clear[2] * clear[3], clear[3]);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
-    if (this.#count === 0 && this.#glyphCount === 0) return;
+    if (this.#count === 0 && this.#glyphCount === 0 && this.#pathCount === 0) return;
 
     const state = this.#state as GlStateCache;
 
@@ -339,9 +375,18 @@ export class Webgl2Renderer {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#glyphs, 0, this.#glyphCount * GLYPH_FLOATS);
     }
+    if (this.#pathCount > 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#pathBufferId));
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#pathVertices, 0, this.#pathCount * PATH_FLOATS);
+    }
 
     for (const batch of batches) {
       state.setBlend(batch.blend);
+
+      if (batch.pipeline === Pipeline.PathFill || batch.pipeline === Pipeline.PathStroke) {
+        this.#drawPath(gl, state, batch);
+        continue;
+      }
 
       if (batch.pipeline === Pipeline.Glyph || batch.pipeline === Pipeline.Image) {
         if (batch.texture < 0) continue;
@@ -375,6 +420,55 @@ export class Webgl2Renderer {
     }
 
     if (usePasses) this.#runPasses(gl);
+  }
+
+  /**
+   * Draw one path batch.
+   *
+   * A stroke is plain triangles. A fill is two passes: the fan goes into the
+   * stencil buffer with separate front/back winding, which counts how many
+   * times each pixel is enclosed, and the cover quad then paints where that
+   * count is non-zero. That is the nonzero rule Canvas2D uses, and it handles
+   * self-intersection and holes with no triangulation at all.
+   *
+   * The cover pass zeroes the stencil as it goes, so the buffer is left clean
+   * for the next path without a full clear between them.
+   */
+  #drawPath(
+    gl: WebGL2RenderingContext,
+    state: GlStateCache,
+    batch: { start: number; count: number; fanCount: number; pipeline: Pipeline },
+  ): void {
+    state.useProgram(this.#registry.program(this.#pathProgramId));
+    state.bindVertexArray(this.#pathVao as WebGLVertexArrayObject);
+    gl.uniformMatrix4fv(this.#pathViewProjLocation, false, this.#viewProj);
+
+    if (batch.pipeline === Pipeline.PathStroke) {
+      gl.drawArrays(gl.TRIANGLES, batch.start, batch.count);
+      this.#drawCalls++;
+      return;
+    }
+
+    const fan = batch.fanCount;
+    const cover = batch.count - fan;
+    if (fan <= 0 || cover <= 0) return;
+
+    gl.enable(gl.STENCIL_TEST);
+    gl.colorMask(false, false, false, false);
+    gl.stencilFunc(gl.ALWAYS, 0, 0xff);
+    // Increment for front-facing triangles, decrement for back-facing: the
+    // result is the winding number, which is what nonzero needs.
+    gl.stencilOpSeparate(gl.FRONT, gl.KEEP, gl.KEEP, gl.INCR_WRAP);
+    gl.stencilOpSeparate(gl.BACK, gl.KEEP, gl.KEEP, gl.DECR_WRAP);
+    gl.drawArrays(gl.TRIANGLES, batch.start, fan);
+
+    gl.colorMask(true, true, true, true);
+    gl.stencilFunc(gl.NOTEQUAL, 0, 0xff);
+    gl.stencilOp(gl.KEEP, gl.KEEP, gl.ZERO);
+    gl.drawArrays(gl.TRIANGLES, batch.start + fan, cover);
+
+    gl.disable(gl.STENCIL_TEST);
+    this.#drawCalls += 2;
   }
 
   #ensureTargets(gl: WebGL2RenderingContext): PingPongTargets {
@@ -461,6 +555,7 @@ export class Webgl2Renderer {
     if (gl !== null) {
       if (this.#vao !== null) gl.deleteVertexArray(this.#vao);
       if (this.#glyphVao !== null) gl.deleteVertexArray(this.#glyphVao);
+      if (this.#pathVao !== null) gl.deleteVertexArray(this.#pathVao);
       this.#targets?.dispose(gl);
       this.#targets = null;
       // destroy, not invalidate: the context is still alive here, so the GPU
@@ -479,6 +574,7 @@ export class Webgl2Renderer {
 
     this.#vao = null;
     this.#glyphVao = null;
+    this.#pathVao = null;
     this.#gl = null;
     this.#atlases.clear();
   }
@@ -576,6 +672,20 @@ export class Webgl2Renderer {
       image: (source, x: number, y: number, width: number, height: number): void => {
         this.#emitImage(source, x, y, width, height);
       },
+
+      beginPath: (): void => this.#builder.reset(),
+      moveTo: (x: number, y: number): void => this.#builder.moveTo(x, y),
+      lineTo: (x: number, y: number): void => this.#builder.lineTo(x, y),
+      quadraticTo: (cx: number, cy: number, x: number, y: number): void =>
+        this.#builder.quadraticTo(cx, cy, x, y),
+      cubicTo: (
+        c1x: number, c1y: number,
+        c2x: number, c2y: number,
+        x: number, y: number,
+      ): void => this.#builder.cubicTo(c1x, c1y, c2x, c2y, x, y),
+      closePath: (): void => this.#builder.close(),
+      fillPath: (): void => this.#emitPathFill(),
+      strokePath: (): void => this.#emitPathStroke(),
 
       line: (x1: number, y1: number, x2: number, y2: number): void => {
         const style = this.#style;
@@ -845,6 +955,101 @@ export class Webgl2Renderer {
     gl.vertexAttribPointer(4, 4, gl.FLOAT, false, GLYPH_BYTES, base + 40);
   }
 
+  #emitPathFill(): void {
+    const style = this.#style;
+    if (style.fillA <= 0 || this.#builder.isEmpty) return;
+
+    const bounds = this.#builder.bounds();
+    if (bounds === null) return;
+
+    const scratch = this.#scratch;
+    scratch.length = 0;
+    this.#builder.forEachContour((contour) => fanTriangles(contour, scratch));
+    if (scratch.length === 0) return;
+
+    const fanVertices = scratch.length / 2;
+    // The cover quad is appended so the batch is one contiguous range; the
+    // batch records where the fan ends and the cover begins.
+    quadTriangles(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, scratch);
+
+    this.#pushPathVertices(
+      scratch,
+      style.fillR, style.fillG, style.fillB, style.fillA,
+      Pipeline.PathFill,
+      fanVertices,
+    );
+  }
+
+  #emitPathStroke(): void {
+    const style = this.#style;
+    if (style.strokeWidth <= 0 || style.strokeA <= 0) return;
+
+    const scratch = this.#scratch;
+    scratch.length = 0;
+    this.#builder.forEachContour((contour) => {
+      strokeTriangles(contour, style.strokeWidth, scratch);
+    });
+    if (scratch.length === 0) return;
+
+    this.#pushPathVertices(
+      scratch,
+      style.strokeR, style.strokeG, style.strokeB, style.strokeA,
+      Pipeline.PathStroke,
+    );
+  }
+
+  /**
+   * Append triangles, transformed by the current affine.
+   *
+   * The transform is applied here rather than in the shader because a path is
+   * unique geometry: there is no per-instance slot to carry a matrix, and
+   * baking it costs one multiply per vertex either way.
+   */
+  #pushPathVertices(
+    points: readonly number[],
+    r: number, g: number, b: number, a: number,
+    pipeline: Pipeline,
+    fanCount = 0,
+  ): void {
+    const vertexCount = points.length / 2;
+    while (this.#pathCount + vertexCount > this.#pathCapacity) this.#growPaths();
+
+    const m = this.#xform;
+    const arr = this.#pathVertices;
+    let i = this.#pathCount * PATH_FLOATS;
+
+    for (let p = 0; p < points.length; p += 2) {
+      const x = points[p] as number;
+      const y = points[p + 1] as number;
+      arr[i] = m.a * x + m.c * y + m.tx;
+      arr[i + 1] = m.b * x + m.d * y + m.ty;
+      arr[i + 2] = r;
+      arr[i + 3] = g;
+      arr[i + 4] = b;
+      arr[i + 5] = a;
+      i += PATH_FLOATS;
+    }
+
+    this.#pathCount += vertexCount;
+    // One batch per path: a fill needs its own stencil pass, and merging two
+    // would let one path's winding count decide the other's interior.
+    this.#batches.pushSolo(this.#style.blend, pipeline, vertexCount, fanCount);
+  }
+
+  #growPaths(): void {
+    this.#pathCapacity *= 2;
+    const next = new Float32Array(this.#pathCapacity * PATH_FLOATS);
+    next.set(this.#pathVertices);
+    this.#pathVertices = next;
+    this.#growths++;
+
+    const gl = this.#gl;
+    if (gl !== null) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#pathBufferId));
+      gl.bufferData(gl.ARRAY_BUFFER, next.byteLength, gl.DYNAMIC_DRAW);
+    }
+  }
+
   #growInstances(): void {
     this.#instanceCapacity *= 2;
     const next = new Float32Array(this.#instanceCapacity * INSTANCE_FLOATS);
@@ -878,6 +1083,8 @@ export class Webgl2Renderer {
       alpha: true,
       antialias: (options.samples ?? 0) > 0,
       depth: options.depth ?? false,
+      // Path fills count winding in the stencil buffer.
+      stencil: true,
       premultipliedAlpha: true,
       // Required for the trail idiom: without it the driver is free to discard
       // the colour buffer between frames and a translucent background has
@@ -892,6 +1099,7 @@ export class Webgl2Renderer {
     this.#state = new GlStateCache(gl);
     this.#buildVao(gl);
     this.#buildGlyphVao(gl);
+    this.#buildPathVao(gl);
     // Atlases and image textures died with the context; drop the caches so the
     // next draw re-uploads them.
     this.#atlases.clear();
@@ -928,6 +1136,27 @@ export class Webgl2Renderer {
 
     gl.bindVertexArray(null);
     this.#vao = vao;
+  }
+
+  #buildPathVao(gl: WebGL2RenderingContext): void {
+    const program = this.#registry.program(this.#pathProgramId);
+    this.#pathViewProjLocation = gl.getUniformLocation(program, 'u_viewProj');
+
+    const vao = gl.createVertexArray();
+    if (vao === null) throw new Error('gl.createVertexArray() returned null');
+    gl.bindVertexArray(vao);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#pathBufferId));
+    gl.bufferData(gl.ARRAY_BUFFER, this.#pathVertices.byteLength, gl.DYNAMIC_DRAW);
+
+    // Per-vertex, not per-instance: a path is unique geometry.
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, PATH_BYTES, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, PATH_BYTES, 8);
+
+    gl.bindVertexArray(null);
+    this.#pathVao = vao;
   }
 
   #buildGlyphVao(gl: WebGL2RenderingContext): void {

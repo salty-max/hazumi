@@ -239,3 +239,37 @@ void main() {
   fragColor = texture(u_texture, v_uv);
 }
 `;
+
+/**
+ * Path pipeline.
+ *
+ * Plain transformed triangles with a per-vertex colour. Paths are unique
+ * geometry rather than instances of a shape, so they get their own buffer and
+ * the current transform is applied on the CPU while the vertices are built.
+ */
+export const PATH_VERTEX_SHADER: string = `#version 300 es
+
+layout(location = 0) in vec2 a_position;
+layout(location = 1) in vec4 a_color;
+
+uniform mat4 u_viewProj;
+
+out vec4 v_color;
+
+void main() {
+  v_color = a_color;
+  gl_Position = u_viewProj * vec4(a_position, 0.0, 1.0);
+}
+`;
+
+export const PATH_FRAGMENT_SHADER: string = `#version 300 es
+precision highp float;
+
+in vec4 v_color;
+out vec4 fragColor;
+
+void main() {
+  // Premultiplied, matching the blend functions the renderer sets.
+  fragColor = vec4(v_color.rgb * v_color.a, v_color.a);
+}
+`;

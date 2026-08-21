@@ -28,6 +28,18 @@ export type {
   ProgramDescriptor,
 } from './resource';
 export { SDF_VERTEX_SHADER, SDF_FRAGMENT_SHADER } from './shaders';
+export {
+  PathBuilder,
+  DEFAULT_TOLERANCE,
+  cubicSegments,
+  quadraticSegments,
+  flattenCubic,
+  flattenQuadratic,
+  fanTriangles,
+  quadTriangles,
+  strokeTriangles,
+} from './path/index';
+export type { PolylineSink } from './path/index';
 export { PingPongTargets, createRenderTarget, FramebufferIncompleteError } from './framebuffer';
 export type { RenderTarget, TargetGl } from './framebuffer';
 export {
