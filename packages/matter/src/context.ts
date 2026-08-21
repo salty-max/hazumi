@@ -1,4 +1,5 @@
 import { Align, Baseline, Blend, CommandBuffer, type ImageSource } from '@matter/graphics';
+import { isSpriteFrame, type SpriteFrame } from './spritesheet';
 import { createNoise, type Noise, type Rng, seeded } from '@matter/math';
 import { type ColorCache, type ColorLike } from './color-cache';
 
@@ -107,9 +108,14 @@ export interface SketchContext {
    * second lifecycle to learn, and await already means what it needs to mean.
    */
   loadImage: (url: string) => Promise<ImageSource>;
-  /** Draw an image. Defaults to its natural size when width and height are omitted. */
+  /**
+   * Draw an image, or one frame of a spritesheet.
+   *
+   * Defaults to natural size when width and height are omitted — for a frame
+   * that means the frame's size, not the whole sheet's.
+   */
   image: (
-    source: ImageSource,
+    source: ImageSource | SpriteFrame,
     x: number,
     y: number,
     width?: number,
@@ -332,12 +338,20 @@ export function createContext(deps: ContextDeps): ContextBundle {
       return createImageBitmap(await response.blob());
     },
     image: (
-      source: ImageSource,
+      source: ImageSource | SpriteFrame,
       x: number,
       y: number,
       width?: number,
       height?: number,
     ): void => {
+      if (isSpriteFrame(source)) {
+        buffer.imageRegion(
+          source.source,
+          x, y, width ?? source.width, height ?? source.height,
+          source.x, source.y, source.width, source.height,
+        );
+        return;
+      }
       buffer.image(source, x, y, width ?? source.width, height ?? source.height);
     },
 

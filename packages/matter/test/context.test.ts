@@ -382,3 +382,36 @@ describe('shapes', () => {
     expect(h.ops().slice(0, 3)).toEqual(['beginPath', 'moveTo', 'cubicTo']);
   });
 });
+
+const fakeImage = (w: number, h: number): never => ({ width: w, height: h }) as never;
+
+describe('sprites', () => {
+
+  test('a whole image emits image, a frame emits imageRegion', () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.image(fakeImage(64, 64), 10, 20);
+    expect(h.ops()).toEqual(['image']);
+
+    h.buffer.reset();
+    h.ctx.image({ source: fakeImage(64, 64), x: 16, y: 0, width: 16, height: 16 }, 10, 20);
+    expect(h.ops()).toEqual(['imageRegion']);
+  });
+
+  test('a frame defaults to the frame size, not the sheet size', () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.image({ source: fakeImage(64, 64), x: 16, y: 32, width: 16, height: 24 }, 5, 6);
+
+    const cmd = record(h.buffer)[0];
+    // dx, dy, dw, dh, sx, sy, sw, sh
+    expect(cmd?.args).toEqual([5, 6, 16, 24, 16, 32, 16, 24]);
+  });
+
+  test('an explicit size scales the frame', () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.image({ source: fakeImage(64, 64), x: 0, y: 0, width: 16, height: 16 }, 0, 0, 64, 64);
+    expect(record(h.buffer)[0]?.args.slice(0, 4)).toEqual([0, 0, 64, 64]);
+  });
+});

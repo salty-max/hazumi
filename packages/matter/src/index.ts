@@ -24,6 +24,14 @@ export type {
 } from './sketch';
 export type { SketchContext, StyleOverrides } from './context';
 export { ColorCache } from './color-cache';
+export { spritesheet, isSpriteFrame, UnknownFrameError } from './spritesheet';
+export type {
+  Spritesheet,
+  SpriteFrame,
+  SpritesheetOptions,
+  GridOptions,
+  NamedOptions,
+} from './spritesheet';
 export type { ColorLike, Rgba } from './color-cache';
 
 // --- L0 core ---
