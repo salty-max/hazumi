@@ -89,7 +89,7 @@ const tiles = spritesheet(tileImage, {
 const sprites = spritesheet(spriteImage, {
   frame: [16, 16],
   clips: {
-    knightIdle: { frames: [140, 141, 142, 143, 144, 145], fps: 4 },
+    knightIdle: { frames: [140, 141, 142, 143, 144, 145], fps: 8 },
     knightRun: { frames: [168, 169, 170, 171, 172, 173], fps: 8 },
     beacon: { frames: [90, 91, 92, 93, 94, 95], fps: 8 },
   },
