@@ -13,11 +13,13 @@ export * as vec2 from './vec2';
 export * as vec3 from './vec3';
 export * as mat4 from './mat4';
 export * as easing from './easing';
+export * as collision from './collision';
 
 export type { Vec2 } from './vec2';
 export type { Vec3 } from './vec3';
 export type { Mat4 } from './mat4';
 export type { Easing } from './easing';
+export type { Aabb, Circle, RayHit, SweepHit } from './collision';
 
 export { seeded } from './rng';
 export type { Rng } from './rng';

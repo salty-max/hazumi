@@ -66,6 +66,7 @@ export {
   vec3,
   mat4,
   easing,
+  collision,
   seeded,
   createNoise,
   lerp,
@@ -78,7 +79,7 @@ export {
   angleDelta,
   smoothstep,
 } from "@matter/math";
-export type { Vec2, Vec3, Mat4, Easing, Rng, Noise } from "@matter/math";
+export type { Aabb, Circle, Easing, Mat4, Noise, RayHit, Rng, SweepHit, Vec2, Vec3 } from "@matter/math";
 
 // --- L2 color ---
 export {

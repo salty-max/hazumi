@@ -106,6 +106,28 @@ button state. Disconnecting a held controller reports release edges before it
 leaves the list. Unlike DOM events, polling cannot observe a complete press and
 release that happens between two updates.
 
+## Collision queries
+
+`collision` groups allocation-optional 2D queries in `@matter/math`. Static
+overlaps include touching edges; sweeps return the earliest safe fraction of a
+tick, so a fast object cannot tunnel through a thin wall:
+
+```ts
+const reusableHit = collision.createSweepHit();
+const player = collision.aabb(x, y, 24, 24);
+const movement = vec2.vec2(velocity.x * dt, velocity.y * dt);
+const hit = collision.sweepAabb(player, movement, wall, reusableHit);
+
+if (hit) {
+  x += movement.x * hit.time;
+  y += movement.y * hit.time;
+}
+```
+
+Point containment, AABB/circle overlap, raycasts, and circle sweeps follow the
+same shape-first naming. `createRayHit()` and `createSweepHit()` produce reusable
+outputs for hot loops.
+
 ## World and screen space
 
 Every context carries a camera. Its position is the world coordinate shown at

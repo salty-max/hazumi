@@ -1,7 +1,7 @@
 {
   "name": "@matter/math",
   "version": "0.1.0",
-  "description": "Vectors, 4x4 matrices, seeded PRNG, noise, and easing.",
+  "description": "Vectors, collision queries, 4x4 matrices, seeded PRNG, noise, and easing.",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,

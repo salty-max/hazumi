@@ -21,6 +21,12 @@ describe("matter exports", () => {
     expect(typeof matter.OP_SIZE).toBe("object");
   });
 
+  test("exports collision math as a runtime namespace", () => {
+    expect(typeof matter.collision.aabb).toBe("function");
+    expect(typeof matter.collision.raycastAabb).toBe("function");
+    expect(typeof matter.collision.sweepCircle).toBe("function");
+  });
+
   test("the re-exported CommandBuffer is usable", () => {
     const buf = new matter.CommandBuffer();
     buf.circle(1, 2, 3);
