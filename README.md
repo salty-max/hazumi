@@ -122,22 +122,30 @@ recover roughly a fifth of that upload bandwidth and is the obvious next step.
 
 ## Backend agreement
 
-Canvas2D is the reference renderer. Ten scenes render through both backends and
-are compared pixel by pixel — mean per-channel difference over the frame, out
-of 255:
+Canvas2D is the reference renderer. Eighteen scenes render through both backends
+and are compared pixel by pixel — mean per-channel difference over the frame,
+out of 255. The worst is 1.81; the image scenes are exact:
 
 | Scene | Mean diff | Draw calls |
 | --- | --- | --- |
-| filled circles | 0.40 | 1 |
+| filled circles | 0.42 | 1 |
 | filled rects | 0.68 | 1 |
 | non-square rect strokes | 1.75 | 1 |
 | circle strokes | 0.93 | 1 |
 | lines | 1.81 | 1 |
-| overlapping transparency | 0.36 | 1 |
-| interleaved blend modes | 0.59 | 10 |
+| overlapping transparency | 0.34 | 1 |
+| interleaved blend modes | 0.56 | 10 |
 | transform stack | 0.61 | 1 |
 | uniform scale with stroke | 0.62 | 1 |
-| push/pop restores style | 0.47 | 1 |
+| ellipses | 1.69 | 1 |
+| translucent background over content | 0.42 | 1 |
+| filled bezier path | 0.25 | 2 |
+| path with a hole | 0.00 | 2 |
+| stroked path | 0.35 | 1 |
+| spritesheet frames | 0.00 | 1 |
+| spritesheet frames from an ImageBitmap | 0.00 | 1 |
+| whole image | 0.00 | 2 |
+| push/pop restores style | 0.43 | 1 |
 
 Two independent rasterisers never match bit-for-bit on antialiased edges, so
 the bar is "no visible difference", not "identical". The interleaved-blend
@@ -186,6 +194,13 @@ calls**; 400 sprites across 16 frames of one sheet cost **one**.
 
 Frames are precomputed and returned by reference, so a draw loop asking for the
 same frame every frame allocates nothing. Indices wrap, so `frame(t)` loops.
+
+Image textures upload *unflipped*, and the quad's UVs run top-down to match.
+This is deliberate: WebGL honours `UNPACK_FLIP_Y_WEBGL` for a canvas or `<img>`
+but silently ignores it for an `ImageBitmap`, which is exactly what
+`loadImage()` returns — so flipping on upload makes a texture's orientation
+depend on how the caller happened to decode the picture. Two comparison scenes
+draw the same frames from both source types for this reason.
 
 ### Animations
 
@@ -308,7 +323,7 @@ bun run bench/serve.ts
 | `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
 | `/bench/gpu.html` | 100k-shape GPU benchmark |
 | `/bench/probe.html` | Stencil-through-a-render-pass regression check |
-| `/bench/sprites.html` | Sprite orientation and batching check |
+| `/bench/sprites.html` | Sprite orientation, across both image source types |
 
 The reference is generated from the emitted `.d.ts` files rather than by
 TypeDoc, which runs on the TypeScript compiler API that TS 7.0 does not

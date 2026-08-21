@@ -51,6 +51,21 @@ exported error type with no test asserting it throws is not covered. Grep for
 the module name to find what is untested, then confirm a test actually imports
 it — matching the word is not the same as covering the file.
 
+**Fixtures that can express the failure** — a test only covers what its fixture
+can distinguish. The spritesheet comparison scene drew flat-coloured quadrants,
+so a cell rendered upside down sampled the same colour everywhere and diffed at
+**0.00** while every sprite in the library was vertically flipped; with an
+asymmetric marker the same bug diffs at 113. Before trusting a green check, ask
+what the fixture would look like if the code were wrong — if the answer is
+"the same", the fixture is the thing to fix, not the assertion.
+
+**Behaviour that varies by input type** — the same GL call can behave
+differently depending on what it is handed. `UNPACK_FLIP_Y_WEBGL` is honoured
+for a canvas and an `<img>` and silently ignored for an `ImageBitmap`, so image
+orientation depended on how the caller decoded the picture, and testing one
+source type "proved" a path that was broken for the other. Where a platform API
+takes a union, test each member of the union, not the convenient one.
+
 **Unbounded growth** — does anything cache, append, or retain per frame? A Map
 keyed by a value the sketch computes will grow for as long as the sketch runs.
 Ask what happens after an hour, not after one frame.
@@ -76,6 +91,11 @@ it is scoped in `.oxlintrc.json` rather than sprinkled through the source.
 before a timed region. In Bun it makes the following loop roughly five times
 slower, which is enough to turn a 0.95ms frame into 4.9ms and look exactly like
 a performance regression. Time in one pass, measure allocation in another.
+
+**Stale example bundles** — `examples/dist/*.js` and `bench/dist/*.js` inline
+the packages at build time, so `bun run build` alone does not update them. A
+page will keep demonstrating the bug you just fixed until its bundle is rebuilt.
+Rebuild the bundle before concluding a fix did not work.
 
 **Stale console buffers** — the browser console keeps messages across
 navigations, so a warning you already fixed will keep appearing in a tab that
