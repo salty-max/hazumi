@@ -12,14 +12,14 @@ import { Blend, type CommandBuffer, type ImageSource } from '@matter/graphics';
  *
  * Distinct colours are what make a wrong sub-rectangle visible: a size or flip
  * error picks a different quadrant rather than looking subtly off.
+ *
+ * Each cell is deliberately asymmetric. An earlier version filled them with
+ * flat colour, which meant a cell rendered upside down still sampled the same
+ * colour everywhere and diffed at zero -- the scene could confirm *which* cell
+ * was picked but not which way up it landed, and a real vertical flip shipped
+ * underneath it. The marker sits in one corner so orientation has to be right.
  */
-let sheet: ImageSource | null = null;
-function testSheet(): ImageSource {
-  if (sheet !== null) return sheet;
-  const c = document.createElement('canvas');
-  c.width = 64;
-  c.height = 64;
-  const ctx = c.getContext('2d') as CanvasRenderingContext2D;
+function paintSheet(ctx: CanvasRenderingContext2D): void {
   const quadrants: ReadonlyArray<[number, number, string]> = [
     [0, 0, '#ff2d2d'], [32, 0, '#22c55e'],
     [0, 32, '#3b82f6'], [32, 32, '#eab308'],
@@ -27,9 +27,57 @@ function testSheet(): ImageSource {
   for (const [x, y, colour] of quadrants) {
     ctx.fillStyle = colour;
     ctx.fillRect(x, y, 32, 32);
+    // Top-left marker and a bottom bar: mirroring the cell in either axis
+    // moves both, so a flip cannot cancel itself out.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x + 3, y + 3, 8, 8);
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(x + 3, y + 26, 26, 3);
   }
-  sheet = c;
+}
+
+function drawSheet(): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  paintSheet(c.getContext('2d') as CanvasRenderingContext2D);
   return c;
+}
+
+let sheet: ImageSource | null = null;
+function testSheet(): ImageSource {
+  if (sheet === null) sheet = drawSheet();
+  return sheet;
+}
+
+/**
+ * The same picture as an ImageBitmap.
+ *
+ * This is not redundant with the canvas above. WebGL honours
+ * UNPACK_FLIP_Y_WEBGL for a canvas or <img> but IGNORES it for an ImageBitmap,
+ * so the two source types can land in the texture with opposite orientation --
+ * and `loadImage()` hands sketches an ImageBitmap. Testing only the canvas is
+ * what let upside-down sprites through.
+ */
+let bitmap: ImageSource | null = null;
+function bitmapSheet(): ImageSource {
+  if (bitmap === null) throw new Error('call prepareScenes() before rendering');
+  return bitmap;
+}
+
+/** Decode the async sources the scenes need. Call once, before rendering. */
+export async function prepareScenes(): Promise<void> {
+  bitmap = await createImageBitmap(drawSheet());
+}
+
+function drawFrames(b: CommandBuffer, img: ImageSource): void {
+  b.background(0, 0, 0, 1);
+  const cells: ReadonlyArray<[number, number]> = [[0, 0], [32, 0], [0, 32], [32, 32]];
+  for (const [i, [sx, sy]] of cells.entries()) {
+    const dx = 40 + (i % 2) * 170;
+    const dy = 40 + Math.floor(i / 2) * 170;
+    b.imageRegion(img, dx, dy, 150, 150, sx, sy, 32, 32);
+  }
 }
 
 export interface Scene {
@@ -254,17 +302,21 @@ export const SCENES: readonly Scene[] = [
   },
   {
     name: 'spritesheet frames',
-    // Every quadrant drawn from one texture. A flip or offset error picks the
-    // wrong colour, which is far easier to see than a subtle sampling shift.
+    // Every quadrant drawn from one texture, from a canvas source.
+    draw: (b) => drawFrames(b, testSheet()),
+  },
+  {
+    name: 'spritesheet frames from an ImageBitmap',
+    // The same frames from the source type `loadImage()` actually returns.
+    draw: (b) => drawFrames(b, bitmapSheet()),
+  },
+  {
+    name: 'whole image',
+    // The non-region path, which must agree with the region path above.
     draw: (b) => {
       b.background(0, 0, 0, 1);
-      const img = testSheet();
-      const cells: ReadonlyArray<[number, number]> = [[0, 0], [32, 0], [0, 32], [32, 32]];
-      for (const [i, [sx, sy]] of cells.entries()) {
-        const dx = 40 + (i % 2) * 170;
-        const dy = 40 + Math.floor(i / 2) * 170;
-        b.imageRegion(img, dx, dy, 150, 150, sx, sy, 32, 32);
-      }
+      b.image(testSheet(), 40, 40, 200, 200);
+      b.image(bitmapSheet(), 260, 40, 200, 200);
     },
   },
   {

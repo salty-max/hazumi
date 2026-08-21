@@ -1,81 +1,113 @@
 /**
- * Multiple sheets: does it work, and what does it cost?
+ * Are sprites drawn the right way up?
  *
- * A game has several — tiles, a character, effects. They cannot share a
- * texture, and batching merges only adjacent instances, so the cost depends
- * entirely on the order draws are issued in.
+ * Two traps this checks for, both of which an earlier version missed:
+ *
+ *  - Solid-colour quadrants are identical when flipped, so they confirm *which*
+ *    cell was sampled but not which way up it landed. The test image below has
+ *    a distinct top, bottom and corner.
+ *  - WebGL ignores UNPACK_FLIP_Y_WEBGL when the source is an ImageBitmap, so a
+ *    texture uploaded from a canvas and one uploaded from a decoded PNG can end
+ *    up with opposite orientation. Every case runs through both source types.
  */
 import { CommandBuffer } from '@matter/graphics';
+import type { ImageSource } from '@matter/graphics';
 import { Webgl2Renderer } from '@matter/backend-webgl2';
-import { spritesheet, type Spritesheet } from 'matter';
 
 const out = document.getElementById('out') as HTMLElement;
 
-function makeSheet(hues: readonly string[]): HTMLCanvasElement {
+/** 64x64: top half red, bottom half blue, white marker in the top-left. */
+function draw(target: CanvasRenderingContext2D): void {
+  target.fillStyle = '#ff2d2d';
+  target.fillRect(0, 0, 64, 32);
+  target.fillStyle = '#3b82f6';
+  target.fillRect(0, 32, 64, 32);
+  target.fillStyle = '#ffffff';
+  target.fillRect(2, 2, 8, 8);
+}
+
+function asCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas');
-  c.width = 32 * hues.length;
-  c.height = 32;
-  const ctx = c.getContext('2d') as CanvasRenderingContext2D;
-  for (const [i, colour] of hues.entries()) {
-    ctx.fillStyle = colour;
-    ctx.fillRect(i * 32, 0, 32, 32);
-  }
+  c.width = 64;
+  c.height = 64;
+  draw(c.getContext('2d') as CanvasRenderingContext2D);
   return c;
 }
 
 const canvas = document.createElement('canvas');
-canvas.width = 400;
-canvas.height = 400;
+canvas.width = 200;
+canvas.height = 200;
 document.body.append(canvas);
 
-const renderer = new Webgl2Renderer(canvas);
-renderer.setViewport(400, 400);
+const renderer = new Webgl2Renderer(canvas, { smoothing: false });
+renderer.setViewport(200, 200);
+const gl = canvas.getContext('webgl2') as WebGL2RenderingContext;
 const buffer = new CommandBuffer();
 
-const tiles = spritesheet(makeSheet(['#ff2d2d', '#22c55e', '#3b82f6', '#eab308']), { frame: [32, 32] });
-const hero = spritesheet(makeSheet(['#f472b6', '#a78bfa', '#38bdf8']), { frame: [32, 32] });
-const fx = spritesheet(makeSheet(['#fbbf24', '#fb923c']), { frame: [32, 32] });
-
-function place(i: number): [number, number] {
-  return [(i % 20) * 20, Math.floor(i / 20) * 20];
+/** Colour at a point, in screen coordinates with the origin top-left. */
+function sample(sx: number, sy: number): string {
+  const px = new Uint8Array(4);
+  // readPixels is bottom-up, so flip the row we ask for.
+  gl.readPixels(sx, canvas.height - 1 - sy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const [r, g, b] = [px[0] as number, px[1] as number, px[2] as number];
+  if (r > 150 && g > 150 && b > 150) return 'white';
+  if (r > 150 && b < 100) return 'red';
+  if (b > 150 && r < 100) return 'blue';
+  return `rgb(${r},${g},${b})`;
 }
 
-function drawFrom(sheet: Spritesheet, index: number, i: number): void {
-  const f = sheet.frame(index);
-  const [x, y] = place(i);
-  buffer.imageRegion(sheet.source, x, y, 18, 18, f.x, f.y, f.width, f.height);
+const lines: string[] = [];
+let failures = 0;
+
+function check(label: string, got: string, want: string): void {
+  const ok = got === want;
+  if (!ok) failures++;
+  lines.push(`  ${ok ? 'ok  ' : 'FAIL'} ${label.padEnd(34)} ${got.padEnd(7)} want ${want}`);
 }
 
-/** Interleaved: the order a naive scene graph would produce. */
-function interleaved(n: number): number {
+function run(sourceLabel: string, source: ImageSource): void {
+  lines.push(`${sourceLabel}`);
+
+  // The whole image.
   buffer.reset();
   buffer.background(0, 0, 0, 1);
-  const sheets = [tiles, hero, fx];
-  for (let i = 0; i < n; i++) {
-    drawFrom(sheets[i % sheets.length] as Spritesheet, i, i);
-  }
+  buffer.image(source, 0, 0, 200, 200);
   renderer.render(buffer);
-  return renderer.stats.drawCalls;
-}
+  check('image() top', sample(100, 30), 'red');
+  check('image() bottom', sample(100, 170), 'blue');
+  check('image() marker is top-left', sample(16, 16), 'white');
 
-/** Grouped: all of one sheet, then the next. */
-function grouped(n: number): number {
+  // The whole image again, as a single region: identical content, so any
+  // difference between this and the above is purely the UV convention.
   buffer.reset();
   buffer.background(0, 0, 0, 1);
-  const sheets = [tiles, hero, fx];
-  let i = 0;
-  for (const sheet of sheets) {
-    for (let k = 0; k < n / sheets.length; k++, i++) drawFrom(sheet, k, i);
-  }
+  buffer.imageRegion(source, 0, 0, 200, 200, 0, 0, 64, 64);
   renderer.render(buffer);
-  return renderer.stats.drawCalls;
+  check('imageRegion() whole, top', sample(100, 30), 'red');
+  check('imageRegion() whole, marker top-left', sample(16, 16), 'white');
+
+  // Sub-rectangles: the right rows, the right way up.
+  buffer.reset();
+  buffer.background(0, 0, 0, 1);
+  buffer.imageRegion(source, 0, 0, 200, 100, 0, 0, 64, 32);
+  renderer.render(buffer);
+  check('imageRegion() rows 0..32', sample(100, 50), 'red');
+  check('imageRegion() rows 0..32, marker', sample(16, 16), 'white');
+
+  buffer.reset();
+  buffer.background(0, 0, 0, 1);
+  buffer.imageRegion(source, 0, 0, 200, 100, 0, 32, 64, 32);
+  renderer.render(buffer);
+  check('imageRegion() rows 32..64', sample(100, 50), 'blue');
+
+  lines.push('');
 }
 
-out.textContent = [
-  'THREE SHEETS, 300 SPRITES',
-  `  interleaved (tiles, hero, fx, tiles, …)   ${interleaved(300)} draw calls`,
-  `  grouped by sheet                          ${grouped(300)} draw calls`,
-  '',
-  'Multiple sheets work. The cost is entirely in draw order: one call per',
-  'sheet when grouped, one call per sprite when interleaved.',
-].join('\n');
+run('canvas source (UNPACK_FLIP_Y applies)', asCanvas());
+run(
+  'ImageBitmap source (UNPACK_FLIP_Y ignored)',
+  await createImageBitmap(asCanvas()),
+);
+
+lines.push(failures === 0 ? 'STATUS: UPRIGHT' : `STATUS: ${failures} FAILURE(S)`);
+out.textContent = lines.join('\n');

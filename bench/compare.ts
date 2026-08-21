@@ -11,7 +11,7 @@ import { CommandBuffer } from '@matter/graphics';
 import { Webgl2Renderer } from '@matter/backend-webgl2';
 import { Canvas2dRenderer } from '@matter/backend-canvas2d';
 import { toSvg } from '@matter/backend-svg';
-import { SCENES } from './scenes';
+import { SCENES, prepareScenes } from './scenes';
 
 const W = 400;
 const H = 400;
@@ -182,6 +182,8 @@ interface Captured {
 }
 
 const captured: Captured[] = [];
+
+await prepareScenes();
 
 for (const scene of SCENES) {
   buffer.reset();
