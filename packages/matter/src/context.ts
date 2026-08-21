@@ -64,6 +64,30 @@ export interface SketchContext {
   strokeWeight: (weight: number) => void;
   blendMode: (mode: Blend) => void;
 
+  // --- paths ---
+  /**
+   * Begin a shape. Add points with `vertex`, curves with `bezierVertex` or
+   * `quadraticVertex`, and finish with `endShape`.
+   *
+   * The buffer stores the control points, not a flattened polyline, so an SVG
+   * export gets real curve commands and the GPU is free to flatten at whatever
+   * resolution it is drawing.
+   */
+  beginShape: () => void;
+  vertex: (x: number, y: number) => void;
+  quadraticVertex: (cx: number, cy: number, x: number, y: number) => void;
+  bezierVertex: (
+    c1x: number, c1y: number,
+    c2x: number, c2y: number,
+    x: number, y: number,
+  ) => void;
+  /**
+   * Finish the shape and paint it with the current style.
+   *
+   * `close` joins the last point back to the first, as p5's CLOSE does.
+   */
+  endShape: (close?: boolean) => void;
+
   // --- post-processing ---
   /**
    * Set the post-processing chain. Passes run in order, each reading the
@@ -195,6 +219,9 @@ export function createContext(deps: ContextDeps): ContextBundle {
   let strokeColor: ColorLike | null = null;
   let strokeWidth = 1;
   let blend: Blend = Blend.Normal;
+  // Whether the current shape has an open contour, so the first vertex knows
+  // to move rather than draw a line from wherever the pen happened to be.
+  let pathStarted = false;
 
   const applyFill = (): void => {
     const [r, g, b, a] = fillColor === null ? [0, 0, 0, 0] : colors.resolve(fillColor);
@@ -252,6 +279,45 @@ export function createContext(deps: ContextDeps): ContextBundle {
     blendMode: (mode: Blend): void => {
       blend = mode;
       buffer.setBlend(mode);
+    },
+
+    beginShape: (): void => {
+      buffer.beginPath();
+      pathStarted = false;
+    },
+    vertex: (x: number, y: number): void => {
+      // The first vertex opens the contour; the rest extend it.
+      if (pathStarted) buffer.lineTo(x, y);
+      else {
+        buffer.moveTo(x, y);
+        pathStarted = true;
+      }
+    },
+    quadraticVertex: (cx: number, cy: number, x: number, y: number): void => {
+      if (!pathStarted) {
+        buffer.moveTo(cx, cy);
+        pathStarted = true;
+      }
+      buffer.quadraticTo(cx, cy, x, y);
+    },
+    bezierVertex: (
+      c1x: number, c1y: number,
+      c2x: number, c2y: number,
+      x: number, y: number,
+    ): void => {
+      if (!pathStarted) {
+        buffer.moveTo(c1x, c1y);
+        pathStarted = true;
+      }
+      buffer.cubicTo(c1x, c1y, c2x, c2y, x, y);
+    },
+    endShape: (close = false): void => {
+      if (!pathStarted) return;
+      if (close) buffer.closePath();
+      // Fill then stroke, the same order every other primitive uses.
+      if (fillColor !== null) buffer.fillPath();
+      if (strokeColor !== null && strokeWidth > 0) buffer.strokePath();
+      pathStarted = false;
     },
 
     setPasses: deps.setPasses,

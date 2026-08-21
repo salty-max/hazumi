@@ -286,3 +286,99 @@ describe('input', () => {
     expect(['w', 'a', 's', 'd'].every((k) => h.ctx.keyIsDown(k))).toBe(true);
   });
 });
+
+describe('shapes', () => {
+  test('the first vertex opens the contour rather than drawing a line', () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.beginShape();
+    h.ctx.vertex(10, 20);
+    h.ctx.vertex(30, 40);
+    h.ctx.endShape();
+
+    const ops = h.ops();
+    expect(ops.slice(0, 3)).toEqual(['beginPath', 'moveTo', 'lineTo']);
+  });
+
+  test('endShape fills then strokes, matching every other primitive', () => {
+    const h = makeContext();
+    h.ctx.fill('#ff0000');
+    h.ctx.stroke('#00ff00');
+    h.ctx.strokeWeight(3);
+    h.buffer.reset();
+
+    h.ctx.beginShape();
+    h.ctx.vertex(0, 0);
+    h.ctx.vertex(10, 0);
+    h.ctx.endShape();
+
+    const ops = h.ops();
+    expect(ops.indexOf('fillPath')).toBeLessThan(ops.indexOf('strokePath'));
+  });
+
+  test('noFill and noStroke suppress the corresponding pass', () => {
+    const h = makeContext();
+    h.ctx.noStroke();
+    h.buffer.reset();
+    h.ctx.beginShape();
+    h.ctx.vertex(0, 0);
+    h.ctx.vertex(10, 0);
+    h.ctx.endShape();
+    expect(h.ops()).not.toContain('strokePath');
+
+    h.ctx.noFill();
+    h.ctx.stroke('#fff');
+    h.ctx.strokeWeight(2);
+    h.buffer.reset();
+    h.ctx.beginShape();
+    h.ctx.vertex(0, 0);
+    h.ctx.vertex(10, 0);
+    h.ctx.endShape();
+    expect(h.ops()).not.toContain('fillPath');
+    expect(h.ops()).toContain('strokePath');
+  });
+
+  test('close emits closePath before painting', () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.beginShape();
+    h.ctx.vertex(0, 0);
+    h.ctx.vertex(10, 0);
+    h.ctx.endShape(true);
+
+    const ops = h.ops();
+    expect(ops.indexOf('closePath')).toBeLessThan(ops.indexOf('fillPath'));
+  });
+
+  test('curves are stored as control points, not a polyline', () => {
+    // The invariant: flattening belongs to the backend. A polyline here would
+    // mean SVG could no longer export real curve commands.
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.beginShape();
+    h.ctx.vertex(0, 0);
+    h.ctx.bezierVertex(10, 50, 40, 50, 50, 0);
+    h.ctx.endShape();
+
+    const cubic = record(h.buffer).find((c) => c.op === 'cubicTo');
+    expect(cubic?.args).toEqual([10, 50, 40, 50, 50, 0]);
+    expect(h.ops().filter((o) => o === 'lineTo')).toHaveLength(0);
+  });
+
+  test('endShape without any vertices emits nothing', () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.beginShape();
+    h.ctx.endShape();
+    expect(h.ops()).toEqual(['beginPath']);
+  });
+
+  test('a curve as the first vertex still opens the contour', () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.beginShape();
+    h.ctx.bezierVertex(10, 50, 40, 50, 50, 0);
+    h.ctx.endShape();
+    expect(h.ops().slice(0, 3)).toEqual(['beginPath', 'moveTo', 'cubicTo']);
+  });
+});

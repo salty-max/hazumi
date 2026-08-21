@@ -13,6 +13,7 @@ export const CONTEXT_MEMBERS: readonly string[] = [
   'random', 'noise',
   'background', 'fill', 'noFill', 'stroke', 'noStroke', 'strokeWeight', 'blendMode',
   'circle', 'ellipse', 'rect', 'square', 'line', 'point',
+  'beginShape', 'vertex', 'quadraticVertex', 'bezierVertex', 'endShape',
   'image', 'loadImage',
   'text', 'textSize', 'textAlign', 'textFont',
   'push', 'pop', 'translate', 'rotate', 'scale',
