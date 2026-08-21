@@ -38,10 +38,33 @@ export interface AtlasOptions {
   readonly charset?: string;
 }
 
+/**
+ * ASCII plus the Latin-1 supplement.
+ *
+ * ASCII alone is not enough for anything a person types: an accented name, a
+ * degree sign, a middot separator. Those used to be dropped silently, taking
+ * their advance with them so the surrounding text closed up — a bug that shows
+ * as slightly wrong spacing rather than a missing character.
+ *
+ * The extra glyphs roughly double the atlas, which is one 896x896 texture
+ * built once per family. Anything still outside it falls back to a visible
+ * placeholder rather than disappearing.
+ */
 const DEFAULT_CHARSET =
   ' !"#$%&\'()*+,-./0123456789:;<=>?@' +
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`' +
-  'abcdefghijklmnopqrstuvwxyz{|}~';
+  'abcdefghijklmnopqrstuvwxyz{|}~' +
+  '\u00a1\u00a2\u00a3\u00a5\u00a7\u00a9\u00ab\u00ac\u00ae\u00b0\u00b1\u00b5\u00b7' +
+  '\u00bb\u00bc\u00bd\u00bf\u00d7\u00f7\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026\u20ac' +
+  '\u00c0\u00c1\u00c2\u00c3\u00c4\u00c5\u00c6\u00c7\u00c8\u00c9\u00ca\u00cb' +
+  '\u00cc\u00cd\u00ce\u00cf\u00d1\u00d2\u00d3\u00d4\u00d5\u00d6\u00d8' +
+  '\u00d9\u00da\u00db\u00dc\u00dd\u00df' +
+  '\u00e0\u00e1\u00e2\u00e3\u00e4\u00e5\u00e6\u00e7\u00e8\u00e9\u00ea\u00eb' +
+  '\u00ec\u00ed\u00ee\u00ef\u00f1\u00f2\u00f3\u00f4\u00f5\u00f6\u00f8' +
+  '\u00f9\u00fa\u00fb\u00fc\u00fd\u00ff';
+
+/** Drawn in place of a character the atlas has no glyph for. */
+const FALLBACK_CHAR = '\u00bf';
 
 const DEFAULT_FONT_SIZE = 48;
 const DEFAULT_RANGE = 8;
@@ -98,8 +121,20 @@ export class SdfAtlas {
     }
   }
 
+  /**
+   * The glyph for a character, or a visible placeholder.
+   *
+   * Never undefined: a missing character used to be skipped along with its
+   * advance, so the text silently closed up rather than showing that anything
+   * was wrong.
+   */
   glyph(char: string): Glyph | undefined {
-    return this.#glyphs.get(char);
+    return this.#glyphs.get(char) ?? this.#glyphs.get(FALLBACK_CHAR);
+  }
+
+  /** Whether the atlas has a real glyph for this character. */
+  has(char: string): boolean {
+    return this.#glyphs.has(char);
   }
 
   get glyphCount(): number {

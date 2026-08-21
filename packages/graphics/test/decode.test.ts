@@ -150,3 +150,17 @@ describe('text decoding', () => {
     expect(content).toBe('');
   });
 });
+
+describe('text with non-ASCII characters', () => {
+  test('the buffer carries the string unchanged', () => {
+    // Whether a backend can draw a character is the backend's problem; the
+    // format must not mangle it on the way through.
+    const buf = new CommandBuffer();
+    const content = 'Café · 100% — “quoted” ¿qué?';
+    buf.text(0, 0, content);
+
+    let seen = '';
+    decode(buf, { text: (_x, _y, value: string): void => void (seen = value) });
+    expect(seen).toBe(content);
+  });
+});
