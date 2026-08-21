@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Blood Mage</title>
+    <style>
+      body { background: #140d10; color: #e9d7d7; font: 13px ui-monospace, monospace;
+             margin: 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+      .bar { display: flex; gap: 16px; align-items: baseline; }
+      a { color: #d98b8b; text-decoration: none; }
+      #readout { color: #9c8383; }
+      canvas { border: 1px solid #3a2427; display: block; }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <a href="./gallery.html">← examples</a>
+      <strong>Blood Mage</strong>
+      <span id="readout"></span>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="./dist/blood-mage-solo.js"></script>
+  </body>
+</html>
