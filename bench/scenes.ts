@@ -278,6 +278,31 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
+    name: "opaque background discards paths",
+    // Clearing batches must rewind the path vertex cursor too. Otherwise the
+    // next batch starts at zero but reads geometry queued before the clear.
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      b.setFill(1, 0.1, 0.2, 1);
+      b.beginPath();
+      b.moveTo(20, 20);
+      b.lineTo(380, 20);
+      b.lineTo(200, 380);
+      b.closePath();
+      b.fillPath();
+
+      b.background(0.05, 0.08, 0.15, 1);
+      b.setFill(0.2, 0.9, 0.55, 1);
+      b.beginPath();
+      b.moveTo(100, 100);
+      b.lineTo(300, 100);
+      b.lineTo(300, 300);
+      b.lineTo(100, 300);
+      b.closePath();
+      b.fillPath();
+    },
+  },
+  {
     name: "filled bezier path",
     // The abstraction test made visual: curves reach the GPU as control
     // points and are flattened there, while SVG exports them as curves.

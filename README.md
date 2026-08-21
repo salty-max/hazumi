@@ -217,20 +217,21 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 
 ## Build order
 
-All nine phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
+All ten phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
 state, remaining library gaps, and deferred work.
 
-| Phase | Work                                                         | Done when                                                       |
-| ----- | ------------------------------------------------------------ | --------------------------------------------------------------- |
-| P1 ✅ | Command buffer + minimal instanced WebGL2 path               | **Met** — see measurements below                                |
-| P2 ✅ | core, math, color                                            | **Met** — 253 tests; plugin types verified at compile time      |
-| P3 ✅ | Renderer subsystems + Canvas2D oracle                        | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255               |
-| P4 ✅ | First vertical slice, `0.1.0`                                | **Met** — five scenes in `examples/`, no escape hatches         |
-| P5 ✅ | Text, then SVG backend                                       | **Met** — 12 scenes export and rasterise to within 0.31/255     |
-| P6 ✅ | Docs + playground                                            | **Met** — landing page, live editor, 184-symbol reference       |
-| P7 ✅ | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below                |
-| P8 ✅ | Typed runtime plugins + audio                                | **Met** — load, play, loop, gain, lifecycle, bounded voice pool |
-| P9 ✅ | Canvas resize, pixels + PNG capture                          | **Met** — DPR-aware Canvas2D/WebGL2, top-down RGBA round-trip   |
+| Phase  | Work                                                         | Done when                                                       |
+| ------ | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| P1 ✅  | Command buffer + minimal instanced WebGL2 path               | **Met** — see measurements below                                |
+| P2 ✅  | core, math, color                                            | **Met** — 253 tests; plugin types verified at compile time      |
+| P3 ✅  | Renderer subsystems + Canvas2D oracle                        | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255               |
+| P4 ✅  | First vertical slice, `0.1.0`                                | **Met** — five scenes in `examples/`, no escape hatches         |
+| P5 ✅  | Text, then SVG backend                                       | **Met** — 12 scenes export and rasterise to within 0.31/255     |
+| P6 ✅  | Docs + playground                                            | **Met** — landing page, live editor, 184-symbol reference       |
+| P7 ✅  | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below                |
+| P8 ✅  | Typed runtime plugins + audio                                | **Met** — load, play, loop, gain, lifecycle, bounded voice pool |
+| P9 ✅  | Canvas resize, pixels + PNG capture                          | **Met** — DPR-aware Canvas2D/WebGL2, top-down RGBA round-trip   |
+| P10 ✅ | Packed WebGL colour uploads                                  | **Met** — 5.60 → 4.40 MB/frame for 100k shapes (−21.4%)         |
 
 ## P1 measurements
 
@@ -257,12 +258,15 @@ complete with a 1×1 `readPixels`:
 | Forced context loss                    | Recovered without reload, 1 draw call after restore |
 
 P3 grew instances from 7 floats to 14 to carry transform, extents and stroke,
-moving the median from 7.50 ms to 10.00 ms. Packing colour into a `u32` would
-recover roughly a fifth of that upload bandwidth and is the obvious next step.
+moving the median from 7.50 ms to 10.00 ms. P10 packs the four colour floats
+into normalized RGBA8: shape and textured instances are now 44 rather than 56
+bytes, and the benchmark uploads 4.40 rather than 5.60 MB per frame (−21.4%).
+Current Chrome medians remain inside the pre-change 8.8–9.2 ms variance, so the
+measured claim is the bandwidth reduction, not a synthetic frame-time speedup.
 
 ## Backend agreement
 
-Canvas2D is the reference renderer. Nineteen scenes render through both backends
+Canvas2D is the reference renderer. Twenty scenes render through both backends
 and are compared pixel by pixel — mean per-channel difference over the frame,
 out of 255. The worst is 1.81; the image scenes are exact:
 

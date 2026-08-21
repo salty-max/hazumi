@@ -26,6 +26,7 @@ layout(location = 0) in vec2 a_corner;
 layout(location = 1) in vec4 a_xform;
 // tx, ty, then the shape's half-extents in user units.
 layout(location = 2) in vec4 a_offsetExtent;
+// Normalized RGBA8 in the vertex buffer, expanded to floats by WebGL.
 layout(location = 3) in vec4 a_color;
 // x = stroke half-width (0 = filled), y = shape (0 circle, 1 box, 2 ellipse)
 layout(location = 4) in vec2 a_params;
@@ -119,6 +120,7 @@ layout(location = 0) in vec2 a_corner;
 layout(location = 1) in vec4 a_xform;        // a, b, c, d
 layout(location = 2) in vec2 a_offset;       // tx, ty
 layout(location = 3) in vec4 a_uv;           // u0, v0, u1, v1
+// Normalized RGBA8 in the vertex buffer, expanded to floats by WebGL.
 layout(location = 4) in vec4 a_color;
 
 uniform mat4 u_viewProj;
@@ -250,6 +252,7 @@ void main() {
 export const PATH_VERTEX_SHADER: string = `#version 300 es
 
 layout(location = 0) in vec2 a_position;
+// Normalized RGBA8 in the vertex buffer, expanded to floats by WebGL.
 layout(location = 1) in vec4 a_color;
 
 uniform mat4 u_viewProj;

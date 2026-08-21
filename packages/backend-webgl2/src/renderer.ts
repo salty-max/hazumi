@@ -41,10 +41,20 @@ import {
   setUniformInt,
   type ShaderPass,
 } from "./post";
-
-/** a, b, c, d | tx, ty, hx, hy | r, g, b, alpha | edge, shape. */
-const INSTANCE_FLOATS = 14;
-const INSTANCE_BYTES = INSTANCE_FLOATS * 4;
+import {
+  PATH_COLOR_OFFSET,
+  PATH_VERTEX_BYTES,
+  PATH_VERTEX_WORDS,
+  SHAPE_COLOR_OFFSET,
+  SHAPE_INSTANCE_BYTES,
+  SHAPE_INSTANCE_WORDS,
+  SHAPE_PARAMS_OFFSET,
+  TEXTURED_COLOR_OFFSET,
+  TEXTURED_INSTANCE_BYTES,
+  TEXTURED_INSTANCE_WORDS,
+  rgba8Word,
+  toUnorm8,
+} from "./instance-layout";
 
 const SHAPE_CIRCLE = 0;
 const SHAPE_BOX = 1;
@@ -55,13 +65,6 @@ const INITIAL_INSTANCES = 1024;
 /** Distinct font families a single renderer will build atlases for. */
 const MAX_ATLASES = 8;
 
-/** a, b, c, d | tx, ty | u0, v0, u1, v1 | r, g, b, alpha. */
-const GLYPH_FLOATS = 14;
-const GLYPH_BYTES = GLYPH_FLOATS * 4;
-
-/** x, y | r, g, b, alpha — paths are unique geometry, not instances. */
-const PATH_FLOATS = 6;
-const PATH_BYTES = PATH_FLOATS * 4;
 const INITIAL_PATH_VERTICES = 4096;
 
 /** Convert bottom-up premultiplied GL bytes to top-down straight RGBA. */
@@ -152,6 +155,8 @@ export interface FrameStats {
   readonly textured: number;
   /** Path vertices, which are geometry rather than instances. */
   readonly pathVertices: number;
+  /** Bytes transferred through dynamic vertex buffers for the last frame. */
+  readonly uploadedBytes: number;
   /** Times the instance array has grown. Constant in steady state. */
   readonly growths: number;
   /** GL state changes issued. */
@@ -161,28 +166,20 @@ export interface FrameStats {
 }
 
 interface Style {
-  fillR: number;
-  fillG: number;
-  fillB: number;
-  fillA: number;
-  strokeR: number;
-  strokeG: number;
-  strokeB: number;
-  strokeA: number;
+  fill: number;
+  fillA8: number;
+  stroke: number;
+  strokeA8: number;
   strokeWidth: number;
   blend: Blend;
 }
 
 function defaultStyle(): Style {
   return {
-    fillR: 0,
-    fillG: 0,
-    fillB: 0,
-    fillA: 1,
-    strokeR: 0,
-    strokeG: 0,
-    strokeB: 0,
-    strokeA: 1,
+    fill: rgba8Word(0, 0, 0, 255),
+    fillA8: 255,
+    stroke: rgba8Word(0, 0, 0, 255),
+    strokeA8: 255,
     strokeWidth: 0,
     blend: Blend.Normal,
   };
@@ -213,6 +210,8 @@ export class Webgl2Renderer {
   #viewProjLocation: WebGLUniformLocation | null = null;
 
   #instances: Float32Array;
+  #instanceWords: Uint32Array;
+  #instanceBytes: Uint8Array;
   #instanceCapacity: number;
   #count = 0;
   #growths = 0;
@@ -232,6 +231,8 @@ export class Webgl2Renderer {
   #glyphAtlasLocation: WebGLUniformLocation | null = null;
 
   #glyphs: Float32Array;
+  #glyphWords: Uint32Array;
+  #glyphBytes: Uint8Array;
   #glyphCapacity: number;
   #glyphCount = 0;
 
@@ -257,6 +258,8 @@ export class Webgl2Renderer {
   #pixelTextureLocation: WebGLUniformLocation | null = null;
 
   #pathVertices: Float32Array;
+  #pathWords: Uint32Array;
+  #pathBytes: Uint8Array;
   #pathCapacity: number;
   #pathCount = 0;
   #builder = new PathBuilder();
@@ -284,7 +287,10 @@ export class Webgl2Renderer {
     this.#canvas = canvas;
     this.#smoothing = options.smoothing ?? true;
     this.#instanceCapacity = INITIAL_INSTANCES;
-    this.#instances = new Float32Array(INITIAL_INSTANCES * INSTANCE_FLOATS);
+    const instanceData = new ArrayBuffer(INITIAL_INSTANCES * SHAPE_INSTANCE_BYTES);
+    this.#instances = new Float32Array(instanceData);
+    this.#instanceWords = new Uint32Array(instanceData);
+    this.#instanceBytes = new Uint8Array(instanceData);
 
     this.#quadId = this.#registry.register({
       kind: "buffer",
@@ -305,7 +311,10 @@ export class Webgl2Renderer {
     });
 
     this.#glyphCapacity = INITIAL_INSTANCES;
-    this.#glyphs = new Float32Array(INITIAL_INSTANCES * GLYPH_FLOATS);
+    const glyphData = new ArrayBuffer(INITIAL_INSTANCES * TEXTURED_INSTANCE_BYTES);
+    this.#glyphs = new Float32Array(glyphData);
+    this.#glyphWords = new Uint32Array(glyphData);
+    this.#glyphBytes = new Uint8Array(glyphData);
     this.#glyphBufferId = this.#registry.register({
       kind: "buffer",
       target: WebGL2RenderingContext.ARRAY_BUFFER,
@@ -325,7 +334,10 @@ export class Webgl2Renderer {
     });
 
     this.#pathCapacity = INITIAL_PATH_VERTICES;
-    this.#pathVertices = new Float32Array(INITIAL_PATH_VERTICES * PATH_FLOATS);
+    const pathData = new ArrayBuffer(INITIAL_PATH_VERTICES * PATH_VERTEX_BYTES);
+    this.#pathVertices = new Float32Array(pathData);
+    this.#pathWords = new Uint32Array(pathData);
+    this.#pathBytes = new Uint8Array(pathData);
     this.#pathBufferId = this.#registry.register({
       kind: "buffer",
       target: WebGL2RenderingContext.ARRAY_BUFFER,
@@ -387,6 +399,10 @@ export class Webgl2Renderer {
       shapes: this.#count,
       textured: this.#glyphCount,
       pathVertices: this.#pathCount,
+      uploadedBytes:
+        this.#count * SHAPE_INSTANCE_BYTES +
+        this.#glyphCount * TEXTURED_INSTANCE_BYTES +
+        this.#pathCount * PATH_VERTEX_BYTES,
       growths: this.#growths,
       stateChanges: this.#state?.applied ?? 0,
       stateSkipped: this.#state?.skipped ?? 0,
@@ -527,15 +543,27 @@ export class Webgl2Renderer {
 
     if (this.#count > 0) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#instances, 0, this.#count * INSTANCE_FLOATS);
+      gl.bufferSubData(
+        gl.ARRAY_BUFFER,
+        0,
+        this.#instanceBytes,
+        0,
+        this.#count * SHAPE_INSTANCE_BYTES,
+      );
     }
     if (this.#glyphCount > 0) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#glyphs, 0, this.#glyphCount * GLYPH_FLOATS);
+      gl.bufferSubData(
+        gl.ARRAY_BUFFER,
+        0,
+        this.#glyphBytes,
+        0,
+        this.#glyphCount * TEXTURED_INSTANCE_BYTES,
+      );
     }
     if (this.#pathCount > 0) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#pathBufferId));
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#pathVertices, 0, this.#pathCount * PATH_FLOATS);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.#pathBytes, 0, this.#pathCount * PATH_VERTEX_BYTES);
     }
 
     for (const batch of batches) {
@@ -739,16 +767,20 @@ export class Webgl2Renderer {
   #makeVisitor(): CommandVisitor {
     return {
       setFill: (r: number, g: number, b: number, a: number): void => {
-        this.#style.fillR = r;
-        this.#style.fillG = g;
-        this.#style.fillB = b;
-        this.#style.fillA = a;
+        const r8 = toUnorm8(r);
+        const g8 = toUnorm8(g);
+        const b8 = toUnorm8(b);
+        const a8 = toUnorm8(a);
+        this.#style.fill = rgba8Word(r8, g8, b8, a8);
+        this.#style.fillA8 = a8;
       },
       setStroke: (r: number, g: number, b: number, a: number): void => {
-        this.#style.strokeR = r;
-        this.#style.strokeG = g;
-        this.#style.strokeB = b;
-        this.#style.strokeA = a;
+        const r8 = toUnorm8(r);
+        const g8 = toUnorm8(g);
+        const b8 = toUnorm8(b);
+        const a8 = toUnorm8(a);
+        this.#style.stroke = rgba8Word(r8, g8, b8, a8);
+        this.#style.strokeA8 = a8;
       },
       setStrokeWidth: (width: number): void => {
         this.#style.strokeWidth = width;
@@ -781,6 +813,7 @@ export class Webgl2Renderer {
           // and clearing is both correct and far cheaper than overpainting.
           this.#count = 0;
           this.#glyphCount = 0;
+          this.#pathCount = 0;
           this.#batches.reset();
           this.#clearRequested = [r, g, b, a];
           return;
@@ -792,14 +825,15 @@ export class Webgl2Renderer {
         const half = identityAffine();
         half.tx = this.#viewWidth / 2;
         half.ty = this.#viewHeight / 2;
+        const r8 = toUnorm8(r);
+        const g8 = toUnorm8(g);
+        const b8 = toUnorm8(b);
+        const a8 = toUnorm8(a);
         this.#pushInstanceWithBlend(
           half,
           this.#viewWidth / 2,
           this.#viewHeight / 2,
-          r,
-          g,
-          b,
-          a,
+          rgba8Word(r8, g8, b8, a8),
           SHAPE_BOX,
           0,
           Blend.Normal,
@@ -857,7 +891,7 @@ export class Webgl2Renderer {
 
       line: (x1: number, y1: number, x2: number, y2: number): void => {
         const style = this.#style;
-        if (style.strokeWidth <= 0 || style.strokeA <= 0) return;
+        if (style.strokeWidth <= 0 || style.strokeA8 <= 0) return;
 
         const dx = x2 - x1;
         const dy = y2 - y1;
@@ -904,48 +938,18 @@ export class Webgl2Renderer {
     if (rotation !== 0) rotateAffine(m, rotation);
 
     if (strokeOnly) {
-      this.#pushInstance(
-        m,
-        halfW,
-        halfH,
-        style.strokeR,
-        style.strokeG,
-        style.strokeB,
-        style.strokeA,
-        shape,
-        0,
-      );
+      this.#pushInstance(m, halfW, halfH, style.stroke, shape, 0);
       return;
     }
 
-    if (style.fillA > 0) {
-      this.#pushInstance(
-        m,
-        halfW,
-        halfH,
-        style.fillR,
-        style.fillG,
-        style.fillB,
-        style.fillA,
-        shape,
-        0,
-      );
+    if (style.fillA8 > 0) {
+      this.#pushInstance(m, halfW, halfH, style.fill, shape, 0);
     }
 
-    if (style.strokeWidth > 0 && style.strokeA > 0) {
+    if (style.strokeWidth > 0 && style.strokeA8 > 0) {
       // Stroke width is in user units, the same space as the half-extents, so
       // the current transform scales both together exactly as Canvas2D does.
-      this.#pushInstance(
-        m,
-        halfW,
-        halfH,
-        style.strokeR,
-        style.strokeG,
-        style.strokeB,
-        style.strokeA,
-        shape,
-        style.strokeWidth / 2,
-      );
+      this.#pushInstance(m, halfW, halfH, style.stroke, shape, style.strokeWidth / 2);
     }
   }
 
@@ -953,31 +957,25 @@ export class Webgl2Renderer {
     m: Affine,
     halfW: number,
     halfH: number,
-    r: number,
-    g: number,
-    b: number,
-    a: number,
+    color: number,
     shape: number,
     edge: number,
   ): void {
-    this.#pushInstanceWithBlend(m, halfW, halfH, r, g, b, a, shape, edge, this.#style.blend);
+    this.#pushInstanceWithBlend(m, halfW, halfH, color, shape, edge, this.#style.blend);
   }
 
   #pushInstanceWithBlend(
     m: Affine,
     halfW: number,
     halfH: number,
-    r: number,
-    g: number,
-    b: number,
-    a: number,
+    color: number,
     shape: number,
     edge: number,
     blend: Blend,
   ): void {
     if (this.#count === this.#instanceCapacity) this.#growInstances();
 
-    const i = this.#count * INSTANCE_FLOATS;
+    const i = this.#count * SHAPE_INSTANCE_WORDS;
     const arr = this.#instances;
     arr[i] = m.a;
     arr[i + 1] = m.b;
@@ -987,12 +985,9 @@ export class Webgl2Renderer {
     arr[i + 5] = m.ty;
     arr[i + 6] = halfW;
     arr[i + 7] = halfH;
-    arr[i + 8] = r;
-    arr[i + 9] = g;
-    arr[i + 10] = b;
-    arr[i + 11] = a;
-    arr[i + 12] = edge;
-    arr[i + 13] = shape;
+    this.#instanceWords[i + SHAPE_COLOR_OFFSET / 4] = color;
+    arr[i + 9] = edge;
+    arr[i + 10] = shape;
 
     this.#batches.push(blend);
     this.#count++;
@@ -1032,7 +1027,7 @@ export class Webgl2Renderer {
 
     const { atlas } = entry;
     const style = this.#style;
-    if (style.fillA <= 0) return;
+    if (style.fillA8 <= 0) return;
 
     const size = this.#textSize;
     const width = atlas.measure(content, size);
@@ -1118,7 +1113,7 @@ export class Webgl2Renderer {
   ): void {
     if (this.#glyphCount === this.#glyphCapacity) this.#growGlyphs();
 
-    const i = this.#glyphCount * GLYPH_FLOATS;
+    const i = this.#glyphCount * TEXTURED_INSTANCE_WORDS;
     const arr = this.#glyphs;
     const style = this.#style;
     arr[i] = m.a;
@@ -1131,10 +1126,7 @@ export class Webgl2Renderer {
     arr[i + 7] = v0;
     arr[i + 8] = u1;
     arr[i + 9] = v1;
-    arr[i + 10] = style.fillR;
-    arr[i + 11] = style.fillG;
-    arr[i + 12] = style.fillB;
-    arr[i + 13] = style.fillA;
+    this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = style.fill;
 
     this.#batches.push(style.blend, Pipeline.Glyph, textureId);
     this.#glyphCount++;
@@ -1152,7 +1144,7 @@ export class Webgl2Renderer {
   ): void {
     if (this.#glyphCount === this.#glyphCapacity) this.#growGlyphs();
 
-    const i = this.#glyphCount * GLYPH_FLOATS;
+    const i = this.#glyphCount * TEXTURED_INSTANCE_WORDS;
     const arr = this.#glyphs;
     const style = this.#style;
     arr[i] = m.a;
@@ -1166,10 +1158,7 @@ export class Webgl2Renderer {
     arr[i + 8] = u1;
     arr[i + 9] = v1;
     // Tint: white fill leaves the image untouched.
-    arr[i + 10] = 1;
-    arr[i + 11] = 1;
-    arr[i + 12] = 1;
-    arr[i + 13] = style.fillA;
+    this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = rgba8Word(255, 255, 255, style.fillA8);
 
     this.#batches.push(style.blend, pipeline, textureId);
     this.#glyphCount++;
@@ -1177,30 +1166,39 @@ export class Webgl2Renderer {
 
   #growGlyphs(): void {
     this.#glyphCapacity *= 2;
-    const next = new Float32Array(this.#glyphCapacity * GLYPH_FLOATS);
-    next.set(this.#glyphs);
-    this.#glyphs = next;
+    const nextBytes = new Uint8Array(this.#glyphCapacity * TEXTURED_INSTANCE_BYTES);
+    nextBytes.set(this.#glyphBytes);
+    this.#glyphBytes = nextBytes;
+    this.#glyphs = new Float32Array(nextBytes.buffer);
+    this.#glyphWords = new Uint32Array(nextBytes.buffer);
     this.#growths++;
 
     const gl = this.#gl;
     if (gl !== null) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
-      gl.bufferData(gl.ARRAY_BUFFER, next.byteLength, gl.DYNAMIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, nextBytes.byteLength, gl.DYNAMIC_DRAW);
     }
   }
 
   #setGlyphOffset(gl: WebGL2RenderingContext, instance: number): void {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
-    const base = instance * GLYPH_BYTES;
-    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, GLYPH_BYTES, base);
-    gl.vertexAttribPointer(2, 2, gl.FLOAT, false, GLYPH_BYTES, base + 16);
-    gl.vertexAttribPointer(3, 4, gl.FLOAT, false, GLYPH_BYTES, base + 24);
-    gl.vertexAttribPointer(4, 4, gl.FLOAT, false, GLYPH_BYTES, base + 40);
+    const base = instance * TEXTURED_INSTANCE_BYTES;
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, TEXTURED_INSTANCE_BYTES, base);
+    gl.vertexAttribPointer(2, 2, gl.FLOAT, false, TEXTURED_INSTANCE_BYTES, base + 16);
+    gl.vertexAttribPointer(3, 4, gl.FLOAT, false, TEXTURED_INSTANCE_BYTES, base + 24);
+    gl.vertexAttribPointer(
+      4,
+      4,
+      gl.UNSIGNED_BYTE,
+      true,
+      TEXTURED_INSTANCE_BYTES,
+      base + TEXTURED_COLOR_OFFSET,
+    );
   }
 
   #emitPathFill(): void {
     const style = this.#style;
-    if (style.fillA <= 0 || this.#builder.isEmpty) return;
+    if (style.fillA8 <= 0 || this.#builder.isEmpty) return;
 
     const bounds = this.#builder.bounds();
     if (bounds === null) return;
@@ -1215,20 +1213,12 @@ export class Webgl2Renderer {
     // batch records where the fan ends and the cover begins.
     quadTriangles(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, scratch);
 
-    this.#pushPathVertices(
-      scratch,
-      style.fillR,
-      style.fillG,
-      style.fillB,
-      style.fillA,
-      Pipeline.PathFill,
-      fanVertices,
-    );
+    this.#pushPathVertices(scratch, style.fill, Pipeline.PathFill, fanVertices);
   }
 
   #emitPathStroke(): void {
     const style = this.#style;
-    if (style.strokeWidth <= 0 || style.strokeA <= 0) return;
+    if (style.strokeWidth <= 0 || style.strokeA8 <= 0) return;
 
     const scratch = this.#scratch;
     scratch.length = 0;
@@ -1237,14 +1227,7 @@ export class Webgl2Renderer {
     });
     if (scratch.length === 0) return;
 
-    this.#pushPathVertices(
-      scratch,
-      style.strokeR,
-      style.strokeG,
-      style.strokeB,
-      style.strokeA,
-      Pipeline.PathStroke,
-    );
+    this.#pushPathVertices(scratch, style.stroke, Pipeline.PathStroke);
   }
 
   /**
@@ -1256,10 +1239,7 @@ export class Webgl2Renderer {
    */
   #pushPathVertices(
     points: readonly number[],
-    r: number,
-    g: number,
-    b: number,
-    a: number,
+    color: number,
     pipeline: Pipeline,
     fanCount = 0,
   ): void {
@@ -1268,18 +1248,15 @@ export class Webgl2Renderer {
 
     const m = this.#xform;
     const arr = this.#pathVertices;
-    let i = this.#pathCount * PATH_FLOATS;
+    let i = this.#pathCount * PATH_VERTEX_WORDS;
 
     for (let p = 0; p < points.length; p += 2) {
       const x = points[p] as number;
       const y = points[p + 1] as number;
       arr[i] = m.a * x + m.c * y + m.tx;
       arr[i + 1] = m.b * x + m.d * y + m.ty;
-      arr[i + 2] = r;
-      arr[i + 3] = g;
-      arr[i + 4] = b;
-      arr[i + 5] = a;
-      i += PATH_FLOATS;
+      this.#pathWords[i + PATH_COLOR_OFFSET / 4] = color;
+      i += PATH_VERTEX_WORDS;
     }
 
     this.#pathCount += vertexCount;
@@ -1290,29 +1267,33 @@ export class Webgl2Renderer {
 
   #growPaths(): void {
     this.#pathCapacity *= 2;
-    const next = new Float32Array(this.#pathCapacity * PATH_FLOATS);
-    next.set(this.#pathVertices);
-    this.#pathVertices = next;
+    const nextBytes = new Uint8Array(this.#pathCapacity * PATH_VERTEX_BYTES);
+    nextBytes.set(this.#pathBytes);
+    this.#pathBytes = nextBytes;
+    this.#pathVertices = new Float32Array(nextBytes.buffer);
+    this.#pathWords = new Uint32Array(nextBytes.buffer);
     this.#growths++;
 
     const gl = this.#gl;
     if (gl !== null) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#pathBufferId));
-      gl.bufferData(gl.ARRAY_BUFFER, next.byteLength, gl.DYNAMIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, nextBytes.byteLength, gl.DYNAMIC_DRAW);
     }
   }
 
   #growInstances(): void {
     this.#instanceCapacity *= 2;
-    const next = new Float32Array(this.#instanceCapacity * INSTANCE_FLOATS);
-    next.set(this.#instances);
-    this.#instances = next;
+    const nextBytes = new Uint8Array(this.#instanceCapacity * SHAPE_INSTANCE_BYTES);
+    nextBytes.set(this.#instanceBytes);
+    this.#instanceBytes = nextBytes;
+    this.#instances = new Float32Array(nextBytes.buffer);
+    this.#instanceWords = new Uint32Array(nextBytes.buffer);
     this.#growths++;
 
     const gl = this.#gl;
     if (gl !== null) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
-      gl.bufferData(gl.ARRAY_BUFFER, next.byteLength, gl.DYNAMIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, nextBytes.byteLength, gl.DYNAMIC_DRAW);
     }
   }
 
@@ -1323,11 +1304,18 @@ export class Webgl2Renderer {
     // one this VAO was built with. Without this bind, a frame that uploaded
     // glyphs last would re-point the shape attributes at the glyph buffer.
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#instanceId));
-    const base = instance * INSTANCE_BYTES;
-    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, INSTANCE_BYTES, base);
-    gl.vertexAttribPointer(2, 4, gl.FLOAT, false, INSTANCE_BYTES, base + 16);
-    gl.vertexAttribPointer(3, 4, gl.FLOAT, false, INSTANCE_BYTES, base + 32);
-    gl.vertexAttribPointer(4, 2, gl.FLOAT, false, INSTANCE_BYTES, base + 48);
+    const base = instance * SHAPE_INSTANCE_BYTES;
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, SHAPE_INSTANCE_BYTES, base);
+    gl.vertexAttribPointer(2, 4, gl.FLOAT, false, SHAPE_INSTANCE_BYTES, base + 16);
+    gl.vertexAttribPointer(
+      3,
+      4,
+      gl.UNSIGNED_BYTE,
+      true,
+      SHAPE_INSTANCE_BYTES,
+      base + SHAPE_COLOR_OFFSET,
+    );
+    gl.vertexAttribPointer(4, 2, gl.FLOAT, false, SHAPE_INSTANCE_BYTES, base + SHAPE_PARAMS_OFFSET);
   }
 
   #acquireContext(options: Webgl2Options): void {
@@ -1403,9 +1391,9 @@ export class Webgl2Renderer {
 
     // Per-vertex, not per-instance: a path is unique geometry.
     gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, PATH_BYTES, 0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, PATH_VERTEX_BYTES, 0);
     gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, PATH_BYTES, 8);
+    gl.vertexAttribPointer(1, 4, gl.UNSIGNED_BYTE, true, PATH_VERTEX_BYTES, PATH_COLOR_OFFSET);
 
     gl.bindVertexArray(null);
     this.#pathVao = vao;

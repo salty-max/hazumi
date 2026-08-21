@@ -4,22 +4,23 @@ What is built, what is next, and what is deliberately deferred. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 11 packages, 655 unit tests, 19
+**Where it stands:** 0.1.0, pre-alpha. 11 packages, 658 unit tests, 20
 backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
 
-| Phase | Delivered                                                                            |
-| ----- | ------------------------------------------------------------------------------------ |
-| P1 ✅ | Struct-of-arrays command buffer; instanced WebGL2 circles in one draw call           |
-| P2 ✅ | `core`, `math`, `color` — clock, plugin registry, Vec/Mat4, seeded RNG, noise, OKLCH |
-| P3 ✅ | Renderer subsystems, batching, state cache, and the Canvas2D reference oracle        |
-| P4 ✅ | First vertical slice: `start()`, scenes, and the drawing API, `0.1.0`                |
-| P5 ✅ | Runtime SDF text, then the SVG export backend                                        |
-| P6 ✅ | Landing page, live playground, generated API reference                               |
-| P7 ✅ | Images, sprites, bezier paths, shader passes, input, build-time auto-import          |
-| P8 ✅ | Typed runtime plugins and Web Audio with bounded pooled voices                       |
-| P9 ✅ | Runtime resize and DPR tracking, mutable pixels, and PNG frame capture               |
+| Phase  | Delivered                                                                            |
+| ------ | ------------------------------------------------------------------------------------ |
+| P1 ✅  | Struct-of-arrays command buffer; instanced WebGL2 circles in one draw call           |
+| P2 ✅  | `core`, `math`, `color` — clock, plugin registry, Vec/Mat4, seeded RNG, noise, OKLCH |
+| P3 ✅  | Renderer subsystems, batching, state cache, and the Canvas2D reference oracle        |
+| P4 ✅  | First vertical slice: `start()`, scenes, and the drawing API, `0.1.0`                |
+| P5 ✅  | Runtime SDF text, then the SVG export backend                                        |
+| P6 ✅  | Landing page, live playground, generated API reference                               |
+| P7 ✅  | Images, sprites, bezier paths, shader passes, input, build-time auto-import          |
+| P8 ✅  | Typed runtime plugins and Web Audio with bounded pooled voices                       |
+| P9 ✅  | Runtime resize and DPR tracking, mutable pixels, and PNG frame capture               |
+| P10 ✅ | Packed RGBA8 WebGL uploads for shapes, text, images, and paths                       |
 
 The measurements that back these:
 
@@ -28,11 +29,12 @@ The measurements that back these:
 | 100k shapes per frame   | 10.00 ms median, **1 draw call**, p95 11.50 ms                  |
 | Encode cost             | 0.97 ms/frame flat fill, 1.84 ms with a fill per shape          |
 | Steady-state allocation | 0 buffer growths, 0.0 kB heap delta over 200 frames             |
-| Backend agreement       | 19 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
+| Backend agreement       | 20 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
 | SVG vs Canvas2D         | worst 1.22/255 — tighter, since both go through the same engine |
 | Sprite batching         | 400 sprites across 16 frames of one sheet → **1 draw call**     |
 | Several sheets          | 3 sheets grouped → 3 calls; interleaved → 300                   |
 | Context loss            | Recovered without reload, back to 1 draw call                   |
+| Packed vertex upload    | 5.60 → 4.40 MB for 100k shapes (**−21.4%**)                     |
 
 The application loop exposes the fixed-step clock through `start()`: a scene
 may implement `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a
@@ -79,11 +81,15 @@ without depending on a preserved browser drawing buffer. The WebGL upload is a
 single retained resource, so repeated updates and context restoration do not grow
 the GPU registry.
 
+WebGL dynamic buffers now carry colours as normalized RGBA8 rather than four
+floats. Shape and textured instances shrink from 56 to 44 bytes, while path
+vertices shrink from 24 to 12. The 100k-shape workload transfers 4.40 MB per
+frame instead of 5.60 MB; current Chrome medians remain within the pre-change
+8.8–9.2 ms variance, so the bandwidth reduction is claimed without pretending
+it is a separately measurable frame-time win.
+
 ## Library gaps, independent of games
 
-- **Colour packing.** Instances carry colour as four floats. Packing into a
-  `u32` would recover roughly a fifth of the upload bandwidth — the clearest
-  remaining performance win, and already identified as such.
 - **npm publish.** Changesets is configured; nothing has been released.
 
 ## Deferred by decision

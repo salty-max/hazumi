@@ -85,6 +85,7 @@ function main(): void {
   log("frames measured", String(times.length));
   log("draw calls per frame", String(renderer.stats.drawCalls));
   log("instances per frame", renderer.stats.instances.toLocaleString());
+  log("vertex upload per frame", `${(renderer.stats.uploadedBytes / 1_000_000).toFixed(2)} MB`);
   log("instance-array growths (steady)", String(renderer.stats.growths - growthsAtStart));
   log("frame mean", `${mean.toFixed(2)} ms`);
   log("frame median", `${median.toFixed(2)} ms`);
