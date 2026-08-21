@@ -71,12 +71,14 @@ return {
   {
     name: "Dungeon run",
     code: `// Click the preview, then use WASD or the arrow keys.
-// Reach the orange beacon. Press R to restart.
+// Avoid the slimes and reach the orange beacon. Press R to restart.
 const TILE = 32;
 const COLUMNS = 40;
 const ROWS = 28;
 const PLAYER_SIZE = 22;
 const PLAYER_DRAW_SIZE = 32;
+const ENEMY_SIZE = 20;
+const ENEMY_DRAW_SIZE = 32;
 const SPEED = 300;
 
 const [tileImage, spriteImage] = await Promise.all([
@@ -91,11 +93,13 @@ const sprites = spritesheet(spriteImage, {
   clips: {
     knightIdle: { frames: [140, 141, 142, 143, 144, 145], fps: 8 },
     knightRun: { frames: [168, 169, 170, 171, 172, 173], fps: 8 },
+    slimeMove: { frames: [112, 113, 114, 115, 116, 117], fps: 7 },
     beacon: { frames: [90, 91, 92, 93, 94, 95], fps: 8 },
   },
 });
 const knightIdle = sprites.clip('knightIdle');
 const knightRun = sprites.clip('knightRun');
+const slimeMove = sprites.clip('slimeMove');
 const beacon = sprites.clip('beacon');
 const floorTiles = new Int16Array(COLUMNS * ROWS);
 const decorTiles = new Int16Array(COLUMNS * ROWS);
@@ -142,6 +146,20 @@ const dungeon = tilemap({
 const spawn = { x: TILE * 2.5, y: TILE * 2.5 };
 const goal = { x: TILE * (COLUMNS - 2.5), y: TILE * (ROWS - 2.5) };
 const goalShape = collision.circle(goal.x, goal.y, 18);
+const enemySpawns = [
+  { x: TILE * 4.5, y: TILE * 9.5, direction: -1, speed: 70 },
+  { x: TILE * 9.5, y: TILE * 16.5, direction: 1, speed: 82 },
+  { x: TILE * 15, y: TILE * 8.5, direction: -1, speed: 76 },
+  { x: TILE * 21, y: TILE * 22, direction: 1, speed: 88 },
+  { x: TILE * 27, y: TILE * 12.5, direction: -1, speed: 72 },
+  { x: TILE * 33, y: TILE * 18.5, direction: 1, speed: 94 },
+];
+const enemies = enemySpawns.map((enemy, index) => ({
+  ...enemy,
+  previousX: enemy.x,
+  previousY: enemy.y,
+  phase: index * 0.13,
+}));
 let x = spawn.x;
 let y = spawn.y;
 let previousX = x;
@@ -149,9 +167,10 @@ let previousY = y;
 let facing = 1;
 let running = false;
 let animationStartedAt = 0;
+let hits = 0;
 let won = false;
 
-function reset(camera, time) {
+function reset(camera, time, clearHits) {
   x = spawn.x;
   y = spawn.y;
   previousX = x;
@@ -159,7 +178,17 @@ function reset(camera, time) {
   facing = 1;
   running = false;
   animationStartedAt = time;
+  if (clearHits) hits = 0;
   won = false;
+  for (let index = 0; index < enemies.length; index++) {
+    const enemy = enemies[index];
+    const source = enemySpawns[index];
+    enemy.x = source.x;
+    enemy.y = source.y;
+    enemy.previousX = source.x;
+    enemy.previousY = source.y;
+    enemy.direction = source.direction;
+  }
   camera.lookAt(x, y);
 }
 
@@ -186,12 +215,39 @@ function moveAxis(amount, horizontal) {
   y += delta.y * safe;
 }
 
-reset(s.camera, 0);
+function moveEnemy(enemy, amount) {
+  const moving = collision.aabb(
+    enemy.x - ENEMY_SIZE / 2,
+    enemy.y - ENEMY_SIZE / 2,
+    ENEMY_SIZE,
+    ENEMY_SIZE,
+  );
+  const delta = { x: amount, y: 0 };
+  const firstColumn = Math.max(0, Math.floor(Math.min(moving.minX, moving.minX + amount) / TILE));
+  const lastColumn = Math.min(COLUMNS - 1, Math.floor(Math.max(moving.maxX, moving.maxX + amount) / TILE));
+  const firstRow = Math.max(0, Math.floor(moving.minY / TILE));
+  const lastRow = Math.min(ROWS - 1, Math.floor(moving.maxY / TILE));
+  let safe = 1;
+
+  for (let row = firstRow; row <= lastRow; row++) {
+    for (let column = firstColumn; column <= lastColumn; column++) {
+      const wall = wallBoxes[row * COLUMNS + column];
+      if (wall === null) continue;
+      const hit = collision.sweepAabb(moving, delta, wall, reusableHit);
+      if (hit !== null && hit.time < safe) safe = hit.time;
+    }
+  }
+
+  enemy.x += amount * safe;
+  if (safe < 1) enemy.direction *= -1;
+}
+
+reset(s.camera, 0, true);
 
 return {
   update(dt, context) {
     const { camera, keyIsDown, keyJustPressed, t } = context;
-    if (keyJustPressed('r') || keyJustPressed('R')) reset(camera, t);
+    if (keyJustPressed('r') || keyJustPressed('R')) reset(camera, t, true);
 
     previousX = x;
     previousY = y;
@@ -210,13 +266,34 @@ return {
       moveAxis(dx * SPEED * dt, true);
       moveAxis(dy * SPEED * dt, false);
 
+      for (const enemy of enemies) {
+        enemy.previousX = enemy.x;
+        enemy.previousY = enemy.y;
+        moveEnemy(enemy, enemy.direction * enemy.speed * dt);
+      }
+
       const player = collision.aabb(
         x - PLAYER_SIZE / 2,
         y - PLAYER_SIZE / 2,
         PLAYER_SIZE,
         PLAYER_SIZE,
       );
-      won = collision.overlapsCircleAabb(goalShape, player);
+      let touchedEnemy = false;
+      for (const enemy of enemies) {
+        const enemyShape = collision.aabb(
+          enemy.x - ENEMY_SIZE / 2,
+          enemy.y - ENEMY_SIZE / 2,
+          ENEMY_SIZE,
+          ENEMY_SIZE,
+        );
+        if (!collision.overlapsAabb(player, enemyShape)) continue;
+        hits++;
+        reset(camera, t, false);
+        touchedEnemy = true;
+        break;
+      }
+
+      won = !touchedEnemy && collision.overlapsCircleAabb(goalShape, player);
       if (won && running) {
         running = false;
         animationStartedAt = t;
@@ -232,6 +309,22 @@ return {
 
     const beaconSize = 36 + Math.sin(t * 5) * 4;
     image(beacon.at(t), goal.x - beaconSize / 2, goal.y - beaconSize / 2, beaconSize, beaconSize);
+
+    for (const enemy of enemies) {
+      const enemyX = enemy.previousX + (enemy.x - enemy.previousX) * alpha;
+      const enemyY = enemy.previousY + (enemy.y - enemy.previousY) * alpha;
+      push();
+      translate(enemyX, enemyY);
+      scale(enemy.direction, 1);
+      image(
+        slimeMove.at(t + enemy.phase),
+        -ENEMY_DRAW_SIZE / 2,
+        -ENEMY_DRAW_SIZE / 2,
+        ENEMY_DRAW_SIZE,
+        ENEMY_DRAW_SIZE,
+      );
+      pop();
+    }
 
     const drawX = previousX + (x - previousX) * alpha;
     const drawY = previousY + (y - previousY) * alpha;
@@ -252,7 +345,11 @@ return {
       rect(14, 14, won ? 244 : 300, 58);
       fill('white');
       textSize(14);
-      text(won ? 'Beacon reached — press R to replay' : 'WASD / arrows · find the orange beacon', 28, 49);
+      text(
+        won ? 'Beacon reached — press R to replay' : 'WASD / arrows · orange beacon · hits ' + hits,
+        28,
+        49,
+      );
     });
   },
 };`,
