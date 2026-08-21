@@ -72,8 +72,20 @@ export interface Webgl2Options {
 export interface FrameStats {
   /** Draw calls issued for the last frame. */
   readonly drawCalls: number;
-  /** Instances submitted in the last frame. */
+  /**
+   * Instances submitted last frame, across every instanced pipeline.
+   *
+   * Counting only shapes here — as an earlier version did — reports zero for
+   * any scene made of sprites or text, which is exactly the kind of number
+   * that looks fine and means nothing.
+   */
   readonly instances: number;
+  /** Instanced shapes: circles, rects, ellipses, lines. */
+  readonly shapes: number;
+  /** Instanced glyphs and images, which share one array. */
+  readonly textured: number;
+  /** Path vertices, which are geometry rather than instances. */
+  readonly pathVertices: number;
   /** Times the instance array has grown. Constant in steady state. */
   readonly growths: number;
   /** GL state changes issued. */
@@ -277,7 +289,10 @@ export class Webgl2Renderer {
   get stats(): FrameStats {
     return {
       drawCalls: this.#drawCalls,
-      instances: this.#count,
+      instances: this.#count + this.#glyphCount,
+      shapes: this.#count,
+      textured: this.#glyphCount,
+      pathVertices: this.#pathCount,
       growths: this.#growths,
       stateChanges: this.#state?.applied ?? 0,
       stateSkipped: this.#state?.skipped ?? 0,

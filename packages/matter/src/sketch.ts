@@ -57,10 +57,25 @@ export interface ShaderPass {
   readonly uniforms?: Readonly<Record<string, number | readonly number[]>>;
 }
 
+/** What the last frame cost, where the backend can report it. */
+export interface FrameStats {
+  readonly drawCalls: number;
+  /** Instances across every instanced pipeline — shapes, glyphs and images. */
+  readonly instances: number;
+}
+
 /** A renderer that can run a post-processing chain. */
 interface PostCapableRenderer extends Renderer {
   setPasses: (passes: readonly ShaderPass[]) => void;
   setTime: (seconds: number) => void;
+}
+
+interface StatsCapableRenderer extends Renderer {
+  readonly stats: FrameStats;
+}
+
+function reportsStats(renderer: Renderer): renderer is StatsCapableRenderer {
+  return 'stats' in renderer;
 }
 
 function supportsPasses(renderer: Renderer): renderer is PostCapableRenderer {
@@ -75,6 +90,14 @@ export interface SketchHandle {
   readonly canvas: HTMLCanvasElement;
   /** Resolves once setup has finished and the loop has started. */
   readonly ready: Promise<void>;
+  /**
+   * What the last frame cost, or null on a backend that does not track it.
+   *
+   * Draw calls are the number worth watching: batching merges only adjacent
+   * instances, so drawing from several spritesheets in an interleaved order
+   * costs one call per sprite, while grouping by sheet costs one per sheet.
+   */
+  readonly stats: FrameStats | null;
   /**
    * Replace the post-processing chain.
    *
@@ -279,6 +302,9 @@ export function sketch(
     context,
     canvas,
     ready: started,
+    get stats(): FrameStats | null {
+      return reportsStats(renderer) ? renderer.stats : null;
+    },
     setPasses: applyPasses,
     get stopped(): boolean {
       return stopped;
