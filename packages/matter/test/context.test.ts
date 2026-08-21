@@ -24,6 +24,11 @@ function makeState(width: number, height: number): ContextState {
     keysReleased: new Set<string>(),
     mouseButtonsPressed: new Set<number>(),
     mouseButtonsReleased: new Set<number>(),
+    pointers: [],
+    pointersPressed: new Set<number>(),
+    pointersReleased: new Set<number>(),
+    wheelX: 0,
+    wheelY: 0,
     looping: true,
   };
 }
@@ -317,12 +322,22 @@ describe("input", () => {
     h.state.keysReleased.add("Escape");
     h.state.mouseButtonsPressed.add(0);
     h.state.mouseButtonsReleased.add(2);
+    h.state.pointersPressed.add(7);
+    h.state.pointersReleased.add(9);
+    h.state.wheelX = -4;
+    h.state.wheelY = 24;
 
     expect(h.ctx.keyJustPressed("Enter")).toBe(true);
     expect(h.ctx.keyJustPressed("Escape")).toBe(false);
     expect(h.ctx.keyJustReleased("Escape")).toBe(true);
     expect(h.ctx.mouseJustPressed()).toBe(true);
     expect(h.ctx.mouseJustReleased(2)).toBe(true);
+    expect(h.ctx.pointerJustPressed()).toBe(true);
+    expect(h.ctx.pointerJustPressed(7)).toBe(true);
+    expect(h.ctx.pointerJustPressed(8)).toBe(false);
+    expect(h.ctx.pointerJustReleased(9)).toBe(true);
+    expect(h.ctx.wheelX).toBe(-4);
+    expect(h.ctx.wheelY).toBe(24);
   });
 });
 

@@ -87,10 +87,17 @@ Catch-up is capped by default, so returning to a backgrounded tab cannot trap
 the simulation in an ever-growing backlog. `maxDelta` and `maxFixedSteps` are
 available under `clock` when a game needs different limits.
 
-`keyJustPressed`, `keyJustReleased`, `mouseJustPressed` and
-`mouseJustReleased` are visible for exactly one fixed update. A complete tap
+`keyJustPressed`, `keyJustReleased`, `pointerJustPressed` and
+`pointerJustReleased` are visible for exactly one fixed update. A complete tap
 between two updates still reports both edges, while browser key repeat does
-not create extra presses.
+not create extra presses. `pointers` exposes mouse, pen, and every simultaneous
+touch in logical canvas coordinates; a released contact remains in the list
+for its release update so its final position is available. `wheelX` and
+`wheelY` similarly accumulate once per update in CSS pixels.
+
+The existing `mouseX`, `mouseY`, `mouseIsPressed`, `mouseJustPressed`, and
+`mouseJustReleased` fields remain as convenient aliases for the primary
+pointer.
 
 ## World and screen space
 

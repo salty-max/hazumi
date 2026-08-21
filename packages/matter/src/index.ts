@@ -26,7 +26,7 @@ export type {
   ShaderPass,
   FrameStats,
 } from "./app";
-export type { MatterContext, StyleOverrides } from "./context";
+export type { MatterContext, PointerInput, StyleOverrides } from "./context";
 export type { Camera2D, CameraPoint } from "./camera";
 export { ColorCache } from "./color-cache";
 export { spritesheet, isSpriteFrame, UnknownFrameError, UnknownClipError } from "./spritesheet";

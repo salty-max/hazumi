@@ -9,7 +9,7 @@ class TestCanvas extends EventTarget {
   removed = false;
   displayWidth = 0;
   displayHeight = 0;
-  readonly style = { width: "", maxWidth: "", height: "", aspectRatio: "" };
+  readonly style = { width: "", maxWidth: "", height: "", aspectRatio: "", touchAction: "" };
 
   getBoundingClientRect(): DOMRect {
     return {
@@ -132,6 +132,7 @@ describe("canvas sizing", () => {
     expect(h.canvas.style.maxWidth).toBe("100%");
     expect(h.canvas.style.height).toBe("auto");
     expect(h.canvas.style.aspectRatio).toBe("800 / 450");
+    expect(h.canvas.style.touchAction).toBe("none");
 
     app.stop();
   });
@@ -145,10 +146,13 @@ describe("canvas sizing", () => {
       { backend: () => h.renderer, canvas: h.canvas, width: 800, height: 450 },
       { draw: (): void => {} },
     );
-    const move = new Event("mousemove");
-    Object.defineProperties(move, {
-      clientX: { value: 200 },
-      clientY: { value: 112.5 },
+    const move = inputEvent("pointermove", {
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+      pressure: 0,
+      clientX: 200,
+      clientY: 112.5,
     });
 
     await app.ready;
@@ -156,6 +160,14 @@ describe("canvas sizing", () => {
 
     expect(app.context.mouseX).toBe(400);
     expect(app.context.mouseY).toBe(225);
+    expect(app.context.pointers[0]).toMatchObject({
+      id: 1,
+      type: "mouse",
+      x: 400,
+      y: 225,
+      isPrimary: true,
+      isPressed: false,
+    });
 
     app.stop();
   });
@@ -387,11 +399,174 @@ describe("input transitions", () => {
 
     await app.ready;
     h.runFrame(0);
-    h.canvas.dispatchEvent(inputEvent("mousedown", { button: 2 }));
-    globalThis.dispatchEvent(inputEvent("mouseup", { button: 2 }));
+    // Global release listeners must ignore contacts that began on another app.
+    globalThis.dispatchEvent(inputEvent("pointerup", { pointerId: 999 }));
+    expect(app.context.pointers).toHaveLength(0);
+    h.canvas.dispatchEvent(
+      inputEvent("pointerdown", {
+        pointerId: 1,
+        pointerType: "mouse",
+        isPrimary: true,
+        pressure: 0.5,
+        clientX: 0,
+        clientY: 0,
+        button: 2,
+        buttons: 2,
+      }),
+    );
+    globalThis.dispatchEvent(
+      inputEvent("pointerup", {
+        pointerId: 1,
+        pointerType: "mouse",
+        isPrimary: true,
+        pressure: 0,
+        clientX: 0,
+        clientY: 0,
+        button: 2,
+        buttons: 0,
+      }),
+    );
     h.runFrame(120);
 
     expect(snapshots).toEqual([[false, true, true]]);
+    app.stop();
+  });
+
+  test("simultaneous touches keep their final positions for the release update", async () => {
+    const h = harness();
+    const canvas = h.canvas as unknown as TestCanvas;
+    canvas.displayWidth = 200;
+    canvas.displayHeight = 100;
+    const snapshots: Array<
+      readonly [boolean, boolean, number, number | undefined, boolean | undefined]
+    > = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        width: 400,
+        height: 200,
+        clock: { fixedStep: 0.1, maxDelta: 1 },
+      },
+      {
+        update: (_dt, { pointerJustPressed, pointerJustReleased, pointers }): void => {
+          snapshots.push([
+            pointerJustPressed(7),
+            pointerJustReleased(7),
+            pointers.length,
+            pointers[0]?.x,
+            pointers[0]?.isPressed,
+          ]);
+        },
+        draw: (): void => {},
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    h.canvas.dispatchEvent(
+      inputEvent("pointerdown", {
+        pointerId: 7,
+        pointerType: "touch",
+        isPrimary: true,
+        pressure: 0.8,
+        clientX: 50,
+        clientY: 25,
+        button: 0,
+        buttons: 1,
+      }),
+    );
+    h.canvas.dispatchEvent(
+      inputEvent("pointerdown", {
+        pointerId: 8,
+        pointerType: "touch",
+        isPrimary: false,
+        pressure: 0.7,
+        clientX: 150,
+        clientY: 75,
+        button: 0,
+        buttons: 1,
+      }),
+    );
+    h.runFrame(120);
+
+    h.canvas.dispatchEvent(
+      inputEvent("pointermove", {
+        pointerId: 7,
+        pointerType: "touch",
+        isPrimary: true,
+        pressure: 0.6,
+        clientX: 75,
+        clientY: 25,
+        button: -1,
+        buttons: 1,
+      }),
+    );
+    globalThis.dispatchEvent(
+      inputEvent("pointerup", {
+        pointerId: 7,
+        pointerType: "touch",
+        isPrimary: true,
+        pressure: 0,
+        clientX: 100,
+        clientY: 25,
+        button: 0,
+        buttons: 0,
+      }),
+    );
+    globalThis.dispatchEvent(
+      inputEvent("pointerup", {
+        pointerId: 8,
+        pointerType: "touch",
+        isPrimary: false,
+        pressure: 0,
+        clientX: 150,
+        clientY: 75,
+        button: 0,
+        buttons: 0,
+      }),
+    );
+    // Browsers may emit leave immediately after release; final positions must
+    // still survive until the fixed update consumes the release edge.
+    h.canvas.dispatchEvent(inputEvent("pointerleave", { pointerId: 7 }));
+    h.canvas.dispatchEvent(inputEvent("pointerleave", { pointerId: 8 }));
+    h.runFrame(240);
+    h.runFrame(360);
+
+    expect(snapshots).toEqual([
+      [true, false, 2, 100, true],
+      [false, true, 2, 200, false],
+      [false, false, 0, undefined, undefined],
+    ]);
+    app.stop();
+  });
+
+  test("wheel deltas accumulate once and normalize line units", async () => {
+    const h = harness();
+    const snapshots: Array<readonly [number, number]> = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        clock: { fixedStep: 0.1, maxDelta: 1 },
+      },
+      {
+        update: (_dt, { wheelX, wheelY }): void => void snapshots.push([wheelX, wheelY]),
+        draw: (): void => {},
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    h.canvas.dispatchEvent(inputEvent("wheel", { deltaX: 2, deltaY: 3, deltaMode: 0 }));
+    h.canvas.dispatchEvent(inputEvent("wheel", { deltaX: -1, deltaY: 2, deltaMode: 1 }));
+    h.runFrame(120);
+    h.runFrame(240);
+
+    expect(snapshots).toEqual([
+      [-14, 35],
+      [0, 0],
+    ]);
     app.stop();
   });
 

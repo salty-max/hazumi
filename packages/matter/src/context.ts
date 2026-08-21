@@ -12,6 +12,23 @@ export interface StyleOverrides {
   blendMode?: Blend;
 }
 
+/** One mouse, pen, or touch contact in logical canvas coordinates. */
+export interface PointerInput {
+  /** Browser `PointerEvent.pointerId`. */
+  readonly id: number;
+  /** Browser pointer type: usually `mouse`, `pen`, or `touch`. */
+  readonly type: string;
+  readonly x: number;
+  readonly y: number;
+  /** Position at the end of the previous fixed update. */
+  readonly previousX: number;
+  readonly previousY: number;
+  /** Normalized contact pressure from 0 to 1. */
+  readonly pressure: number;
+  readonly isPrimary: boolean;
+  readonly isPressed: boolean;
+}
+
 /**
  * Everything a scene can reach.
  *
@@ -41,6 +58,17 @@ export interface MatterContext {
   readonly mouseIsPressed: boolean;
   /** Which button is down: 0 left, 1 middle, 2 right. */
   readonly mouseButton: number;
+
+  /** Active pointers, plus contacts released during the current fixed update. */
+  readonly pointers: readonly PointerInput[];
+  /** True only during the first update after this pointer goes down. */
+  pointerJustPressed: (pointerId?: number) => boolean;
+  /** True only during the first update after this pointer goes up or is cancelled. */
+  pointerJustReleased: (pointerId?: number) => boolean;
+  /** Horizontal wheel delta accumulated since the previous fixed update, in CSS pixels. */
+  readonly wheelX: number;
+  /** Vertical wheel delta accumulated since the previous fixed update, in CSS pixels. */
+  readonly wheelY: number;
 
   readonly keyIsPressed: boolean;
   /** The most recent key, as `KeyboardEvent.key`. */
@@ -185,6 +213,11 @@ export interface ContextState {
   keysReleased: Set<string>;
   mouseButtonsPressed: Set<number>;
   mouseButtonsReleased: Set<number>;
+  pointers: PointerInput[];
+  pointersPressed: Set<number>;
+  pointersReleased: Set<number>;
+  wheelX: number;
+  wheelY: number;
   looping: boolean;
 }
 
@@ -289,6 +322,23 @@ export function createContext(deps: ContextDeps): ContextBundle {
     },
     get mouseButton() {
       return state.mouseButton;
+    },
+    get pointers() {
+      return state.pointers;
+    },
+    pointerJustPressed: (pointerId?: number): boolean =>
+      pointerId === undefined
+        ? state.pointersPressed.size > 0
+        : state.pointersPressed.has(pointerId),
+    pointerJustReleased: (pointerId?: number): boolean =>
+      pointerId === undefined
+        ? state.pointersReleased.size > 0
+        : state.pointersReleased.has(pointerId),
+    get wheelX() {
+      return state.wheelX;
+    },
+    get wheelY() {
+      return state.wheelY;
     },
     get keyIsPressed() {
       return state.keyIsPressed;

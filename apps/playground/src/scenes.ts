@@ -43,9 +43,10 @@ return {
     name: "Input edges",
     code: `const player = { x: s.width / 2, y: s.height / 2 };
 let hue = 285;
+let size = 72;
 
 return {
-  update(dt, { keyIsDown, keyJustPressed, mouseJustPressed, mouseX, mouseY }) {
+  update(dt, { keyIsDown, keyJustPressed, pointerJustPressed, mouseX, mouseY, wheelY }) {
     if (keyIsDown('ArrowLeft')) player.x -= 240 * dt;
     if (keyIsDown('ArrowRight')) player.x += 240 * dt;
     if (keyIsDown('ArrowUp')) player.y -= 240 * dt;
@@ -53,15 +54,17 @@ return {
 
     // One change per press, even when the browser repeats the keydown event.
     if (keyJustPressed(' ')) hue = (hue + 55) % 360;
-    if (mouseJustPressed()) {
+    // Pointer Events covers mouse, pen, and touch through the same edge.
+    if (pointerJustPressed()) {
       player.x = mouseX;
       player.y = mouseY;
     }
+    size = Math.max(24, Math.min(160, size - wheelY * 0.25));
   },
   draw(_alpha, { background, circle, fill }) {
     background('oklch(0.14 0.02 260)');
     fill(\`oklch(0.72 0.18 \${hue})\`);
-    circle(player.x, player.y, 72);
+    circle(player.x, player.y, size);
   },
 };`,
   },

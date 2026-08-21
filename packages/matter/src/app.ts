@@ -1,7 +1,7 @@
 import { AppClock, type ClockOptions } from "@matter/core";
 import { type BackendFactory, CommandBuffer, type Renderer } from "@matter/graphics";
 import { ColorCache } from "./color-cache";
-import { type ContextState, createContext, type MatterContext } from "./context";
+import { type ContextState, createContext, type MatterContext, type PointerInput } from "./context";
 
 export interface AppOptions {
   readonly backend: BackendFactory;
@@ -89,6 +89,18 @@ interface PostCapableRenderer extends Renderer {
 
 interface StatsCapableRenderer extends Renderer {
   readonly stats: FrameStats;
+}
+
+interface MutablePointerInput extends PointerInput {
+  id: number;
+  type: string;
+  x: number;
+  y: number;
+  previousX: number;
+  previousY: number;
+  pressure: number;
+  isPrimary: boolean;
+  isPressed: boolean;
 }
 
 function reportsStats(renderer: Renderer): renderer is StatsCapableRenderer {
@@ -181,6 +193,9 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
   canvas.style.maxWidth = "100%";
   canvas.style.height = "auto";
   canvas.style.aspectRatio = `${width} / ${height}`;
+  // The canvas owns gestures that begin on it. Without this, a touch drag may
+  // scroll or zoom the page instead of producing a stable pointer stream.
+  canvas.style.touchAction = "none";
 
   if (ownsCanvas) {
     (options.parent ?? document.body).append(canvas);
@@ -213,6 +228,11 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     keysReleased: new Set<string>(),
     mouseButtonsPressed: new Set<number>(),
     mouseButtonsReleased: new Set<number>(),
+    pointers: [],
+    pointersPressed: new Set<number>(),
+    pointersReleased: new Set<number>(),
+    wheelX: 0,
+    wheelY: 0,
     looping: true,
   };
 
@@ -220,7 +240,12 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
   let pendingKeysReleased = new Set<string>();
   let pendingMouseButtonsPressed = new Set<number>();
   let pendingMouseButtonsReleased = new Set<number>();
+  let pendingPointersPressed = new Set<number>();
+  let pendingPointersReleased = new Set<number>();
+  let pendingWheelX = 0;
+  let pendingWheelY = 0;
   const mouseButtonsDown = new Set<number>();
+  const pointersById = new Map<number, MutablePointerInput>();
 
   const applyPasses = (passes: readonly ShaderPass[]): void => {
     if (!supportsPasses(renderer)) {
@@ -240,22 +265,96 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     setPasses: applyPasses,
   });
 
-  const onMove = (event: MouseEvent): void => {
+  const pointerPosition = (event: PointerEvent): readonly [number, number] => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = rect.width === 0 ? 1 : state.width / rect.width;
     const scaleY = rect.height === 0 ? 1 : state.height / rect.height;
-    state.mouseX = (event.clientX - rect.left) * scaleX;
-    state.mouseY = (event.clientY - rect.top) * scaleY;
+    return [(event.clientX - rect.left) * scaleX, (event.clientY - rect.top) * scaleY];
   };
-  const onDown = (event: MouseEvent): void => {
-    if (!mouseButtonsDown.has(event.button)) pendingMouseButtonsPressed.add(event.button);
-    mouseButtonsDown.add(event.button);
-    state.mouseIsPressed = true;
-    state.mouseButton = event.button;
+  const updatePointer = (event: PointerEvent): MutablePointerInput => {
+    const [x, y] = pointerPosition(event);
+    let pointer = pointersById.get(event.pointerId);
+    if (pointer === undefined) {
+      pointer = {
+        id: event.pointerId,
+        type: event.pointerType || "mouse",
+        x,
+        y,
+        previousX: x,
+        previousY: y,
+        pressure: event.pressure,
+        isPrimary: event.isPrimary,
+        isPressed: false,
+      };
+      pointersById.set(event.pointerId, pointer);
+      state.pointers.push(pointer);
+    } else {
+      pointer.type = event.pointerType || pointer.type;
+      pointer.x = x;
+      pointer.y = y;
+      pointer.pressure = event.pressure;
+      pointer.isPrimary = event.isPrimary;
+    }
+    if (event.isPrimary) {
+      state.mouseX = x;
+      state.mouseY = y;
+    }
+    return pointer;
   };
-  const onUp = (event: MouseEvent): void => {
-    if (mouseButtonsDown.delete(event.button)) pendingMouseButtonsReleased.add(event.button);
-    state.mouseIsPressed = mouseButtonsDown.size > 0;
+  const onPointerMove = (event: PointerEvent): void => {
+    updatePointer(event);
+  };
+  const onPointerLeave = (event: PointerEvent): void => {
+    const pointer = pointersById.get(event.pointerId);
+    if (
+      pointer === undefined ||
+      pointer.isPressed ||
+      pendingPointersReleased.has(event.pointerId) ||
+      state.pointersReleased.has(event.pointerId)
+    ) {
+      return;
+    }
+    pointersById.delete(event.pointerId);
+    const index = state.pointers.indexOf(pointer);
+    if (index !== -1) state.pointers.splice(index, 1);
+  };
+  const onPointerDown = (event: PointerEvent): void => {
+    const pointer = updatePointer(event);
+    if (!pointer.isPressed) pendingPointersPressed.add(event.pointerId);
+    pointer.isPressed = true;
+    if (event.isPrimary) {
+      if (!mouseButtonsDown.has(event.button)) pendingMouseButtonsPressed.add(event.button);
+      mouseButtonsDown.add(event.button);
+      state.mouseIsPressed = true;
+      state.mouseButton = event.button;
+    }
+    canvas.setPointerCapture?.(event.pointerId);
+  };
+  const onPointerEnd = (event: PointerEvent): void => {
+    // Pointer-up is global so a drag can finish outside the canvas, but events
+    // that began on another element do not belong to this application.
+    if (!pointersById.has(event.pointerId)) return;
+    const pointer = updatePointer(event);
+    const cancelled = event.type === "pointercancel";
+    const stillPressed = !cancelled && event.buttons !== 0;
+    if (pointer.isPressed && !stillPressed) pendingPointersReleased.add(event.pointerId);
+    pointer.isPressed = stillPressed;
+    if (!stillPressed) pointer.pressure = 0;
+    if (event.isPrimary) {
+      if (cancelled) {
+        for (const button of mouseButtonsDown) pendingMouseButtonsReleased.add(button);
+        mouseButtonsDown.clear();
+      } else if (mouseButtonsDown.delete(event.button)) {
+        pendingMouseButtonsReleased.add(event.button);
+      }
+      state.mouseIsPressed = mouseButtonsDown.size > 0;
+    }
+    if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  };
+  const onWheel = (event: WheelEvent): void => {
+    const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? state.height : 1;
+    pendingWheelX += event.deltaX * scale;
+    pendingWheelY += event.deltaY * scale;
   };
   const onKeyDown = (event: KeyboardEvent): void => {
     if (!state.keysDown.has(event.key)) pendingKeysPressed.add(event.key);
@@ -276,11 +375,21 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     for (const button of mouseButtonsDown) pendingMouseButtonsReleased.add(button);
     mouseButtonsDown.clear();
     state.mouseIsPressed = false;
+    for (const pointer of state.pointers) {
+      if (!pointer.isPressed) continue;
+      pendingPointersReleased.add(pointer.id);
+      const mutable = pointer as MutablePointerInput;
+      mutable.isPressed = false;
+      mutable.pressure = 0;
+    }
   };
 
-  canvas.addEventListener("mousemove", onMove);
-  canvas.addEventListener("mousedown", onDown);
-  globalThis.addEventListener("mouseup", onUp);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerleave", onPointerLeave);
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("wheel", onWheel);
+  globalThis.addEventListener("pointerup", onPointerEnd);
+  globalThis.addEventListener("pointercancel", onPointerEnd);
   globalThis.addEventListener("keydown", onKeyDown);
   globalThis.addEventListener("keyup", onKeyUp);
   globalThis.addEventListener("blur", onBlur);
@@ -305,12 +414,39 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     previousButtons = state.mouseButtonsReleased;
     state.mouseButtonsReleased = pendingMouseButtonsReleased;
     pendingMouseButtonsReleased = previousButtons;
+
+    let previousPointers = state.pointersPressed;
+    state.pointersPressed = pendingPointersPressed;
+    pendingPointersPressed = previousPointers;
+
+    previousPointers = state.pointersReleased;
+    state.pointersReleased = pendingPointersReleased;
+    pendingPointersReleased = previousPointers;
+
+    state.wheelX = pendingWheelX;
+    state.wheelY = pendingWheelY;
+    pendingWheelX = 0;
+    pendingWheelY = 0;
   };
   const endInputStep = (): void => {
     state.keysPressed.clear();
     state.keysReleased.clear();
     state.mouseButtonsPressed.clear();
     state.mouseButtonsReleased.clear();
+    state.wheelX = 0;
+    state.wheelY = 0;
+    for (let index = state.pointers.length - 1; index >= 0; index--) {
+      const pointer = state.pointers[index] as MutablePointerInput;
+      if (!pointer.isPressed && state.pointersReleased.has(pointer.id)) {
+        pointersById.delete(pointer.id);
+        state.pointers.splice(index, 1);
+      } else {
+        pointer.previousX = pointer.x;
+        pointer.previousY = pointer.y;
+      }
+    }
+    state.pointersPressed.clear();
+    state.pointersReleased.clear();
   };
   // Stable callback: stepFixed may call it several times per frame, so do not
   // allocate a closure in the per-frame path.
@@ -370,9 +506,12 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     stopped = true;
     sceneRevision++;
     cancelAnimationFrame(frameHandle);
-    canvas.removeEventListener("mousemove", onMove);
-    canvas.removeEventListener("mousedown", onDown);
-    globalThis.removeEventListener("mouseup", onUp);
+    canvas.removeEventListener("pointermove", onPointerMove);
+    canvas.removeEventListener("pointerleave", onPointerLeave);
+    canvas.removeEventListener("pointerdown", onPointerDown);
+    canvas.removeEventListener("wheel", onWheel);
+    globalThis.removeEventListener("pointerup", onPointerEnd);
+    globalThis.removeEventListener("pointercancel", onPointerEnd);
     globalThis.removeEventListener("keydown", onKeyDown);
     globalThis.removeEventListener("keyup", onKeyUp);
     globalThis.removeEventListener("blur", onBlur);
