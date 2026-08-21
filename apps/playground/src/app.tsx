@@ -348,18 +348,16 @@ export function App(): JSX.Element {
             <section className="flex size-full min-h-0 flex-col bg-canvas">
               <PanelHeading title="Preview" />
               <div className="preview-grid min-h-0 flex-1 overflow-auto p-5 sm:p-8">
-                <div className="m-auto w-fit rounded-xl border border-white/10 bg-black/20 p-2 shadow-2xl shadow-black/30">
-                  <div
-                    ref={stageRef}
-                    id="stage"
-                    role="application"
-                    aria-label="Interactive preview"
-                    tabIndex={0}
-                    onPointerDown={focusPreview}
-                    onKeyDown={keepGameKeysInPreview}
-                    className="overflow-hidden rounded-lg outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 focus:ring-offset-canvas"
-                  />
-                </div>
+                <div
+                  ref={stageRef}
+                  id="stage"
+                  role="application"
+                  aria-label="Interactive preview"
+                  tabIndex={0}
+                  onPointerDown={focusPreview}
+                  onKeyDown={keepGameKeysInPreview}
+                  className="m-auto w-fit max-w-full outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 focus:ring-offset-canvas"
+                />
               </div>
             </section>
           </ResizablePanel>
