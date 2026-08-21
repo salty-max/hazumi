@@ -9,7 +9,15 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 import { toSvg } from "@matter/backend-svg";
-import { start, type MatterApp, type SceneFactory } from "matter";
+import {
+  collision,
+  EMPTY_TILE,
+  spritesheet,
+  start,
+  tilemap,
+  type MatterApp,
+  type SceneFactory,
+} from "matter";
 import { webgl2 } from "matter/backends/webgl2";
 import { Button } from "./components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./components/ui/resizable";
@@ -24,6 +32,12 @@ import { STARTERS } from "./scenes";
 import { matterSyntaxHighlighting } from "./syntax-theme";
 
 const SIZE = 520;
+
+const PLAYGROUND_SCENE_API = Object.freeze({ collision, EMPTY_TILE, spritesheet, tilemap });
+Object.defineProperty(globalThis, "__matterPlaygroundSceneApi", {
+  configurable: true,
+  value: PLAYGROUND_SCENE_API,
+});
 
 interface PlaygroundStatus {
   readonly text: string;
@@ -84,7 +98,7 @@ function keepGameKeysInPreview(event: ReactKeyboardEvent<HTMLDivElement>): void 
 
 async function compile(view: EditorView): Promise<SceneFactory> {
   const source = view.state.doc.toString();
-  const module = `export default (s) => {\n${source}\n};`;
+  const module = `const { collision, EMPTY_TILE, spritesheet, tilemap } = globalThis.__matterPlaygroundSceneApi; export default async (s) => {\n${source}\n};`;
   const url = URL.createObjectURL(new Blob([module], { type: "text/javascript" }));
 
   try {

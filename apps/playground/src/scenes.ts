@@ -69,6 +69,144 @@ return {
 };`,
   },
   {
+    name: "Dungeon run",
+    code: `// Click the preview, then use WASD or the arrow keys.
+// Reach the violet beacon. Press R to restart.
+const TILE = 32;
+const COLUMNS = 40;
+const ROWS = 28;
+const PLAYER_SIZE = 22;
+const SPEED = 220;
+
+const sheet = spritesheet(await s.loadImage('/examples/assets/tiles.png'), {
+  frame: [16, 16],
+});
+const floorTiles = new Int16Array(COLUMNS * ROWS);
+const wallTiles = new Int16Array(COLUMNS * ROWS);
+floorTiles.fill(EMPTY_TILE);
+wallTiles.fill(EMPTY_TILE);
+
+const walls = [];
+const reusableHit = collision.createSweepHit();
+
+for (let row = 0; row < ROWS; row++) {
+  for (let column = 0; column < COLUMNS; column++) {
+    const index = row * COLUMNS + column;
+    const border = column === 0 || row === 0 || column === COLUMNS - 1 || row === ROWS - 1;
+    let barrier = false;
+    if (column > 0 && column < COLUMNS - 1 && column % 6 === 0) {
+      const gap = 3 + ((column / 6) * 4) % (ROWS - 6);
+      barrier = Math.abs(row - gap) > 1;
+    }
+
+    if (border || barrier) {
+      wallTiles[index] = 12 + (column + row) % 4;
+      walls.push(collision.aabb(column * TILE, row * TILE, TILE, TILE));
+    } else if ((column * 11 + row * 7) % 19 === 0) {
+      floorTiles[index] = 8 + (column + row) % 4;
+    }
+  }
+}
+
+const dungeon = tilemap({
+  columns: COLUMNS,
+  rows: ROWS,
+  tileWidth: TILE,
+  tileHeight: TILE,
+  layers: [
+    { name: 'floor', sheet, tiles: floorTiles },
+    { name: 'walls', sheet, tiles: wallTiles },
+  ],
+});
+
+const spawn = { x: TILE * 2.5, y: TILE * 2.5 };
+const goal = { x: TILE * (COLUMNS - 2.5), y: TILE * (ROWS - 2.5) };
+const goalShape = collision.circle(goal.x, goal.y, 18);
+let x = spawn.x;
+let y = spawn.y;
+let previousX = x;
+let previousY = y;
+let won = false;
+
+function reset(camera) {
+  x = spawn.x;
+  y = spawn.y;
+  previousX = x;
+  previousY = y;
+  won = false;
+  camera.lookAt(x, y);
+}
+
+function moveAxis(amount, horizontal) {
+  if (amount === 0) return;
+  const moving = collision.aabb(x - PLAYER_SIZE / 2, y - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+  const delta = { x: horizontal ? amount : 0, y: horizontal ? 0 : amount };
+  let safe = 1;
+
+  for (const wall of walls) {
+    const hit = collision.sweepAabb(moving, delta, wall, reusableHit);
+    if (hit !== null && hit.time < safe) safe = hit.time;
+  }
+
+  x += delta.x * safe;
+  y += delta.y * safe;
+}
+
+reset(s.camera);
+
+return {
+  update(dt, context) {
+    const { camera, keyIsDown, keyJustPressed } = context;
+    if (keyJustPressed('r') || keyJustPressed('R')) reset(camera);
+
+    previousX = x;
+    previousY = y;
+    if (!won) {
+      let dx = Number(keyIsDown('ArrowRight') || keyIsDown('d')) -
+        Number(keyIsDown('ArrowLeft') || keyIsDown('a'));
+      let dy = Number(keyIsDown('ArrowDown') || keyIsDown('s')) -
+        Number(keyIsDown('ArrowUp') || keyIsDown('w'));
+      const length = Math.hypot(dx, dy) || 1;
+      dx /= length;
+      dy /= length;
+      moveAxis(dx * SPEED * dt, true);
+      moveAxis(dy * SPEED * dt, false);
+
+      const player = collision.aabb(
+        x - PLAYER_SIZE / 2,
+        y - PLAYER_SIZE / 2,
+        PLAYER_SIZE,
+        PLAYER_SIZE,
+      );
+      won = collision.overlapsCircleAabb(goalShape, player);
+    }
+    camera.follow(x, y, 0.16);
+  },
+
+  draw(alpha, context) {
+    const { background, camera, circle, fill, rect, text, textSize, t } = context;
+    background('oklch(0.09 0.025 275)');
+    dungeon.draw(context);
+
+    fill('oklch(0.72 0.2 300)');
+    circle(goal.x, goal.y, 24 + Math.sin(t * 5) * 6);
+
+    const drawX = previousX + (x - previousX) * alpha;
+    const drawY = previousY + (y - previousY) * alpha;
+    fill('oklch(0.92 0.16 105)');
+    rect(drawX - PLAYER_SIZE / 2, drawY - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+
+    camera.screen(() => {
+      fill('oklch(0.13 0.025 275 / 0.88)');
+      rect(14, 14, won ? 244 : 300, 58);
+      fill('white');
+      textSize(14);
+      text(won ? 'Beacon reached — press R to replay' : 'WASD / arrows · find the violet beacon', 28, 49);
+    });
+  },
+};`,
+  },
+  {
     name: "Transform stack",
     code: `return {
   draw(_alpha, { background, push, pop, translate, rotate, rect, fill, width, height, t }) {

@@ -464,7 +464,7 @@ bun run dev
 | Page | What it is |
 | --- | --- |
 | `/` | Landing page |
-| `/playground` | Live editor, five starters, SVG export |
+| `/playground` | Live editor, seven starters, SVG export |
 | `/reference` | Generated API reference |
 | `/examples` | The twelve example scenes |
 | `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
