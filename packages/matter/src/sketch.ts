@@ -153,9 +153,18 @@ const MAX_PIXEL_RATIO = 2;
  *
  * ```ts
  * sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
- *   return ({ circle, fill, width, height, t }) => {
- *     fill('oklch(70% 0.18 250)');
- *     circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
+ *   const player = { x: 300, y: 300 };
+ *
+ *   return {
+ *     update(dt, { camera }) {
+ *       player.x += 40 * dt;
+ *       camera.follow(player.x, player.y, 0.12);
+ *     },
+ *     draw(_alpha, { background, circle, fill }) {
+ *       background('#090d16');
+ *       fill('oklch(.74 .18 160)');
+ *       circle(player.x, player.y, 48);
+ *     },
  *   };
  * });
  * ```

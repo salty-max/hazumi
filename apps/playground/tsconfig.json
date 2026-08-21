@@ -3,7 +3,7 @@
   "compilerOptions": {
     // The isolated linker keeps root @types out of each package's resolution
     // scope, so bun's types must be requested explicitly.
-    "types": ["bun", "react", "react-dom"],
+    "types": ["bun", "react", "react-dom", "vite/client"],
     "jsx": "react-jsx"
   },
   "include": ["src/**/*", "test/**/*"]

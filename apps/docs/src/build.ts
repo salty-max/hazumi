@@ -127,11 +127,11 @@ const html = `<!doctype html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Matter reference</title>
-<link rel="stylesheet" href="./style.css" />
+<link rel="stylesheet" href="/apps/docs/dist/style.css" />
 </head>
 <body class="docs-shell">
 <aside class="docs-sidebar">
-  <a class="docs-brand" href="../../../index.html"><span class="brand-mark"></span><span>Matter</span><small>Reference</small></a>
+  <a class="docs-brand" href="/"><span class="brand-mark"></span><span>Matter</span><small>Reference</small></a>
   <div class="docs-search-wrap"><input id="filter" type="search" placeholder="Search symbols…" aria-label="Filter reference" /></div>
   <nav id="nav" aria-label="API modules">${renderNav(modules)}</nav>
 </aside>
@@ -143,7 +143,7 @@ const html = `<!doctype html>
   </header>
   ${modules.map(([mod, blurb]) => renderModule(mod, blurb)).join('')}
 </main>
-<script src="./filter.js"></script>
+<script src="/apps/docs/dist/filter.js"></script>
 </body>
 </html>
 `;

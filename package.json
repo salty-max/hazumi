@@ -13,7 +13,8 @@
   ],
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "bun run build && vite",
+    "serve": "vite",
     "test": "turbo run test",
     "test:browser": "turbo run test:browser",
     "typecheck": "turbo run typecheck",
@@ -35,14 +36,19 @@
     "@matter/backend-svg": "workspace:*",
     "@matter/backend-webgl2": "workspace:*",
     "@matter/graphics": "workspace:*",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.3.14",
+    "@vitejs/plugin-react": "^6.0.1",
     "husky": "^9.1.7",
     "matter": "workspace:*",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tsdown": "^0.22.14",
     "turbo": "^2.10.11",
     "typescript": "^7.0.2",
+    "vite": "^8.2.2",
     "vitest": "^4.1.11"
   }
 }

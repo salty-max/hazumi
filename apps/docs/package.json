@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "build": "bun run src/build.ts && bunx @tailwindcss/cli -i src/style.css -o dist/style.css --minify",
+    "dev": "bun run src/build.ts && bunx @tailwindcss/cli -i src/style.css -o dist/style.css --watch",
     "typecheck": "tsc --noEmit",
     "test": "bun test --pass-with-no-tests"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
     "@types/bun": "^1.4.0",
+    "matter": "workspace:*",
     "tailwindcss": "^4.3.3"
   }
 }

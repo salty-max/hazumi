@@ -3,13 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import {
-  Braces,
-  Check,
-  CircleAlert,
-  Code2,
   Download,
-  ExternalLink,
-  Gauge,
   Play,
   Sparkles,
 } from "lucide-react";
@@ -93,22 +87,13 @@ function useNarrowLayout(): boolean {
 }
 
 function PanelHeading({
-  icon,
   title,
-  detail,
-  actions,
 }: {
-  readonly icon: JSX.Element;
   readonly title: string;
-  readonly detail: string;
-  readonly actions?: JSX.Element;
 }): JSX.Element {
   return (
-    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-panel px-3">
-      <span className="text-primary">{icon}</span>
-      <span className="text-xs font-semibold tracking-wide text-foreground">{title}</span>
-      <span className="hidden text-[11px] text-muted-foreground sm:inline">{detail}</span>
-      {actions === undefined ? null : <div className="ml-auto">{actions}</div>}
+    <div className="flex h-9 shrink-0 items-center border-b border-border bg-panel px-3">
+      <span className="text-xs font-medium text-foreground">{title}</span>
     </div>
   );
 }
@@ -132,7 +117,7 @@ export function App(): JSX.Element {
     handleRef.current?.stop();
     handleRef.current = null;
     stageRef.current.replaceChildren();
-    setStatus({ text: "Compiling sketch", kind: "idle" });
+    setStatus({ text: "Compiling", kind: "idle" });
 
     try {
       const setup = await compile(editor);
@@ -158,7 +143,7 @@ export function App(): JSX.Element {
         handle.stop();
         return;
       }
-      setStatus({ text: "Live · WebGL2", kind: "ok" });
+      setStatus({ text: "Ready", kind: "ok" });
     } catch (error) {
       if (runId !== runIdRef.current) return;
       handleRef.current?.stop();
@@ -169,7 +154,7 @@ export function App(): JSX.Element {
 
   const exportSvg = useCallback(async (): Promise<void> => {
     if (editor === null) return;
-    setStatus({ text: "Rendering SVG", kind: "idle" });
+    setStatus({ text: "Exporting", kind: "idle" });
     let exporter: SketchHandle | null = null;
 
     try {
@@ -240,7 +225,7 @@ export function App(): JSX.Element {
     <div className="flex h-dvh min-h-[480px] flex-col overflow-hidden bg-background text-foreground">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-panel/95 px-3 shadow-sm backdrop-blur sm:px-4">
         <a
-          href="../../index.html"
+          href="/"
           className="group mr-1 flex items-center gap-2.5"
           aria-label="Matter home"
         >
@@ -248,9 +233,6 @@ export function App(): JSX.Element {
             <span />
           </span>
           <span className="hidden text-sm font-semibold tracking-tight sm:block">Matter</span>
-          <span className="hidden rounded-full border border-border bg-secondary px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground md:block">
-            Playground
-          </span>
         </a>
 
         <div className="mx-1 h-5 w-px bg-border" />
@@ -269,6 +251,16 @@ export function App(): JSX.Element {
         </Select>
 
         <div className="ml-auto flex items-center gap-2">
+          <span
+            aria-live="polite"
+            className={
+              status.kind === "error"
+                ? "hidden max-w-72 truncate text-xs text-destructive sm:block"
+                : "hidden text-xs text-muted-foreground sm:block"
+            }
+          >
+            {status.text}
+          </span>
           <Button variant="outline" size="sm" onClick={() => void exportSvg()}>
             <Download />
             <span className="hidden sm:inline">Export SVG</span>
@@ -289,16 +281,7 @@ export function App(): JSX.Element {
             <ResizablePanelGroup orientation="vertical" id="code-output">
               <ResizablePanel id="editor" defaultSize="72" minSize="180px">
                 <section className="flex size-full min-h-0 flex-col bg-editor">
-                  <PanelHeading
-                    icon={<Code2 className="size-3.5" />}
-                    title="Sketch"
-                    detail="JavaScript · live module"
-                    actions={
-                      <span className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
-                        <Braces className="size-3" /> setup(s)
-                      </span>
-                    }
-                  />
+                  <PanelHeading title="Code" />
                   <CodeEditor initialCode={STARTERS[0]?.code ?? ""} onReady={setEditor} />
                 </section>
               </ResizablePanel>
@@ -311,19 +294,10 @@ export function App(): JSX.Element {
                 collapsedSize="44px"
               >
                 <section className="flex size-full min-h-0 flex-col bg-panel">
-                  <PanelHeading
-                    icon={<Braces className="size-3.5" />}
-                    title="SVG output"
-                    detail={
-                      svg.length === 0
-                        ? "Export a frame to inspect it"
-                        : `${(svg.length / 1024).toFixed(1)} kB`
-                    }
-                  />
+                  <PanelHeading title="SVG" />
                   {svg.length === 0 ? (
                     <div className="flex min-h-0 flex-1 items-center justify-center p-4 text-center text-xs leading-5 text-muted-foreground">
-                      The same command stream can become vectors. Export a frame to see the
-                      generated markup here.
+                      No SVG exported.
                     </div>
                   ) : (
                     <textarea
@@ -343,17 +317,7 @@ export function App(): JSX.Element {
 
           <ResizablePanel id="preview" defaultSize="46" minSize={narrow ? "240px" : "360px"}>
             <section className="flex size-full min-h-0 flex-col bg-canvas">
-              <PanelHeading
-                icon={<Gauge className="size-3.5" />}
-                title="Preview"
-                detail={`${SIZE} × ${SIZE}`}
-                actions={
-                  <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/8 px-2 py-1 text-[10px] font-medium text-emerald-300">
-                    <span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_currentColor]" />
-                    WebGL2
-                  </span>
-                }
-              />
+              <PanelHeading title="Preview" />
               <div className="preview-grid min-h-0 flex-1 overflow-auto p-5 sm:p-8">
                 <div className="m-auto w-fit rounded-xl border border-white/10 bg-black/20 p-2 shadow-2xl shadow-black/30">
                   <div ref={stageRef} id="stage" className="overflow-hidden rounded-lg" />
@@ -364,33 +328,6 @@ export function App(): JSX.Element {
         </ResizablePanelGroup>
       </main>
 
-      <footer className="flex h-7 shrink-0 items-center gap-3 border-t border-border bg-panel px-3 font-mono text-[10px] text-muted-foreground">
-        <span
-          className={
-            status.kind === "error"
-              ? "flex items-center gap-1.5 text-destructive"
-              : status.kind === "ok"
-                ? "flex items-center gap-1.5 text-emerald-300"
-                : "flex items-center gap-1.5"
-          }
-        >
-          {status.kind === "error" ? (
-            <CircleAlert className="size-3" />
-          ) : (
-            <Check className="size-3" />
-          )}
-          {status.text}
-        </span>
-        <span className="ml-auto hidden items-center gap-1 sm:flex">
-          deterministic seed · 1
-          <a
-            href="../docs/dist/index.html"
-            className="ml-2 flex items-center gap-1 hover:text-foreground"
-          >
-            API <ExternalLink className="size-2.5" />
-          </a>
-        </span>
-      </footer>
     </div>
   );
 }

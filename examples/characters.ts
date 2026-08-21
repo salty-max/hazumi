@@ -21,8 +21,8 @@ export function characters(parent: HTMLElement): SketchHandle {
     { backend: webgl2(), width: 600, height: 600, parent, seed: 21 },
     async (s) => {
       const [tilesImage, heroImage] = await Promise.all([
-        s.loadImage('./assets/tiles.png'),
-        s.loadImage('./assets/hero.png'),
+        s.loadImage('/examples/assets/tiles.png'),
+        s.loadImage('/examples/assets/hero.png'),
       ]);
 
       const tiles = spritesheet(tilesImage, { frame: [16, 16] });

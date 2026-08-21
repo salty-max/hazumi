@@ -57,7 +57,7 @@ export function bloodMage(parent: HTMLElement): SketchHandle {
     async (s) => {
       const names = ['Idle', 'Walk', 'Attack', 'Attack_Effect'] as const;
       const images = await Promise.all(
-        names.map((n) => s.loadImage(`./assets/blood-mage/${n}.png`)),
+        names.map((n) => s.loadImage(`/examples/assets/blood-mage/${n}.png`)),
       );
 
       /** One sheet per animation, each with a clip per facing. */

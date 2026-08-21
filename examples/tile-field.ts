@@ -15,7 +15,7 @@ export function tileField(parent: HTMLElement): SketchHandle {
   return sketch(
     { backend: webgl2(), width: 600, height: 600, parent, seed: 12 },
     async (s) => {
-      const image = await s.loadImage('./assets/tiles.png');
+      const image = await s.loadImage('/examples/assets/tiles.png');
       const sheet = spritesheet(image, { frame: [16, 16] });
 
       const cols = Math.ceil(s.width / TILE) + 2;

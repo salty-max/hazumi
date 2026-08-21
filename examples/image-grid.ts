@@ -8,7 +8,7 @@ import { webgl2 } from 'matter/backends/webgl2';
 export function imageGrid(parent: HTMLElement): SketchHandle {
   return sketch({ backend: webgl2(), width: 600, height: 600, parent, seed: 5 }, async (s) => {
     // No preload phase: setup is async and await means what it means.
-    const swatch = await s.loadImage('./assets/swatch.png');
+    const swatch = await s.loadImage('/examples/assets/swatch.png');
 
     return ({ background, image, rect, fill, text, textSize, width, height, t,
               mouseX, mouseY, pmouseX, pmouseY, keyIsDown }: SketchContext) => {

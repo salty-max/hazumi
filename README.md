@@ -112,8 +112,8 @@ return {
 `worldToScreen()` does the reverse. Both accept an optional reusable output
 point for allocation-free use in a hot loop.
 
-Run `bun run bench/serve.ts` and open
-http://localhost:5199/examples/gallery.html to see the twelve sketches in
+Run `bun run dev` and open
+http://localhost:5199/examples to see the twelve sketches in
 `examples/`.
 
 ## Design in one page
@@ -221,7 +221,7 @@ the bar is "no visible difference", not "identical". The interleaved-blend
 scene takes ten draw calls by design: merging non-adjacent instances would
 reorder overlapping transparent shapes.
 
-Run it with `bun run bench/serve.ts` and open
+Run it with `bun run dev` and open
 http://localhost:5199/bench/compare.html.
 
 SVG is rasterised through the browser and diffed against Canvas2D as well.
@@ -365,7 +365,8 @@ Reproduce with:
 bun run bench/encode.ts
 ```
 
-For the GPU bench, run `bun run bench/serve.ts` and open http://localhost:5199.
+For the GPU bench, run `bun run dev` and open
+http://localhost:5199/bench/gpu.html.
 
 ## Development
 
@@ -377,18 +378,18 @@ bun run build
 bun run test
 ```
 
-Then serve the repo and open http://localhost:5199:
+Build the packages, then start the Vite development server:
 
 ```bash
-bun run bench/serve.ts
+bun run dev
 ```
 
 | Page | What it is |
 | --- | --- |
-| `/index.html` | Landing page |
-| `/apps/playground/index.html` | Live editor, five starters, SVG export |
-| `/apps/docs/dist/index.html` | API reference, 184 symbols |
-| `/examples/gallery.html` | The twelve example sketches |
+| `/` | Landing page |
+| `/playground` | Live editor, five starters, SVG export |
+| `/reference` | API reference, 234 symbols |
+| `/examples` | The twelve example sketches |
 | `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
 | `/bench/gpu.html` | 100k-shape GPU benchmark |
 | `/bench/probe.html` | Stencil-through-a-render-pass regression check |
