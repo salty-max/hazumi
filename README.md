@@ -339,6 +339,39 @@ same elapsed time always gives the same frame. Clips end by looping, holding
 (what a one-shot needs) or ping-ponging, and a frame held longer is expressed
 by repeating it: `[0, 0, 1]` gives frame 0 twice the screen time.
 
+### Tilemaps
+
+`tilemap()` keeps row-major layer data, skips empty cells, and visits only the
+part of the grid visible through the camera. Each layer owns one spritesheet,
+so its visible tiles remain adjacent in the command stream and render as one
+texture batch:
+
+```ts
+const world = tilemap({
+  columns: 64,
+  rows: 32,
+  tileWidth: 16,
+  tileHeight: 16,
+  layers: [
+    { name: 'ground', sheet, tiles: groundTiles },
+    { name: 'detail', sheet, tiles: detailTiles },
+  ],
+});
+
+return {
+  update(_dt, { camera }) {
+    camera.follow(player.x, player.y, 0.12);
+  },
+  draw(_alpha, context) {
+    world.draw(context);
+  },
+};
+```
+
+Use `EMPTY_TILE` for gaps. `world.layer('detail').set(x, y, frame)` updates a
+cell without rebuilding the map; layers can also be hidden or filled in place.
+Invalid frame indices throw instead of wrapping to a different tile.
+
 ### Several sheets
 
 Loading more than one is normal — tiles, a character, effects. They cannot

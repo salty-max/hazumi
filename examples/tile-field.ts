@@ -6,7 +6,7 @@
  * and batching could not merge them because it only joins adjacent instances —
  * so this same scene cost one call per tile.
  */
-import { start, spritesheet, type MatterApp, type MatterContext } from "matter";
+import { start, spritesheet, tilemap, type MatterApp, type MatterContext } from "matter";
 import { webgl2 } from "matter/backends/webgl2";
 
 const TILE = 34;
@@ -21,32 +21,30 @@ export function tileField(parent: HTMLElement): MatterApp {
 
     // Which tile sits where, decided once so the field is stable as it
     // scrolls rather than shimmering.
-    const pick = new Uint8Array(cols * rows);
-    for (let i = 0; i < pick.length; i++) {
-      pick[i] = s.random.int(0, sheet.length);
+    const tiles = new Uint8Array(cols * rows);
+    for (let i = 0; i < tiles.length; i++) {
+      tiles[i] = s.random.int(0, sheet.length);
     }
+    const field = tilemap({
+      columns: cols,
+      rows,
+      tileWidth: TILE,
+      tileHeight: TILE,
+      layers: [{ name: "ground", sheet, tiles }],
+    });
 
     return {
-      draw: (
-        _alpha,
-        { background, image: draw, text, textSize, fill, width, height, t }: MatterContext,
-      ): void => {
+      draw: (_alpha, context: MatterContext): void => {
+        const { background, text, textSize, fill, height, t } = context;
         background("oklch(0.12 0.02 270)");
 
         const offsetX = -((t * 26) % TILE);
         const offsetY = -((t * 14) % TILE);
-
-        for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < cols; col++) {
-            const frame = sheet.frame(pick[row * cols + col] as number);
-            draw(frame, col * TILE + offsetX, row * TILE + offsetY, TILE - 2, TILE - 2);
-          }
-        }
+        field.draw(context, offsetX, offsetY);
 
         fill("oklch(0.95 0.02 90)");
         textSize(14);
         text(`${cols * rows} sprites · 16 frames · one texture`, 16, height - 18);
-        void width;
       },
     };
   });

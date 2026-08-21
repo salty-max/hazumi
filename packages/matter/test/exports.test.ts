@@ -27,6 +27,11 @@ describe("matter exports", () => {
     expect(typeof matter.collision.sweepCircle).toBe("function");
   });
 
+  test("exports tilemaps as runtime values", () => {
+    expect(typeof matter.tilemap).toBe("function");
+    expect(matter.EMPTY_TILE).toBe(-1);
+  });
+
   test("the re-exported CommandBuffer is usable", () => {
     const buf = new matter.CommandBuffer();
     buf.circle(1, 2, 3);

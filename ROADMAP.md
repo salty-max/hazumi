@@ -4,7 +4,7 @@ What is built, what is built but not reachable, and what is next. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 608 unit tests, 19
+**Where it stands:** 0.1.0, pre-alpha. 10 packages, 617 unit tests, 19
 backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
@@ -52,6 +52,10 @@ Collision queries now cover point containment, static AABB/circle overlap,
 finite raycasts, and swept AABB/circle impacts. Tangency and initial overlap
 semantics are explicit, and every hit result can be reused without allocation.
 
+Tilemaps now store mutable row-major layers, cull their traversal to the camera,
+and emit each layer as one adjacent spritesheet run. Empty cells cost no command,
+and invalid edits fail instead of silently wrapping to another frame.
+
 ## Built but not reachable
 
 One subsystem is implemented and tested but nothing consumes it. This is a
@@ -70,9 +74,7 @@ available.
 Sprites and animation clips landed; these are what still stands between the
 library and a real 2D game, roughly in dependency order.
 
-1. **Tilemaps.** Spritesheets give the frames; a tilemap gives the layout,
-   culling to the camera, and one draw call per layer.
-2. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
+1. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
    Likely the first real candidate for the plugin system rather than L5.
 
 ## Library gaps, independent of games

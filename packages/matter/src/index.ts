@@ -38,6 +38,14 @@ export { ColorCache } from "./color-cache";
 export { spritesheet, isSpriteFrame, UnknownFrameError, UnknownClipError } from "./spritesheet";
 export { createClip, ClipEnd, EmptyClipError } from "./animation";
 export type { AnimationClip, ClipOptions } from "./animation";
+export { tilemap, EMPTY_TILE } from "./tilemap";
+export type {
+  Tilemap,
+  TilemapDrawContext,
+  TilemapLayer,
+  TilemapLayerOptions,
+  TilemapOptions,
+} from "./tilemap";
 export type {
   Spritesheet,
   SpriteFrame,
