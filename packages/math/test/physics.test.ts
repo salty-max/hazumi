@@ -66,12 +66,37 @@ describe("circle collisions", () => {
     world.addBox({ x: 0, y: 100, width: 400, height: 20, isStatic: true });
     const ball = world.addCircle({ x: 0, y: 0, radius: 10 });
     step(world, 180);
-    expect(ball.y + ball.radius).toBeLessThan(100);
-    expect(ball.y + ball.radius).toBeGreaterThan(85);
-    expect(Math.abs(ball.vy)).toBeLessThan(20);
+    // Floor top is y=90; the ball's bottom should sit there, not fall through.
+    expect(ball.y + ball.radius).toBeLessThan(91);
+    expect(ball.y + ball.radius).toBeGreaterThan(88);
+    expect(Math.abs(ball.vy)).toBeLessThan(1);
   });
 
-  test("a resting box does not keep bouncing on the floor", () => {
+  test("overlapping circles separate along the join", () => {
+    const world = physics.world({ gravityY: 0 });
+    const left = world.addCircle({ x: 0, y: 0, radius: 10 });
+    const right = world.addCircle({ x: 6, y: 0, radius: 10 });
+    step(world, 30);
+    expect(right.x - left.x).toBeGreaterThan(19);
+  });
+
+  test("restitution reverses a fast impact", () => {
+    const world = physics.world({ gravityY: 0 });
+    world.addBox({ x: 0, y: 50, width: 200, height: 10, isStatic: true, restitution: 1 });
+    const ball = world.addCircle({
+      x: 0,
+      y: 0,
+      radius: 8,
+      vy: 200,
+      restitution: 1,
+    });
+    step(world, 40);
+    expect(ball.vy).toBeLessThan(-50);
+  });
+});
+
+describe("resting contact", () => {
+  test("a box on a floor does not keep bouncing", () => {
     const world = physics.world({ gravityY: 1600 });
     world.addBox({ x: 0, y: 100, width: 400, height: 20, isStatic: true, friction: 0.6 });
     const crate = world.addBox({ x: 0, y: 0, width: 32, height: 24, friction: 0.6 });
@@ -82,6 +107,8 @@ describe("circle collisions", () => {
       maxSpeed = Math.max(maxSpeed, Math.abs(crate.vx), Math.abs(crate.vy), Math.abs(crate.omega));
     }
     expect(maxSpeed).toBeLessThan(0.01);
+    expect(crate.y + crate.height / 2).toBeLessThan(91);
+    expect(crate.y + crate.height / 2).toBeGreaterThan(88);
   });
 
   test("a two-box stack stays put", () => {
@@ -104,28 +131,6 @@ describe("circle collisions", () => {
     expect(maxSpeed).toBeLessThan(0.05);
     expect(upper.y).toBeLessThan(lower.y);
   });
-
-  test("overlapping circles separate along the join", () => {
-    const world = physics.world({ gravityY: 0 });
-    const left = world.addCircle({ x: 0, y: 0, radius: 10 });
-    const right = world.addCircle({ x: 6, y: 0, radius: 10 });
-    step(world, 30);
-    expect(right.x - left.x).toBeGreaterThan(19);
-  });
-
-  test("restitution reverses a fast impact", () => {
-    const world = physics.world({ gravityY: 0 });
-    world.addBox({ x: 0, y: 50, width: 200, height: 10, isStatic: true, restitution: 1 });
-    const ball = world.addCircle({
-      x: 0,
-      y: 0,
-      radius: 8,
-      vy: 200,
-      restitution: 1,
-    });
-    step(world, 40);
-    expect(ball.vy).toBeLessThan(0);
-  });
 });
 
 describe("oriented boxes", () => {
@@ -142,6 +147,7 @@ describe("oriented boxes", () => {
     step(world, 240);
     expect(crate.y).toBeGreaterThan(40);
     expect(crate.y).toBeLessThan(80);
+    expect(Math.abs(crate.vy)).toBeLessThan(1);
     expect(Number.isFinite(crate.angle)).toBe(true);
   });
 
@@ -178,6 +184,14 @@ describe("friction and bookkeeping", () => {
     world.step(1);
     expect(ball.x).toBe(0);
     expect(world.remove(ball)).toBe(false);
+  });
+
+  test("forces and impulses reject a body from another world", () => {
+    const home = physics.world({ gravityY: 0 });
+    const other = physics.world({ gravityY: 0 });
+    const ball = home.addCircle({ x: 0, y: 0, radius: 4 });
+    expect(() => other.applyImpulse(ball, 1, 0)).toThrow(TypeError);
+    expect(() => other.applyForce(ball, 1, 0)).toThrow(TypeError);
   });
 
   test("the same steps are deterministic", () => {

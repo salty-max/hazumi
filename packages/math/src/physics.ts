@@ -136,6 +136,12 @@ const CLIP_TMP: readonly [MutablePoint, MutablePoint, MutablePoint] = [
   { x: 0, y: 0 },
   { x: 0, y: 0 },
 ];
+const REF_A: MutablePoint = { x: 0, y: 0 };
+const REF_B: MutablePoint = { x: 0, y: 0 };
+const AXES_A: BoxAxes = { c: 0, s: 0, hw: 0, hh: 0 };
+const AXES_B: BoxAxes = { c: 0, s: 0, hw: 0, hh: 0 };
+const PROJECTION = { min: 0, max: 0 };
+const SAT_STATE = { minOverlap: 0, nx: 0, ny: 0, axisIndex: 0 };
 
 function finite(value: number, name: string): number {
   if (!Number.isFinite(value)) throw new RangeError(`${name} must be a finite number`);
@@ -223,7 +229,7 @@ function applyForceOn(body: InternalBody, fx: number, fy: number, px: number, py
   body.torque += cross2(px - body.x, py - body.y, fx, fy);
 }
 
-function boundsOverlap(a: InternalBody, b: InternalBody, padding: number): boolean {
+function boundsOverlap(a: InternalBody, b: InternalBody): boolean {
   let aHw: number;
   let aHh: number;
   if (a.shape === Shape.Circle) {
@@ -246,7 +252,7 @@ function boundsOverlap(a: InternalBody, b: InternalBody, padding: number): boole
     bHw = c * b.width * 0.5 + s * b.height * 0.5;
     bHh = s * b.width * 0.5 + c * b.height * 0.5;
   }
-  return Math.abs(a.x - b.x) <= aHw + bHw + padding && Math.abs(a.y - b.y) <= aHh + bHh + padding;
+  return Math.abs(a.x - b.x) <= aHw + bHw && Math.abs(a.y - b.y) <= aHh + bHh;
 }
 
 function addContact(
@@ -384,25 +390,19 @@ interface BoxAxes {
   hh: number;
 }
 
-function boxAxes(body: InternalBody): BoxAxes {
-  return {
-    c: Math.cos(body.angle),
-    s: Math.sin(body.angle),
-    hw: body.width * 0.5,
-    hh: body.height * 0.5,
-  };
+function fillAxes(body: InternalBody, out: BoxAxes): void {
+  out.c = Math.cos(body.angle);
+  out.s = Math.sin(body.angle);
+  out.hw = body.width * 0.5;
+  out.hh = body.height * 0.5;
 }
 
-function projectBox(
-  body: InternalBody,
-  axes: BoxAxes,
-  ax: number,
-  ay: number,
-): readonly [number, number] {
+function projectBox(body: InternalBody, axes: BoxAxes, ax: number, ay: number): void {
   const extent =
     Math.abs(axes.c * ax + axes.s * ay) * axes.hw + Math.abs(-axes.s * ax + axes.c * ay) * axes.hh;
   const mid = body.x * ax + body.y * ay;
-  return [mid - extent, mid + extent];
+  PROJECTION.min = mid - extent;
+  PROJECTION.max = mid + extent;
 }
 
 function worldPoint(
@@ -424,21 +424,21 @@ function incidentFace(
   out0: MutablePoint,
   out1: MutablePoint,
 ): void {
-  const dots = [
-    axes.c * nx + axes.s * ny,
-    -axes.s * nx + axes.c * ny,
-    -axes.c * nx - axes.s * ny,
-    axes.s * nx - axes.c * ny,
-  ];
+  const d0 = axes.c * nx + axes.s * ny;
+  const d1 = -axes.s * nx + axes.c * ny;
+  const d2 = -axes.c * nx - axes.s * ny;
+  const d3 = axes.s * nx - axes.c * ny;
   let best = 0;
-  let bestDot = dots[0] as number;
-  for (let i = 1; i < 4; i++) {
-    const dot = dots[i] as number;
-    if (dot < bestDot) {
-      best = i;
-      bestDot = dot;
-    }
+  let bestDot = d0;
+  if (d1 < bestDot) {
+    best = 1;
+    bestDot = d1;
   }
+  if (d2 < bestDot) {
+    best = 2;
+    bestDot = d2;
+  }
+  if (d3 < bestDot) best = 3;
   const hw = axes.hw;
   const hh = axes.hh;
   if (best === 0) {
@@ -495,52 +495,58 @@ function clipSegment(
   return n;
 }
 
+function considerAxis(
+  a: InternalBody,
+  b: InternalBody,
+  axesA: BoxAxes,
+  axesB: BoxAxes,
+  ax: number,
+  ay: number,
+  index: number,
+  state: { minOverlap: number; nx: number; ny: number; axisIndex: number },
+): boolean {
+  projectBox(a, axesA, ax, ay);
+  const minA = PROJECTION.min;
+  const maxA = PROJECTION.max;
+  projectBox(b, axesB, ax, ay);
+  const overlap = Math.min(maxA, PROJECTION.max) - Math.max(minA, PROJECTION.min);
+  if (overlap < 0) return false;
+  if ((b.x - a.x) * ax + (b.y - a.y) * ay < 0) {
+    ax = -ax;
+    ay = -ay;
+  }
+  if (overlap < state.minOverlap) {
+    state.minOverlap = overlap;
+    state.nx = ax;
+    state.ny = ay;
+    state.axisIndex = index;
+  }
+  return true;
+}
+
 function collideBoxes(
   a: InternalBody,
   b: InternalBody,
   contacts: Contact[],
   count: number,
 ): number {
-  const axesA = boxAxes(a);
-  const axesB = boxAxes(b);
-  const worldAxes: readonly (readonly [number, number])[] = [
-    [axesA.c, axesA.s],
-    [-axesA.s, axesA.c],
-    [axesB.c, axesB.s],
-    [-axesB.s, axesB.c],
-  ];
+  fillAxes(a, AXES_A);
+  fillAxes(b, AXES_B);
+  SAT_STATE.minOverlap = Infinity;
+  SAT_STATE.nx = 1;
+  SAT_STATE.ny = 0;
+  SAT_STATE.axisIndex = 0;
+  if (!considerAxis(a, b, AXES_A, AXES_B, AXES_A.c, AXES_A.s, 0, SAT_STATE)) return count;
+  if (!considerAxis(a, b, AXES_A, AXES_B, -AXES_A.s, AXES_A.c, 1, SAT_STATE)) return count;
+  if (!considerAxis(a, b, AXES_A, AXES_B, AXES_B.c, AXES_B.s, 2, SAT_STATE)) return count;
+  if (!considerAxis(a, b, AXES_A, AXES_B, -AXES_B.s, AXES_B.c, 3, SAT_STATE)) return count;
 
-  let minOverlap = Infinity;
-  let nx = 1;
-  let ny = 0;
-  let axisIndex = 0;
-
-  for (let i = 0; i < worldAxes.length; i++) {
-    const axis = worldAxes[i];
-    if (axis === undefined) continue;
-    let ax = axis[0];
-    let ay = axis[1];
-    const [minA, maxA] = projectBox(a, axesA, ax, ay);
-    const [minB, maxB] = projectBox(b, axesB, ax, ay);
-    const overlap = Math.min(maxA, maxB) - Math.max(minA, minB);
-    if (overlap < 0) return count;
-    if ((b.x - a.x) * ax + (b.y - a.y) * ay < 0) {
-      ax = -ax;
-      ay = -ay;
-    }
-    if (overlap < minOverlap) {
-      minOverlap = overlap;
-      nx = ax;
-      ny = ay;
-      axisIndex = i;
-    }
-  }
-
+  const { nx, ny, axisIndex, minOverlap } = SAT_STATE;
   const refIsA = axisIndex < 2;
   const ref = refIsA ? a : b;
   const inc = refIsA ? b : a;
-  const refAxes = refIsA ? axesA : axesB;
-  const incAxes = refIsA ? axesB : axesA;
+  const refAxes = refIsA ? AXES_A : AXES_B;
+  const incAxes = refIsA ? AXES_B : AXES_A;
   const frontX = refIsA ? nx : -nx;
   const frontY = refIsA ? ny : -ny;
   const sideX = -frontY;
@@ -548,33 +554,31 @@ function collideBoxes(
 
   incidentFace(inc, incAxes, frontX, frontY, CLIP_IN[0], CLIP_IN[1]);
 
-  const v0 = CLIP_OUT[0] as MutablePoint;
-  const v1 = CLIP_OUT[1] as MutablePoint;
   const hw = refAxes.hw;
   const hh = refAxes.hh;
   const localFrontX = refAxes.c * frontX + refAxes.s * frontY;
   const localFrontY = -refAxes.s * frontX + refAxes.c * frontY;
   if (Math.abs(localFrontX) >= Math.abs(localFrontY)) {
     const x = localFrontX >= 0 ? hw : -hw;
-    worldPoint(ref, refAxes, x, hh, v0);
-    worldPoint(ref, refAxes, x, -hh, v1);
+    worldPoint(ref, refAxes, x, hh, REF_A);
+    worldPoint(ref, refAxes, x, -hh, REF_B);
   } else {
     const y = localFrontY >= 0 ? hh : -hh;
-    worldPoint(ref, refAxes, hw, y, v0);
-    worldPoint(ref, refAxes, -hw, y, v1);
+    worldPoint(ref, refAxes, hw, y, REF_A);
+    worldPoint(ref, refAxes, -hw, y, REF_B);
   }
-  if (sideX * v0.x + sideY * v0.y > sideX * v1.x + sideY * v1.y) {
-    const sx = v0.x;
-    const sy = v0.y;
-    v0.x = v1.x;
-    v0.y = v1.y;
-    v1.x = sx;
-    v1.y = sy;
+  if (sideX * REF_A.x + sideY * REF_A.y > sideX * REF_B.x + sideY * REF_B.y) {
+    const sx = REF_A.x;
+    const sy = REF_A.y;
+    REF_A.x = REF_B.x;
+    REF_A.y = REF_B.y;
+    REF_B.x = sx;
+    REF_B.y = sy;
   }
 
-  const frontOffset = frontX * v0.x + frontY * v0.y;
-  const negSide = -(sideX * v0.x + sideY * v0.y);
-  const posSide = sideX * v1.x + sideY * v1.y;
+  const frontOffset = frontX * REF_A.x + frontY * REF_A.y;
+  const negSide = -(sideX * REF_A.x + sideY * REF_A.y);
+  const posSide = sideX * REF_B.x + sideY * REF_B.y;
 
   let n = clipSegment(CLIP_IN[0], CLIP_IN[1], -sideX, -sideY, negSide, CLIP_TMP);
   const t0 = CLIP_TMP[0] as MutablePoint;
@@ -611,7 +615,7 @@ function findContacts(bodies: readonly InternalBody[], contacts: Contact[]): num
       const b = bodies[j];
       if (b === undefined) continue;
       if (a.invMass === 0 && b.invMass === 0) continue;
-      if (!boundsOverlap(a, b, 0)) continue;
+      if (!boundsOverlap(a, b)) continue;
       if (a.shape === Shape.Circle && b.shape === Shape.Circle) {
         count = collideCircles(a, b, contacts, count);
       } else if (a.shape === Shape.Circle && b.shape === Shape.Box) {
@@ -737,7 +741,7 @@ export class PhysicsWorld implements World {
   gravityX: number;
   gravityY: number;
   iterations: number;
-  readonly bodies: InternalBody[];
+  #bodies: InternalBody[] = [];
   #contacts: Contact[] = [];
   #previous: Contact[] = [];
   #previousCount = 0;
@@ -747,9 +751,12 @@ export class PhysicsWorld implements World {
     this.gravityY = finite(options.gravityY ?? 980, "gravityY");
     this.iterations = Math.max(
       1,
-      finite(options.iterations ?? DEFAULT_ITERATIONS, "iterations") | 0,
+      Math.floor(finite(options.iterations ?? DEFAULT_ITERATIONS, "iterations")),
     );
-    this.bodies = [];
+  }
+
+  get bodies(): readonly RigidBody[] {
+    return this.#bodies;
   }
 
   addCircle(options: CircleBodyOptions): RigidBody {
@@ -757,7 +764,7 @@ export class PhysicsWorld implements World {
     const area = Math.PI * radius * radius;
     const mass = massProperties(area, 0.5 * radius * radius, options);
     const body = createBody(Shape.Circle, options, { radius, ...mass });
-    this.bodies.push(body);
+    this.#bodies.push(body);
     return body;
   }
 
@@ -767,25 +774,25 @@ export class PhysicsWorld implements World {
     const area = width * height;
     const mass = massProperties(area, (width * width + height * height) / 12, options);
     const body = createBody(Shape.Box, options, { width, height, ...mass });
-    this.bodies.push(body);
+    this.#bodies.push(body);
     return body;
   }
 
   remove(body: RigidBody): boolean {
-    const index = this.bodies.indexOf(body as InternalBody);
+    const index = this.#bodies.indexOf(body as InternalBody);
     if (index === -1) return false;
-    this.bodies.splice(index, 1);
+    this.#bodies.splice(index, 1);
     return true;
   }
 
   clear(): void {
-    this.bodies.length = 0;
+    this.#bodies.length = 0;
     this.#previousCount = 0;
   }
 
   applyForce(body: RigidBody, fx: number, fy: number, px?: number, py?: number): void {
     applyForceOn(
-      body as InternalBody,
+      this.#owned(body),
       finite(fx, "fx"),
       finite(fy, "fy"),
       finite(px ?? body.x, "px"),
@@ -795,7 +802,7 @@ export class PhysicsWorld implements World {
 
   applyImpulse(body: RigidBody, ix: number, iy: number, px?: number, py?: number): void {
     applyImpulseOn(
-      body as InternalBody,
+      this.#owned(body),
       finite(ix, "ix"),
       finite(iy, "iy"),
       finite(px ?? body.x, "px"),
@@ -803,9 +810,17 @@ export class PhysicsWorld implements World {
     );
   }
 
+  #owned(body: RigidBody): InternalBody {
+    const internal = body as InternalBody;
+    if (this.#bodies.indexOf(internal) === -1) {
+      throw new TypeError("This body does not belong to this world");
+    }
+    return internal;
+  }
+
   step(dt: number): void {
     if (!Number.isFinite(dt) || dt <= 0) return;
-    const bodies = this.bodies;
+    const bodies = this.#bodies;
     for (let i = 0; i < bodies.length; i++) {
       const body = bodies[i];
       if (body === undefined || body.invMass === 0) continue;
