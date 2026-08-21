@@ -4,9 +4,9 @@ A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
 retained command buffer, with WebGL2 as the default renderer rather than the
 fallback.
 
-> **Status: 0.1.0, pre-alpha.** The drawing API, SDF text and SVG export all
-> work, with six example sketches running on them. Not published to npm — paths
-> and bezier curves are still to come.
+> **Status: 0.1.0, pre-alpha.** The drawing API, SDF text, images, shader
+> passes and SVG export all work, with eight example sketches running on them.
+> Not published to npm — bezier paths and a WebGPU backend are still to come.
 
 ## Why
 
@@ -90,7 +90,7 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 | P4 ✅ | First vertical slice, `0.1.0` | **Met** — five sketches in `examples/`, no escape hatches |
 | P5 ✅ | Text, then SVG backend | **Met** — 12 scenes export and rasterise to within 0.31/255 |
 | P6 ✅ | Docs + playground | **Met** — landing page, live editor, 184-symbol reference |
-| P7 | Breadth: images, user shaders, input, addons | The addon API has been used by someone who didn't write it |
+| P7 ◐ | Breadth: images, shaders, input, auto-import | Delivered; WebGPU deferred — see below |
 
 ## P1 measurements
 
@@ -151,12 +151,43 @@ SVG is rasterised through the browser and diffed against Canvas2D as well.
 Several scenes come out pixel-identical and the worst is 0.31, because both go
 through the same engine — so that tolerance is set *tighter* than the GPU one.
 
+## WebGPU
+
+Deferred, deliberately. A WebGPU backend at parity with WebGL2 — shapes,
+glyphs, images, post-processing — is about the size of the WebGL2 backend
+itself, roughly 2,400 lines, so it is a phase rather than a task. It also sits
+near 70% browser support against WebGL2's 97%.
+
+The architecture is ready for it: a backend implements three methods, and the
+SVG and headless backends already demonstrate that the command buffer is
+genuinely renderer-neutral. WebGPU arrives as a fourth consumer, not a rewrite.
+
 **Known divergences.** Stroke width under anisotropic scale: both backends
 scale stroke with the transform but distribute it differently, so the
 comparison scenes use uniform scale only. And text is outside the comparison
 entirely — the GPU path renders glyphs from a signed distance field while
 Canvas2D and SVG use native text, which cannot match pixel for pixel by
 construction.
+
+## Shaders
+
+Post-processing is a normal feature, not an escape hatch. A pass is only a
+`main()` — the runtime supplies `v_uv`, `fragColor`, `u_texture`,
+`u_resolution`, `u_time` and a `texelSize()` helper:
+
+```ts
+s.setPasses([
+  { fragment: `void main() {
+      vec4 c = texture(u_texture, v_uv);
+      fragColor = vec4(1.0 - c.rgb, c.a);
+    }` },
+]);
+```
+
+Passes run in order, each reading the previous one's output, ping-ponging
+between two render targets so an N-pass chain still needs only two textures. An
+empty chain allocates no targets at all, so a sketch that never asks for effects
+pays nothing for them.
 
 ## Text
 
