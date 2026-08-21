@@ -3,9 +3,45 @@
 Guidance for AI agents and new contributors working in this repository.
 
 Matter is a typed 2D graphics library built on a retained command buffer, with
-a WebGL2-first renderer. The full architecture and phased build plan
-live in the architecture document; this file covers the rules that are cheap to
-state and expensive to violate.
+a WebGL2-first renderer. Current state, remaining gaps, and deferred work live
+in [ROADMAP.md](ROADMAP.md). This file covers the rules that are cheap to state
+and expensive to violate.
+
+## Public API
+
+Scenes are applications with a Pico-8-shaped loop: a factory (init, may be
+async), optional `update(fixedDt)`, required `draw(alpha)`, optional `dispose`.
+`start()` always drains the fixed-step accumulator so a scene without `update`
+cannot leave a simulation debt for the next one.
+
+New scene code imports by capability. Do not unpack drawing or input functions
+from the factory context every frame.
+
+```
+import { start } from "matter/app";
+import { background, circle, fill, scoped } from "matter/draw";
+import { keyIsDown, keyJustPressed } from "matter/input";
+import { camera, screen, time } from "matter/scene";
+import { loadImage, spritesheet, tilemap } from "matter/assets";
+```
+
+Those functions resolve to the application whose lifecycle callback is running.
+They work in `update` / `draw` / `dispose`, and in the factory until the first
+`await`. After an `await`, use the factory's context argument for app-owned
+plugin services such as `audio`; the returned callbacks can use the imports
+again. Calling a capability import with no active scene throws
+`NoActiveSceneError`.
+
+The context object remains the implementation those modules read, and the place
+plugins attach. It is not the scene-author API.
+
+Live values are getters on objects (`screen.width`, `time.elapsed`,
+`input.mouseX`), not p5-style bare `width` / `t` / `pmouseX`. Style scoping is
+`scoped()`, not `with()`.
+
+The optional Vite plugin auto-imports those capability modules into `*.scene.ts`
+files. It does not destructure the context and it does not invent aliases for
+the old names.
 
 ## Commits
 
@@ -31,8 +67,8 @@ read the actual diff and work the list below.
 re-exported through `export type` disappears at runtime while still
 typechecking, so `bun run build` and `tsc` both stay green and the failure only
 shows up when someone imports it. Check the umbrella package too: adding to
-`@matter/graphics` does not add to `matter`. Import from the built package and
-confirm.
+`@matter/graphics` does not add to `matter`, and adding to `matter` does not add
+to `matter/draw`. Import from the built subpath and confirm.
 
 **Resource lifecycle** — does anything that acquires a GPU object have a path
 that releases it? `dispose()`, double-`realize()`, and context loss are three
@@ -128,29 +164,36 @@ linker (`bunfig.toml`) enforces this — a package can only resolve what it
 declares — so a violation shows up as a resolution failure, not a silent
 coupling.
 
+`@matter/audio` sits beside the stack: it depends only on core, and Matter
+loads it as a typed plugin. It is not a renderer and it is not L5.
+
 ## Layout
 
-| Path                        | Layer | Role                                                   |
-| --------------------------- | ----- | ------------------------------------------------------ |
-| `packages/core`             | L0    | Lifecycle, clock, plugin registry. Depends on nothing. |
-| `packages/math`             | L1    | Vec2/Vec3, Mat4, seeded PRNG, noise, easing. Pure.     |
-| `packages/color`            | L2    | OKLCH color type, parsing, interpolation.              |
-| `packages/graphics`         | L3    | Command buffer, paths, style, transforms.              |
-| `packages/backend-webgl2`   | L4    | **Primary renderer.** Most of the engineering.         |
-| `packages/backend-canvas2d` | L4    | Reference oracle for tests + text fallback.            |
-| `packages/backend-svg`      | L4    | Vector export.                                         |
-| `packages/backend-headless` | L4    | Records commands for assertions.                       |
-| `packages/matter`           | L5    | Umbrella entry point. Deliberately thin.               |
-| `packages/vite-plugin`      | —     | Optional build-time auto-import.                       |
+| Path                        | Layer | Role                                                           |
+| --------------------------- | ----- | -------------------------------------------------------------- |
+| `packages/core`             | L0    | Clock, plugin host. Depends on nothing.                        |
+| `packages/math`             | L1    | Vec/Mat4, seeded RNG, noise, easing, collision. Pure.          |
+| `packages/color`            | L2    | OKLCH colour type, parsing, interpolation.                     |
+| `packages/graphics`         | L3    | Command buffer, paths, style, transforms.                      |
+| `packages/backend-webgl2`   | L4    | **Primary renderer.** Most of the engineering.                 |
+| `packages/backend-canvas2d` | L4    | Reference oracle for tests + text fallback.                    |
+| `packages/backend-svg`      | L4    | Vector export.                                                 |
+| `packages/backend-headless` | L4    | Records commands for assertions.                               |
+| `packages/audio`            | —     | Optional Web Audio plugin. Depends on core only.               |
+| `packages/matter`           | L5    | Application runtime: `start()`, scenes, input, camera, pixels. |
+| `packages/vite-plugin`      | —     | Optional build-time auto-import of capability modules.         |
 
-If something can only be written in `packages/matter`, a lower layer is missing
-a capability. Push it down rather than thickening L5.
+L5 is the runtime, not a thin re-export bag. The loop, input, camera, pixels,
+tilemaps, and capability bridges live here because they need a canvas and a
+clock. Math, colour, and tessellation do not — if something can only be written
+in `packages/matter` and it is one of those, a lower layer is missing a
+capability. Push it down.
 
 ## Toolchain, and why
 
 Build and lint stay on Oxc; Bun installs, runs scripts, and runs unit tests.
 
-- **Bun** — package manager, script runner, and `bun test` for pure packages.
+- **Bun** — package manager, script runner, and `bun test` for packages.
 - **Turborepo** — task graph. `build` depends on `^build`, so packages compile in
   dependency order.
 - **tsdown** (Rolldown + Oxc) — library builds and declaration generation.
@@ -183,13 +226,15 @@ Also on: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
 The split is not a preference — Bun's runtime has no WebGL and its test runner
 has no browser mode.
 
-- **`bun test`** for L0–L2 and `backend-headless`. Fast, runs everywhere.
-- **Vitest browser mode on Playwright** for `backend-webgl2`. Required for
-  anything touching a GL context.
+- **`bun test`** for every package, including CPU-side WebGL2 layout and pixel
+  conversion, Matter's mocked-DOM application loop, and the audio plugin's
+  mocked Web Audio graph.
+- **Backend agreement** is `bench/compare.html`, not a unit test. Reserve pixel
+  comparison against `backend-canvas2d` for verifying WebGL2 _correctness_,
+  where pixels are genuinely the thing under test.
 
 Prefer asserting on the recorded command stream via `backend-headless` over
-pixel comparison. Reserve golden-image tests against `backend-canvas2d` for
-verifying WebGL2 _correctness_, where pixels are genuinely the thing under test.
+pixel comparison.
 
 ## Performance rules for the hot path
 
@@ -220,8 +265,9 @@ opcodes and a new batch pipeline, not a restructuring.
 bun install          # install workspace deps
 bun run build        # turbo run build, in dependency order
 bun run typecheck    # tsc --noEmit across packages
-bun run test         # bun test
+bun run test         # bun test via turbo
 bun run lint         # oxlint
 bun run format       # oxfmt
+bun run format:check # oxfmt --check (husky pre-commit)
 bun run changeset    # record a version bump
 ```
