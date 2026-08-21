@@ -1,4 +1,4 @@
-@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/bricolage-grotesque";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -26,7 +26,7 @@
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-ring: var(--ring);
-  --font-display: "Fraunces Variable", Iowan Old Style, Baskerville, serif;
+  --font-display: "Bricolage Grotesque Variable", "Arial Narrow", ui-sans-serif, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius-sm: calc(var(--radius) - 4px);

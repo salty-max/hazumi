@@ -1,4 +1,4 @@
-@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/bricolage-grotesque";
 @import "tailwindcss";
 
 @source "./build.ts";
@@ -17,7 +17,7 @@
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-warm: var(--warm);
-  --font-display: "Fraunces Variable", Iowan Old Style, Baskerville, serif;
+  --font-display: "Bricolage Grotesque Variable", "Arial Narrow", ui-sans-serif, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -72,7 +72,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .docs-main { width: min(100%, 980px); padding: 4rem clamp(1.5rem, 5vw, 5rem) 8rem; }
 .page-head { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--line); }
 .page-head .kicker { margin: 0 0 .6rem; color: var(--brand); font: 600 .68rem var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
-.page-head h1 { margin: 0 0 .55rem; font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 4.4rem); font-weight: 650; line-height: .92; letter-spacing: -.045em; }
+.page-head h1 { margin: 0 0 .55rem; font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 4.4rem); font-weight: 650; line-height: .94; letter-spacing: -.045em; }
 .page-head p { margin: 0; max-width: 60ch; color: var(--ink-muted); font-size: .95rem; line-height: 1.6; }
 .module { padding-top: 3.3rem; }
 .module > h2 { margin: 0 0 .25rem; font: 650 1.25rem var(--font-mono); letter-spacing: -.03em; }

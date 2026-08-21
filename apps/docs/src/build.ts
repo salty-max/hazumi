@@ -10,9 +10,9 @@ import { highlightCode } from './highlight';
 
 const ROOT = new URL('../../../', import.meta.url).pathname;
 const FONT_FILES = [
-  'fraunces-vietnamese-wght-normal.woff2',
-  'fraunces-latin-ext-wght-normal.woff2',
-  'fraunces-latin-wght-normal.woff2',
+  'bricolage-grotesque-vietnamese-wght-normal.woff2',
+  'bricolage-grotesque-latin-ext-wght-normal.woff2',
+  'bricolage-grotesque-latin-wght-normal.woff2',
 ] as const;
 
 /** Order matters: the reference reads top-down as the layer stack. */
@@ -163,7 +163,10 @@ await Bun.write(
 );
 await Bun.write(`${ROOT}apps/docs/dist/filter.js`, Bun.file(`${ROOT}apps/docs/src/filter.js`));
 
-const fontSource = new URL('./files/', import.meta.resolve('@fontsource-variable/fraunces'));
+const fontSource = new URL(
+  './files/',
+  import.meta.resolve('@fontsource-variable/bricolage-grotesque'),
+);
 const fontOutput = `${ROOT}apps/docs/dist/files/`;
 await mkdir(fontOutput, { recursive: true });
 await Promise.all(
