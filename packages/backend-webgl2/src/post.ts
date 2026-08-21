@@ -58,7 +58,7 @@ export class PassCompileLimitError extends Error {
  * Compile a pass and cache it.
  *
  * Keyed by source text, so re-declaring the same pass every frame — which is
- * exactly what a sketch does when it passes a template literal — compiles once.
+ * exactly what a scene does when it passes a template literal — compiles once.
  *
  * Capped, because the failure mode is severe: interpolating a changing value
  * into the source produces a fresh key every frame, and each miss is a full GL

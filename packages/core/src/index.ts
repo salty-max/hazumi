@@ -1,21 +1,17 @@
 /**
- * L0 — sketch lifecycle, clock, and the typed plugin registry.
+ * L0 — application lifecycle, clock, and the typed plugin registry.
  *
  * Depends on nothing. Knows nothing about drawing.
  */
 
-export { SketchClock } from './clock';
-export type { Clock, ClockOptions } from './clock';
+export { AppClock } from "./clock";
+export type { Clock, ClockOptions } from "./clock";
 
-export {
-  createSketch,
-  definePlugin,
-  DuplicatePluginError,
-} from './plugin';
+export { createPluginHost, definePlugin, DuplicatePluginError } from "./plugin";
 export type {
   Plugin,
-  PluginHost,
+  PluginSetupContext,
   PluginLifecycle,
-  SketchBuilder,
-  SketchCore,
-} from './plugin';
+  PluginBuilder,
+  PluginHost,
+} from "./plugin";

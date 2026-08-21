@@ -174,7 +174,7 @@ export class Webgl2Renderer {
   #imageAtlasLocation: WebGLUniformLocation | null = null;
   #imageViewProjLocation: WebGLUniformLocation | null = null;
   // Keyed by the source object, so the same image uploads once no matter how
-  // many times a sketch draws it. Weak, so unloading an image frees the entry.
+  // many times a scene draws it. Weak, so unloading an image frees the entry.
   #imageTextures = new WeakMap<ImageSource, ResourceId>();
   #smoothing: boolean;
 
@@ -319,13 +319,13 @@ export class Webgl2Renderer {
    *
    * Passes run in order, each reading the previous one's output. An empty
    * chain renders straight to the canvas and allocates no targets at all, so
-   * a sketch that never asks for effects pays nothing for them.
+   * a scene that never asks for effects pays nothing for them.
    */
   setPasses(passes: readonly ShaderPass[]): void {
     this.#chain = passes;
   }
 
-  /** Seconds since the sketch started, forwarded to passes as u_time. */
+  /** Seconds since the application started, forwarded to passes as u_time. */
   setTime(seconds: number): void {
     this.#elapsed = seconds;
   }
@@ -375,7 +375,7 @@ export class Webgl2Renderer {
     }
 
     gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
-    // Only clear when an opaque background asked for it. A sketch that never
+    // Only clear when an opaque background asked for it. A scene that never
     // calls background() accumulates across frames.
     //
     // Read through a local: the field is set from inside the decode callback,
@@ -589,7 +589,7 @@ export class Webgl2Renderer {
 
       // Browsers cap concurrent WebGL contexts, and dropping the canvas only
       // frees one when the collector gets round to it. Anything that creates
-      // sketches repeatedly — the playground's Run button — would hit that cap
+      // applications repeatedly — the playground's Run button — would hit that cap
       // long before GC ran, so release it now.
       this.#gl = null;
       gl.getExtension('WEBGL_lose_context')?.loseContext();

@@ -55,7 +55,7 @@ export type { ShaderPass, CompiledPass } from './post';
 import type { BackendFactory } from '@matter/graphics';
 import { Webgl2Renderer, type Webgl2Options } from './renderer';
 
-/** Backend factory for `sketch({ backend: webgl2() })`. */
+/** Backend factory for `start({ backend: webgl2() }, scene)`. */
 export function webgl2(options: Webgl2Options = {}): BackendFactory {
   return (canvas: HTMLCanvasElement) => new Webgl2Renderer(canvas, options);
 }

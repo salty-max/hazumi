@@ -67,7 +67,7 @@ source type "proved" a path that was broken for the other. Where a platform API
 takes a union, test each member of the union, not the convenient one.
 
 **Unbounded growth** — does anything cache, append, or retain per frame? A Map
-keyed by a value the sketch computes will grow for as long as the sketch runs.
+keyed by a value the scene computes will grow for as long as the scene runs.
 Ask what happens after an hour, not after one frame.
 
 **Measurement honesty** — if the commit quotes numbers, do the benchmarks

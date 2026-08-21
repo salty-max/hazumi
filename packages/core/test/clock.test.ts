@@ -1,16 +1,16 @@
-import { describe, expect, test } from 'bun:test';
-import { SketchClock } from '../src/index';
+import { describe, expect, test } from "bun:test";
+import { AppClock } from "../src/index";
 
-describe('SketchClock', () => {
-  test('the first frame reports dt 0 rather than a huge startup gap', () => {
-    const clock = new SketchClock();
+describe("AppClock", () => {
+  test("the first frame reports dt 0 rather than a huge startup gap", () => {
+    const clock = new AppClock();
     expect(clock.advance(100)).toBe(0);
     expect(clock.frame).toBe(1);
     expect(clock.elapsed).toBe(0);
   });
 
-  test('accumulates elapsed time across frames', () => {
-    const clock = new SketchClock();
+  test("accumulates elapsed time across frames", () => {
+    const clock = new AppClock();
     clock.advance(0);
     clock.advance(0.016);
     clock.advance(0.032);
@@ -19,22 +19,22 @@ describe('SketchClock', () => {
     expect(clock.frame).toBe(3);
   });
 
-  test('clamps a long stall to maxDelta', () => {
-    const clock = new SketchClock({ maxDelta: 0.1 });
+  test("clamps a long stall to maxDelta", () => {
+    const clock = new AppClock({ maxDelta: 0.1 });
     clock.advance(0);
     // A backgrounded tab returning after 5 seconds.
     expect(clock.advance(5)).toBe(0.1);
     expect(clock.elapsed).toBeCloseTo(0.1);
   });
 
-  test('never reports a negative delta', () => {
-    const clock = new SketchClock();
+  test("never reports a negative delta", () => {
+    const clock = new AppClock();
     clock.advance(10);
     expect(clock.advance(5)).toBe(0);
   });
 
-  test('reset returns it to its initial state', () => {
-    const clock = new SketchClock();
+  test("reset returns it to its initial state", () => {
+    const clock = new AppClock();
     clock.advance(0);
     clock.advance(1);
     clock.reset();
@@ -43,15 +43,15 @@ describe('SketchClock', () => {
     expect(clock.advance(100)).toBe(0);
   });
 
-  test('rejects invalid timing options at construction', () => {
-    expect(() => new SketchClock({ maxDelta: Number.NaN })).toThrow(RangeError);
-    expect(() => new SketchClock({ fixedStep: 0 })).toThrow(RangeError);
-    expect(() => new SketchClock({ maxFixedSteps: 1.5 })).toThrow(RangeError);
+  test("rejects invalid timing options at construction", () => {
+    expect(() => new AppClock({ maxDelta: Number.NaN })).toThrow(RangeError);
+    expect(() => new AppClock({ fixedStep: 0 })).toThrow(RangeError);
+    expect(() => new AppClock({ maxFixedSteps: 1.5 })).toThrow(RangeError);
   });
 });
 
 function runFixedSequence(): number[] {
-  const clock = new SketchClock({ fixedStep: 1 / 60 });
+  const clock = new AppClock({ fixedStep: 1 / 60 });
   const out: number[] = [];
   for (let f = 0; f < 100; f++) {
     clock.advance(f / 60);
@@ -60,11 +60,11 @@ function runFixedSequence(): number[] {
   return out;
 }
 
-describe('fixed timestep', () => {
-  test('takes one step per elapsed interval', () => {
+describe("fixed timestep", () => {
+  test("takes one step per elapsed interval", () => {
     // maxDelta is raised so this exercises the accumulator, not the stall
     // clamp — 0.35s would otherwise be clamped to the 0.25s default.
-    const clock = new SketchClock({ fixedStep: 0.1, maxDelta: 1 });
+    const clock = new AppClock({ fixedStep: 0.1, maxDelta: 1 });
     clock.advance(0);
     clock.advance(0.35);
 
@@ -76,8 +76,8 @@ describe('fixed timestep', () => {
     expect(clock.pending).toBeCloseTo(0.05);
   });
 
-  test('carries the remainder into the next frame', () => {
-    const clock = new SketchClock({ fixedStep: 0.1 });
+  test("carries the remainder into the next frame", () => {
+    const clock = new AppClock({ fixedStep: 0.1 });
     clock.advance(0);
 
     clock.advance(0.06);
@@ -88,10 +88,10 @@ describe('fixed timestep', () => {
     expect(clock.stepFixed(() => {})).toBe(1);
   });
 
-  test('caps steps per frame and drops the debt', () => {
+  test("caps steps per frame and drops the debt", () => {
     // Without the cap, a long stall makes every later frame run extra steps
     // and the simulation never catches up.
-    const clock = new SketchClock({ fixedStep: 0.01, maxDelta: 1, maxFixedSteps: 3 });
+    const clock = new AppClock({ fixedStep: 0.01, maxDelta: 1, maxFixedSteps: 3 });
     clock.advance(0);
     clock.advance(1);
 
@@ -102,22 +102,22 @@ describe('fixed timestep', () => {
     expect(clock.stepFixed(() => {})).toBe(0);
   });
 
-  test('the stall clamp limits how much the accumulator can receive', () => {
+  test("the stall clamp limits how much the accumulator can receive", () => {
     // A frame longer than maxDelta contributes only maxDelta of simulated time.
-    const clock = new SketchClock({ fixedStep: 0.1, maxDelta: 0.25 });
+    const clock = new AppClock({ fixedStep: 0.1, maxDelta: 0.25 });
     clock.advance(0);
     clock.advance(0.35);
     expect(clock.stepFixed(() => {})).toBe(2);
   });
 
-  test('alpha reports progress between steps', () => {
-    const clock = new SketchClock({ fixedStep: 0.1 });
+  test("alpha reports progress between steps", () => {
+    const clock = new AppClock({ fixedStep: 0.1 });
     clock.advance(0);
     clock.advance(0.05);
     expect(clock.alpha()).toBeCloseTo(0.5);
   });
 
-  test('is deterministic when driven with fixed timestamps', () => {
+  test("is deterministic when driven with fixed timestamps", () => {
     // This is what makes frame-by-frame offline rendering reproducible.
     expect(runFixedSequence()).toEqual(runFixedSequence());
   });

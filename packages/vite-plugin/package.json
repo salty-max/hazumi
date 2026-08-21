@@ -1,7 +1,7 @@
 {
   "name": "@matter/vite-plugin",
   "version": "0.1.0",
-  "description": "Optional build-time auto-import for global-style sketches.",
+  "description": "Optional build-time auto-import for global-style scenes.",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,

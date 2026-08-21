@@ -2,13 +2,13 @@
  * The plugin system.
  *
  * The usual approach is to let extensions patch a shared prototype: the library
- * exposes one object, addons attach members to it, and every sketch sees them.
+ * exposes one object, addons attach members to it, and every application sees them.
  * That works, but a prototype mutation is invisible to the type system — plugin
  * authors have to hand-write declaration merging to describe what they added,
  * and it is never checked against the implementation.
  *
  * Here a plugin *returns* what it contributes, so `use()` can accumulate the
- * contributions into the sketch type. No declaration merging, no ambient .d.ts,
+ * contributions into the application type. No declaration merging, no ambient .d.ts,
  * and the types cannot drift from the runtime because they are derived from it.
  */
 
@@ -27,15 +27,14 @@ export interface PluginLifecycle {
 }
 
 /** What every plugin receives when it is set up. */
-export interface PluginHost {
+export interface PluginSetupContext {
   readonly name: string;
 }
 
-export interface Plugin<Contributes extends object = Record<never, never>>
-  extends PluginLifecycle {
+export interface Plugin<Contributes extends object = Record<never, never>> extends PluginLifecycle {
   readonly name: string;
-  /** Returns the API this plugin adds to the sketch. */
-  setup?: (host: PluginHost) => Contributes;
+  /** Returns the API this plugin adds to the application. */
+  setup?: (host: PluginSetupContext) => Contributes;
 }
 
 /**
@@ -53,13 +52,13 @@ export class DuplicatePluginError extends Error {
 
   constructor(name: string) {
     super(`A plugin named ${JSON.stringify(name)} is already registered`);
-    this.name = 'DuplicatePluginError';
+    this.name = "DuplicatePluginError";
     this.pluginName = name;
   }
 }
 
-/** The assembled sketch: lifecycle dispatch plus everything plugins added. */
-export interface SketchCore {
+/** Lifecycle dispatch plus everything registered plugins add. */
+export interface PluginHost {
   readonly plugins: readonly string[];
   presetup: () => Promise<void>;
   postsetup: () => Promise<void>;
@@ -69,20 +68,20 @@ export interface SketchCore {
 }
 
 /**
- * Accumulates plugin contributions into the resulting sketch type.
+ * Accumulates plugin contributions into the resulting host type.
  *
  * Each `use` widens the parameter, so after
  * `.use(physics).use(audio)` the built value is
- * `SketchCore & PhysicsApi & AudioApi` — inferred, never declared.
+ * `PluginHost & PhysicsApi & AudioApi` — inferred, never declared.
  */
-export interface SketchBuilder<Api extends object> {
+export interface PluginBuilder<Api extends object> {
   use: <Contributes extends object>(
     plugin: Plugin<Contributes>,
-  ) => SketchBuilder<Api & Contributes>;
-  build: () => SketchCore & Api;
+  ) => PluginBuilder<Api & Contributes>;
+  build: () => PluginHost & Api;
 }
 
-export function createSketch(): SketchBuilder<Record<never, never>> {
+export function createPluginHost(): PluginBuilder<Record<never, never>> {
   return builder([]);
 }
 
@@ -104,23 +103,16 @@ function runInOrder(
   );
 }
 
-function builder<Api extends object>(
-  plugins: readonly Plugin<never>[],
-): SketchBuilder<Api> {
+function builder<Api extends object>(plugins: readonly Plugin<never>[]): PluginBuilder<Api> {
   return {
-    use<Contributes extends object>(
-      plugin: Plugin<Contributes>,
-    ): SketchBuilder<Api & Contributes> {
+    use<Contributes extends object>(plugin: Plugin<Contributes>): PluginBuilder<Api & Contributes> {
       if (plugins.some((p) => p.name === plugin.name)) {
         throw new DuplicatePluginError(plugin.name);
       }
-      return builder<Api & Contributes>([
-        ...plugins,
-        plugin as unknown as Plugin<never>,
-      ]);
+      return builder<Api & Contributes>([...plugins, plugin as unknown as Plugin<never>]);
     },
 
-    build(): SketchCore & Api {
+    build(): PluginHost & Api {
       const api: Record<string, unknown> = {};
 
       for (const plugin of plugins) {
@@ -131,7 +123,7 @@ function builder<Api extends object>(
         }
       }
 
-      const core: SketchCore = {
+      const core: PluginHost = {
         plugins: plugins.map((p) => p.name),
         presetup: (): Promise<void> => runInOrder(plugins, (p) => p.presetup),
         postsetup: (): Promise<void> => runInOrder(plugins, (p) => p.postsetup),
@@ -147,7 +139,7 @@ function builder<Api extends object>(
         },
       };
 
-      return Object.assign(api, core) as SketchCore & Api;
+      return Object.assign(api, core) as PluginHost & Api;
     },
   };
 }

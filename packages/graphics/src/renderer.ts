@@ -3,7 +3,7 @@ import type { CommandBuffer } from './command-buffer';
 /**
  * What every backend implements.
  *
- * Declared at L3 rather than in a backend package so `sketch()` can accept any
+ * Declared at L3 rather than in a backend package so `start()` can accept any
  * backend without importing one — the layer rule forbids graphics importing a
  * backend, and this is the seam that keeps that honest.
  */
@@ -17,7 +17,7 @@ export interface Renderer {
 }
 
 /**
- * Backends export a factory rather than a class, so `sketch()` can own canvas
+ * Backends export a factory rather than a class, so `start()` can own canvas
  * creation and sizing before the renderer exists.
  */
 export type BackendFactory = (canvas: HTMLCanvasElement) => Renderer;

@@ -195,14 +195,14 @@ describe('against the real build output', () => {
     expect(buffer?.description).toContain('Struct-of-arrays');
   });
 
-  test('finds sketch() with its example', async () => {
+  test('finds start() with its example', async () => {
     const source = await Bun.file(`${REPO_ROOT}packages/matter/dist/index.d.ts`).text();
     const mod = extractModule('matter', source);
-    const sketch = mod.entries.find((e) => e.name === 'sketch');
+    const start = mod.entries.find((e) => e.name === 'start');
 
-    expect(sketch?.kind).toBe('function');
-    expect(sketch?.description).toContain('Create and run a sketch');
-    expect(sketch?.examples.length).toBeGreaterThan(0);
+    expect(start?.kind).toBe('function');
+    expect(start?.description).toContain('Start a Matter application');
+    expect(start?.examples.length).toBeGreaterThan(0);
   });
 });
 

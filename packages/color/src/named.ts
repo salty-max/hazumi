@@ -2,7 +2,7 @@
  * CSS named colours.
  *
  * Stored as one packed string and expanded on first use. The full CSS Color 4
- * list is 148 entries; as an object literal that is a few kB every sketch pays
+ * list is 148 entries; as an object literal that is a few kB every application pays
  * for whether or not it ever writes `fill('white')`. Packed, it is a single
  * string constant, and the Map is only built if a named colour is actually
  * parsed.

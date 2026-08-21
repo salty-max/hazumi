@@ -1,7 +1,7 @@
 /**
  * Seeded, reproducible randomness.
  *
- * Seeded by default rather than as an opt-in: re-running a generative sketch
+ * Seeded by default rather than as an opt-in: re-running a generative scene
  * and getting the same image back is table stakes, and it is what makes the
  * deterministic offline rendering in the architecture doc possible. There is no
  * global RNG here — an Rng is a value you hold, so two systems cannot perturb

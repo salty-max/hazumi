@@ -1,8 +1,8 @@
-import { Align, Baseline, Blend, CommandBuffer, type ImageSource } from '@matter/graphics';
-import { isSpriteFrame, type SpriteFrame } from './spritesheet';
-import { createNoise, type Noise, type Rng, seeded } from '@matter/math';
-import { type ColorCache, type ColorLike } from './color-cache';
-import { type Camera2D, createCamera2D } from './camera';
+import { Align, Baseline, Blend, CommandBuffer, type ImageSource } from "@matter/graphics";
+import { isSpriteFrame, type SpriteFrame } from "./spritesheet";
+import { createNoise, type Noise, type Rng, seeded } from "@matter/math";
+import { type ColorCache, type ColorLike } from "./color-cache";
+import { type Camera2D, createCamera2D } from "./camera";
 
 /** Style overrides accepted by `with()`. */
 export interface StyleOverrides {
@@ -13,7 +13,7 @@ export interface StyleOverrides {
 }
 
 /**
- * Everything a sketch can reach.
+ * Everything a scene can reach.
  *
  * Handed to `draw` on every frame as one object so it can be destructured at
  * the top of the callback and still read current values — the same object is
@@ -23,13 +23,13 @@ export interface StyleOverrides {
  * of the terseness of bare `circle(50, 50, 20)` while staying fully typed and
  * never touching `window`.
  */
-export interface SketchContext {
+export interface MatterContext {
   // --- environment ---
   readonly width: number;
   readonly height: number;
   /** Frames drawn so far. */
   readonly frameCount: number;
-  /** Seconds since the sketch started. */
+  /** Seconds since the application started. */
   readonly t: number;
   /** Seconds since the previous frame. */
   readonly dt: number;
@@ -53,7 +53,7 @@ export interface SketchContext {
    */
   keyIsDown: (key: string) => boolean;
 
-  /** Seeded by default, so a sketch renders identically on every run. */
+  /** Seeded by default, so an application renders identically on every run. */
   readonly random: Rng;
   readonly noise: Noise;
   /** World-space view, including zoom, following and coordinate conversion. */
@@ -80,11 +80,7 @@ export interface SketchContext {
   beginShape: () => void;
   vertex: (x: number, y: number) => void;
   quadraticVertex: (cx: number, cy: number, x: number, y: number) => void;
-  bezierVertex: (
-    c1x: number, c1y: number,
-    c2x: number, c2y: number,
-    x: number, y: number,
-  ) => void;
+  bezierVertex: (c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number) => void;
   /**
    * Finish the shape and paint it with the current style.
    *
@@ -97,7 +93,7 @@ export interface SketchContext {
    * Set the post-processing chain. Passes run in order, each reading the
    * previous one's output.
    *
-   * Set it in setup: it is configuration, not per-frame drawing, and calling
+   * Set it while creating the scene: it is configuration, not per-frame drawing, and calling
    * it every frame would recompile nothing but still churn.
    */
   setPasses: (passes: readonly ShaderPassLike[]) => void;
@@ -106,7 +102,7 @@ export interface SketchContext {
   /**
    * Decode an image.
    *
-   * Async, so setup must await it — there is no separate preload phase. A
+   * Async, so a scene factory must await it — there is no separate preload phase. A
    * preload step would be a second lifecycle to learn, and `await` already
    * means what it needs to mean.
    */
@@ -207,13 +203,13 @@ export interface ShaderPassLike {
  * the object itself is never reallocated.
  */
 export interface ContextBundle {
-  readonly context: SketchContext;
+  readonly context: MatterContext;
   /**
    * Re-emit the current style into a freshly reset buffer.
    *
-   * The buffer is cleared every frame, so style set during setup would be lost
+   * The buffer is cleared every frame, so style set during scene creation would be lost
    * otherwise. Re-emitting the live values rather than a hardcoded default is
-   * what makes `fill()` in setup behave the way anyone would expect.
+   * what makes `fill()` in a scene factory behave the way anyone would expect.
    */
   readonly beginFrame: () => void;
 }
@@ -229,7 +225,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
   );
 
   // Mirrors what has been written to the buffer, so `with()` can restore it.
-  let fillColor: ColorLike | null = '#ffffff';
+  let fillColor: ColorLike | null = "#ffffff";
   let strokeColor: ColorLike | null = null;
   let strokeWidth = 1;
   let blend: Blend = Blend.Normal;
@@ -248,20 +244,46 @@ export function createContext(deps: ContextDeps): ContextBundle {
     buffer.setStrokeWidth(strokeColor === null ? 0 : strokeWidth);
   };
 
-  const context: SketchContext = {
-    get width() { return state.width; },
-    get height() { return state.height; },
-    get frameCount() { return state.frameCount; },
-    get t() { return state.t; },
-    get dt() { return state.dt; },
-    get mouseX() { return state.mouseX; },
-    get mouseY() { return state.mouseY; },
-    get pmouseX() { return state.pmouseX; },
-    get pmouseY() { return state.pmouseY; },
-    get mouseIsPressed() { return state.mouseIsPressed; },
-    get mouseButton() { return state.mouseButton; },
-    get keyIsPressed() { return state.keyIsPressed; },
-    get key() { return state.key; },
+  const context: MatterContext = {
+    get width() {
+      return state.width;
+    },
+    get height() {
+      return state.height;
+    },
+    get frameCount() {
+      return state.frameCount;
+    },
+    get t() {
+      return state.t;
+    },
+    get dt() {
+      return state.dt;
+    },
+    get mouseX() {
+      return state.mouseX;
+    },
+    get mouseY() {
+      return state.mouseY;
+    },
+    get pmouseX() {
+      return state.pmouseX;
+    },
+    get pmouseY() {
+      return state.pmouseY;
+    },
+    get mouseIsPressed() {
+      return state.mouseIsPressed;
+    },
+    get mouseButton() {
+      return state.mouseButton;
+    },
+    get keyIsPressed() {
+      return state.keyIsPressed;
+    },
+    get key() {
+      return state.key;
+    },
     keyIsDown: (key: string): boolean => state.keysDown.has(key),
     random,
     noise,
@@ -316,9 +338,12 @@ export function createContext(deps: ContextDeps): ContextBundle {
       buffer.quadraticTo(cx, cy, x, y);
     },
     bezierVertex: (
-      c1x: number, c1y: number,
-      c2x: number, c2y: number,
-      x: number, y: number,
+      c1x: number,
+      c1y: number,
+      c2x: number,
+      c2y: number,
+      x: number,
+      y: number,
     ): void => {
       if (!pathStarted) {
         buffer.moveTo(c1x, c1y);
@@ -356,8 +381,14 @@ export function createContext(deps: ContextDeps): ContextBundle {
       if (isSpriteFrame(source)) {
         buffer.imageRegion(
           source.source,
-          x, y, width ?? source.width, height ?? source.height,
-          source.x, source.y, source.width, source.height,
+          x,
+          y,
+          width ?? source.width,
+          height ?? source.height,
+          source.x,
+          source.y,
+          source.width,
+          source.height,
         );
         return;
       }
@@ -375,14 +406,12 @@ export function createContext(deps: ContextDeps): ContextBundle {
     // A diameter, not a radius: `rect` takes width and height and `square` a
     // side, so every primitive's size argument is a full extent. The buffer
     // stores radii, so the halving happens here, once.
-    circle: (x: number, y: number, diameter: number): void =>
-      buffer.circle(x, y, diameter / 2),
+    circle: (x: number, y: number, diameter: number): void => buffer.circle(x, y, diameter / 2),
     ellipse: (x: number, y: number, w: number, h: number): void =>
       buffer.ellipse(x, y, w / 2, h / 2),
     rect: (x: number, y: number, w: number, h: number): void => buffer.rect(x, y, w, h),
     square: (x: number, y: number, size: number): void => buffer.rect(x, y, size, size),
-    line: (x1: number, y1: number, x2: number, y2: number): void =>
-      buffer.line(x1, y1, x2, y2),
+    line: (x1: number, y1: number, x2: number, y2: number): void => buffer.line(x1, y1, x2, y2),
     point: (x: number, y: number): void => {
       // A dot of the current stroke weight, painted in the stroke colour: a
       // point is a degenerate line, so it follows stroke and not fill.

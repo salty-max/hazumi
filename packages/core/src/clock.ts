@@ -32,10 +32,10 @@ const DEFAULT_MAX_FIXED_STEPS = 5;
  * Frame timing, decoupled from any particular clock source.
  *
  * `advance` takes an explicit timestamp rather than reading `performance.now()`
- * so a sketch can be driven frame-by-frame at a fixed rate for deterministic
+ * so an application can be driven frame-by-frame at a fixed rate for deterministic
  * offline rendering — the same reason the RNG is seeded.
  */
-export class SketchClock implements Clock {
+export class AppClock implements Clock {
   #frame = 0;
   #elapsed = 0;
   #dt = 0;
@@ -52,13 +52,13 @@ export class SketchClock implements Clock {
     const maxFixedSteps = options.maxFixedSteps ?? DEFAULT_MAX_FIXED_STEPS;
 
     if (!Number.isFinite(maxDelta) || maxDelta < 0) {
-      throw new RangeError('maxDelta must be a finite non-negative number');
+      throw new RangeError("maxDelta must be a finite non-negative number");
     }
     if (!Number.isFinite(fixedStep) || fixedStep <= 0) {
-      throw new RangeError('fixedStep must be a finite positive number');
+      throw new RangeError("fixedStep must be a finite positive number");
     }
     if (!Number.isInteger(maxFixedSteps) || maxFixedSteps <= 0) {
-      throw new RangeError('maxFixedSteps must be a positive integer');
+      throw new RangeError("maxFixedSteps must be a positive integer");
     }
 
     this.maxDelta = maxDelta;

@@ -224,7 +224,7 @@ out vec4 fragColor;
 uniform sampler2D u_texture;
 /** Viewport size in pixels. */
 uniform vec2 u_resolution;
-/** Seconds since the sketch started. */
+/** Seconds since the application started. */
 uniform float u_time;
 
 /** One texel, for taps that need neighbours. */

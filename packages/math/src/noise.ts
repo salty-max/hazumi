@@ -2,7 +2,7 @@
  * Simplex noise, seeded.
  *
  * Ken Perlin's simplex algorithm (the Gustavson formulation), with the
- * permutation table shuffled from a seeded Rng so a sketch's noise field is
+ * permutation table shuffled from a seeded Rng so a scene's noise field is
  * reproducible alongside its randomness.
  */
 

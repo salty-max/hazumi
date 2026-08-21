@@ -6,31 +6,32 @@
  * and batching could not merge them because it only joins adjacent instances —
  * so this same scene cost one call per tile.
  */
-import { sketch, spritesheet, type SketchContext, type SketchHandle } from 'matter';
-import { webgl2 } from 'matter/backends/webgl2';
+import { start, spritesheet, type MatterApp, type MatterContext } from "matter";
+import { webgl2 } from "matter/backends/webgl2";
 
 const TILE = 34;
 
-export function tileField(parent: HTMLElement): SketchHandle {
-  return sketch(
-    { backend: webgl2(), width: 600, height: 600, parent, seed: 12 },
-    async (s) => {
-      const image = await s.loadImage('/examples/assets/tiles.png');
-      const sheet = spritesheet(image, { frame: [16, 16] });
+export function tileField(parent: HTMLElement): MatterApp {
+  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 12 }, async (s) => {
+    const image = await s.loadImage("/examples/assets/tiles.png");
+    const sheet = spritesheet(image, { frame: [16, 16] });
 
-      const cols = Math.ceil(s.width / TILE) + 2;
-      const rows = Math.ceil(s.height / TILE) + 2;
+    const cols = Math.ceil(s.width / TILE) + 2;
+    const rows = Math.ceil(s.height / TILE) + 2;
 
-      // Which tile sits where, decided once so the field is stable as it
-      // scrolls rather than shimmering.
-      const pick = new Uint8Array(cols * rows);
-      for (let i = 0; i < pick.length; i++) {
-        pick[i] = s.random.int(0, sheet.length);
-      }
+    // Which tile sits where, decided once so the field is stable as it
+    // scrolls rather than shimmering.
+    const pick = new Uint8Array(cols * rows);
+    for (let i = 0; i < pick.length; i++) {
+      pick[i] = s.random.int(0, sheet.length);
+    }
 
-      return ({ background, image: draw, text, textSize, fill,
-                width, height, t }: SketchContext) => {
-        background('oklch(0.12 0.02 270)');
+    return {
+      draw: (
+        _alpha,
+        { background, image: draw, text, textSize, fill, width, height, t }: MatterContext,
+      ): void => {
+        background("oklch(0.12 0.02 270)");
 
         const offsetX = -((t * 26) % TILE);
         const offsetY = -((t * 14) % TILE);
@@ -42,11 +43,11 @@ export function tileField(parent: HTMLElement): SketchHandle {
           }
         }
 
-        fill('oklch(0.95 0.02 90)');
+        fill("oklch(0.95 0.02 90)");
         textSize(14);
         text(`${cols * rows} sprites · 16 frames · one texture`, 16, height - 18);
         void width;
-      };
-    },
-  );
+      },
+    };
+  });
 }

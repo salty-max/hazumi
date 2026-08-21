@@ -1,7 +1,7 @@
 /**
  * 2D vectors as plain immutable objects.
  *
- * These allocate, which is fine: they are for user-facing sketch code, not the
+ * These allocate, which is fine: they are for user-facing scene code, not the
  * per-frame encode path. The hot path takes primitives — see CommandBuffer.
  */
 

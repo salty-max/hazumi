@@ -41,7 +41,7 @@ describe('ColorCache', () => {
 
   /**
    * The case an unbounded map gets wrong: building a colour from a continuous
-   * value is ordinary sketch code, and it produces a fresh key every frame.
+   * value is ordinary scene code, and it produces a fresh key every frame.
    */
   test('stays bounded when every colour is unique', () => {
     const cache = new ColorCache(64);
@@ -54,7 +54,7 @@ describe('ColorCache', () => {
     expect(cache.misses).toBe(10_000);
   });
 
-  test('never evicts for a sketch that only uses literals', () => {
+  test('never evicts for a scene that only uses literals', () => {
     const cache = new ColorCache(64);
     const palette = ['#ff0000', '#00ff00', '#0000ff', 'oklch(0.7 0.1 200)'];
     for (let frame = 0; frame < 5000; frame++) {

@@ -138,7 +138,7 @@ export class Canvas2dRenderer {
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
-    // Deliberately no clearRect: a sketch that never calls background()
+    // Deliberately no clearRect: a scene that never calls background()
     // accumulates across frames, matching the GPU backend.
     ctx.save();
 
@@ -208,7 +208,7 @@ export class Canvas2dRenderer {
       resetTransform: (): void => void ctx.setTransform(1, 0, 0, 1, 0, 0),
 
       background: (r: number, g: number, b: number, a: number): void => {
-        // Painted under identity transform, ignoring whatever the sketch has
+        // Painted under identity transform, ignoring whatever the scene has
         // pushed. Opaque replaces outright; translucent blends over the
         // previous frame, which is the trail idiom.
         ctx.save();
@@ -329,7 +329,7 @@ export class Canvas2dRenderer {
 
 import type { BackendFactory } from '@matter/graphics';
 
-/** Backend factory for `sketch({ backend: canvas2d() })`. */
+/** Backend factory for `start({ backend: canvas2d() }, scene)`. */
 export function canvas2d(options: Canvas2dOptions = {}): BackendFactory {
   return (canvas: HTMLCanvasElement) => new Canvas2dRenderer(canvas, options);
 }

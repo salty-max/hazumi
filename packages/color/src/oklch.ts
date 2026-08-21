@@ -11,7 +11,7 @@ import {
  *
  * OKLCH rather than sRGB because interpolation in it is perceptually even —
  * a gradient between two saturated hues stays saturated instead of dipping
- * through grey, which is visible in almost every sketch that blends colours.
+ * through grey, which is visible in almost every scene that blends colours.
  *
  * Conversion coefficients are Björn Ottosson's Oklab matrices.
  */

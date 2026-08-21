@@ -56,7 +56,7 @@ function testSheet(): ImageSource {
  * This is not redundant with the canvas above. WebGL honours
  * UNPACK_FLIP_Y_WEBGL for a canvas or <img> but IGNORES it for an ImageBitmap,
  * so the two source types can land in the texture with opposite orientation --
- * and `loadImage()` hands sketches an ImageBitmap. Testing only the canvas is
+ * and `loadImage()` hands scenes an ImageBitmap. Testing only the canvas is
  * what let upside-down sprites through.
  */
 let bitmap: ImageSource | null = null;

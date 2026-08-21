@@ -186,7 +186,7 @@ export class SvgRenderer {
    * Emit the accumulated path.
    *
    * Fill and stroke are separate elements rather than one with both attributes,
-   * because a sketch may fill and stroke the same path with different styles
+   * because a scene may fill and stroke the same path with different styles
    * set between the two calls.
    */
   #emitPath(strokeOnly: boolean): void {

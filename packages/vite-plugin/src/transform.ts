@@ -5,20 +5,58 @@
  * and can be tested without a bundler.
  */
 
-/** Everything the sketch context provides, and can therefore be auto-imported. */
+/** Everything the Matter context provides, and can therefore be auto-imported. */
 export const CONTEXT_MEMBERS: readonly string[] = [
-  'width', 'height', 'frameCount', 't', 'dt',
-  'mouseX', 'mouseY', 'pmouseX', 'pmouseY', 'mouseIsPressed', 'mouseButton',
-  'keyIsPressed', 'key', 'keyIsDown',
-  'random', 'noise',
-  'camera',
-  'background', 'fill', 'noFill', 'stroke', 'noStroke', 'strokeWeight', 'blendMode',
-  'circle', 'ellipse', 'rect', 'square', 'line', 'point',
-  'beginShape', 'vertex', 'quadraticVertex', 'bezierVertex', 'endShape',
-  'image', 'loadImage',
-  'text', 'textSize', 'textAlign', 'textFont',
-  'push', 'pop', 'translate', 'rotate', 'scale',
-  'noLoop', 'loop', 'isLooping', 'setPasses',
+  "width",
+  "height",
+  "frameCount",
+  "t",
+  "dt",
+  "mouseX",
+  "mouseY",
+  "pmouseX",
+  "pmouseY",
+  "mouseIsPressed",
+  "mouseButton",
+  "keyIsPressed",
+  "key",
+  "keyIsDown",
+  "random",
+  "noise",
+  "camera",
+  "background",
+  "fill",
+  "noFill",
+  "stroke",
+  "noStroke",
+  "strokeWeight",
+  "blendMode",
+  "circle",
+  "ellipse",
+  "rect",
+  "square",
+  "line",
+  "point",
+  "beginShape",
+  "vertex",
+  "quadraticVertex",
+  "bezierVertex",
+  "endShape",
+  "image",
+  "loadImage",
+  "text",
+  "textSize",
+  "textAlign",
+  "textFont",
+  "push",
+  "pop",
+  "translate",
+  "rotate",
+  "scale",
+  "noLoop",
+  "loop",
+  "isLooping",
+  "setPasses",
 ];
 
 /**
@@ -32,7 +70,7 @@ export const CONTEXT_MEMBERS: readonly string[] = [
  * Listed rather than simply omitted so the drift test can tell a deliberate
  * exclusion from a member somebody forgot to add.
  */
-export const NON_IMPORTABLE_MEMBERS: readonly string[] = ['with'];
+export const NON_IMPORTABLE_MEMBERS: readonly string[] = ["with"];
 
 export interface TransformOptions {
   /** Names to expose. Defaults to the whole context. */
@@ -41,7 +79,7 @@ export interface TransformOptions {
   readonly contextName?: string;
 }
 
-const DEFAULT_CONTEXT_NAME = '__matterContext';
+const DEFAULT_CONTEXT_NAME = "__matterContext";
 
 /** Strings, comments and regex literals, so identifiers inside them are ignored. */
 const SKIP = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
@@ -61,13 +99,13 @@ export function findUsedMembers(
   source: string,
   members: readonly string[] = CONTEXT_MEMBERS,
 ): string[] {
-  const code = source.replace(SKIP, (match) => ' '.repeat(match.length));
+  const code = source.replace(SKIP, (match) => " ".repeat(match.length));
   const used: string[] = [];
 
   for (const name of members) {
     // Not preceded by a dot or an identifier character: `circle(...)` counts,
     // `shape.circle(...)` and `myCircle` do not.
-    const pattern = new RegExp(`(^|[^.\\w$])${name}\\s*(?=[^\\w$]|$)`, 'm');
+    const pattern = new RegExp(`(^|[^.\\w$])${name}\\s*(?=[^\\w$]|$)`, "m");
     if (pattern.test(code)) used.push(name);
   }
 
@@ -93,6 +131,6 @@ export function transform(source: string, options: TransformOptions = {}): strin
   const used = findUsedMembers(source, members);
   if (used.length === 0) return source;
 
-  const binding = `const { ${used.join(', ')} } = ${contextName};`;
+  const binding = `const { ${used.join(", ")} } = ${contextName};`;
   return `${binding}\n${source}`;
 }

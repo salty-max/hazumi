@@ -243,7 +243,7 @@ describe('setUniform', () => {
 });
 
 /**
- * The cache keys on source text, so a sketch that interpolates a changing
+ * The cache keys on source text, so a scene that interpolates a changing
  * value into a shader produces a fresh key every frame. Each miss is a full
  * program compile, so this fails loudly rather than degrading.
  */

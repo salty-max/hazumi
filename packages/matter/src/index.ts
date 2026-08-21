@@ -13,31 +13,25 @@
  * packages is a conflict here rather than a silent shadow.
  */
 
-// --- the sketch API ---
-export { sketch } from './sketch';
+// --- application and scene API ---
+export { start } from "./app";
 export type {
-  SketchOptions,
-  SketchHandle,
-  SetupFunction,
-  SetupResult,
-  DrawFunction,
-  FixedUpdateFunction,
-  FixedDrawFunction,
-  FixedLoop,
+  AppOptions,
+  MatterApp,
+  Scene,
+  SceneSource,
+  SceneFactory,
+  SceneUpdate,
+  SceneDraw,
   ShaderPass,
   FrameStats,
-} from './sketch';
-export type { SketchContext, StyleOverrides } from './context';
-export type { Camera2D, CameraPoint } from './camera';
-export { ColorCache } from './color-cache';
-export {
-  spritesheet,
-  isSpriteFrame,
-  UnknownFrameError,
-  UnknownClipError,
-} from './spritesheet';
-export { createClip, ClipEnd, EmptyClipError } from './animation';
-export type { AnimationClip, ClipOptions } from './animation';
+} from "./app";
+export type { MatterContext, StyleOverrides } from "./context";
+export type { Camera2D, CameraPoint } from "./camera";
+export { ColorCache } from "./color-cache";
+export { spritesheet, isSpriteFrame, UnknownFrameError, UnknownClipError } from "./spritesheet";
+export { createClip, ClipEnd, EmptyClipError } from "./animation";
+export type { AnimationClip, ClipOptions } from "./animation";
 export type {
   Spritesheet,
   SpriteFrame,
@@ -45,20 +39,20 @@ export type {
   GridOptions,
   NamedOptions,
   ClipsOption,
-} from './spritesheet';
-export type { ColorLike, Rgba } from './color-cache';
+} from "./spritesheet";
+export type { ColorLike, Rgba } from "./color-cache";
 
 // --- L0 core ---
-export { SketchClock, createSketch, definePlugin, DuplicatePluginError } from '@matter/core';
+export { AppClock, createPluginHost, definePlugin, DuplicatePluginError } from "@matter/core";
 export type {
   Clock,
   ClockOptions,
   Plugin,
   PluginHost,
   PluginLifecycle,
-  SketchBuilder,
-  SketchCore,
-} from '@matter/core';
+  PluginBuilder,
+  PluginSetupContext,
+} from "@matter/core";
 
 // --- L1 math ---
 export {
@@ -77,8 +71,8 @@ export {
   wrap,
   angleDelta,
   smoothstep,
-} from '@matter/math';
-export type { Vec2, Vec3, Mat4, Easing, Rng, Noise } from '@matter/math';
+} from "@matter/math";
+export type { Vec2, Vec3, Mat4, Easing, Rng, Noise } from "@matter/math";
 
 // --- L2 color ---
 export {
@@ -100,9 +94,18 @@ export {
   darken,
   withAlpha,
   rotateHue,
-} from '@matter/color';
-export type { Oklch, Oklab, Srgb, LinearRgb } from '@matter/color';
+} from "@matter/color";
+export type { Oklch, Oklab, Srgb, LinearRgb } from "@matter/color";
 
 // --- L3 graphics ---
-export { CommandBuffer, decode, Op, OP_SIZE, Blend, Align, Baseline, UnknownOpcodeError } from '@matter/graphics';
-export type { CommandVisitor, Renderer, BackendFactory, Affine } from '@matter/graphics';
+export {
+  CommandBuffer,
+  decode,
+  Op,
+  OP_SIZE,
+  Blend,
+  Align,
+  Baseline,
+  UnknownOpcodeError,
+} from "@matter/graphics";
+export type { CommandVisitor, Renderer, BackendFactory, Affine } from "@matter/graphics";

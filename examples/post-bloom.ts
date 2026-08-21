@@ -6,8 +6,8 @@
  * rather than an escape hatch. The scene is deliberately plain; the whole look
  * comes from the chain.
  */
-import { Blend, sketch, type SketchContext, type SketchHandle } from 'matter';
-import { webgl2 } from 'matter/backends/webgl2';
+import { Blend, start, type MatterApp, type MatterContext } from "matter";
+import { webgl2 } from "matter/backends/webgl2";
 
 /** Keep only the bright parts, so the blur has something to bloom. */
 const THRESHOLD = `
@@ -30,19 +30,21 @@ void main() {
 }
 `;
 
-export function postBloom(parent: HTMLElement): SketchHandle {
-  return sketch(
-    { backend: webgl2(), width: 600, height: 600, parent, seed: 9 },
-    (s) => {
-      // Configuration, so it belongs in setup rather than the draw loop.
-      s.setPasses([
-        { fragment: THRESHOLD, uniforms: { u_cutoff: 0.5 } },
-        { fragment: blur(4, 0) },
-        { fragment: blur(0, 4) },
-      ]);
+export function postBloom(parent: HTMLElement): MatterApp {
+  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 9 }, (s) => {
+    // Configuration, so it belongs in scene creation rather than the draw loop.
+    s.setPasses([
+      { fragment: THRESHOLD, uniforms: { u_cutoff: 0.5 } },
+      { fragment: blur(4, 0) },
+      { fragment: blur(0, 4) },
+    ]);
 
-      return ({ background, circle, fill, blendMode, width, height, t }: SketchContext) => {
-        background('oklch(0.11 0.02 265)');
+    return {
+      draw: (
+        _alpha,
+        { background, circle, fill, blendMode, width, height, t }: MatterContext,
+      ): void => {
+        background("oklch(0.11 0.02 265)");
         blendMode(Blend.Add);
 
         for (let i = 0; i < 60; i++) {
@@ -51,7 +53,7 @@ export function postBloom(parent: HTMLElement): SketchHandle {
           fill(`oklch(${0.72 + 0.2 * Math.sin(i)} 0.22 ${(i * 6 + t * 40) % 360})`);
           circle(width / 2 + Math.cos(a) * r, height / 2 + Math.sin(a * 1.3) * r, 26);
         }
-      };
-    },
-  );
+      },
+    };
+  });
 }

@@ -2,14 +2,10 @@ import { javascript } from "@codemirror/lang-javascript";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
-import {
-  Download,
-  Play,
-  Sparkles,
-} from "lucide-react";
+import { Download, Play, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { toSvg } from "@matter/backend-svg";
-import { sketch, type SetupFunction, type SketchHandle } from "matter";
+import { start, type MatterApp, type SceneFactory } from "matter";
 import { webgl2 } from "matter/backends/webgl2";
 import { Button } from "./components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./components/ui/resizable";
@@ -20,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./components/ui/select";
-import { STARTERS } from "./sketches";
+import { STARTERS } from "./scenes";
 
 const SIZE = 520;
 
@@ -59,13 +55,13 @@ function describeError(error: unknown): string {
   return line === null ? error.message : `${error.message} · line ${Number(line[1]) - 1}`;
 }
 
-async function compile(view: EditorView): Promise<SetupFunction> {
+async function compile(view: EditorView): Promise<SceneFactory> {
   const source = view.state.doc.toString();
   const module = `export default (s) => {\n${source}\n};`;
   const url = URL.createObjectURL(new Blob([module], { type: "text/javascript" }));
 
   try {
-    const loaded = (await import(/* @vite-ignore */ url)) as { default: SetupFunction };
+    const loaded = (await import(/* @vite-ignore */ url)) as { default: SceneFactory };
     return loaded.default;
   } finally {
     URL.revokeObjectURL(url);
@@ -86,11 +82,7 @@ function useNarrowLayout(): boolean {
   return narrow;
 }
 
-function PanelHeading({
-  title,
-}: {
-  readonly title: string;
-}): JSX.Element {
+function PanelHeading({ title }: { readonly title: string }): JSX.Element {
   return (
     <div className="flex h-9 shrink-0 items-center border-b border-border bg-panel px-3">
       <span className="text-xs font-medium text-foreground">{title}</span>
@@ -100,7 +92,7 @@ function PanelHeading({
 
 export function App(): JSX.Element {
   const stageRef = useRef<HTMLDivElement>(null);
-  const handleRef = useRef<SketchHandle | null>(null);
+  const appRef = useRef<MatterApp | null>(null);
   const runIdRef = useRef(0);
   const [editor, setEditor] = useState<EditorView | null>(null);
   const [starterIndex, setStarterIndex] = useState("0");
@@ -114,15 +106,15 @@ export function App(): JSX.Element {
   const run = useCallback(async (): Promise<void> => {
     if (editor === null || stageRef.current === null) return;
     const runId = ++runIdRef.current;
-    handleRef.current?.stop();
-    handleRef.current = null;
+    appRef.current?.stop();
+    appRef.current = null;
     stageRef.current.replaceChildren();
     setStatus({ text: "Compiling", kind: "idle" });
 
     try {
-      const setup = await compile(editor);
+      const scene = await compile(editor);
       if (runId !== runIdRef.current || stageRef.current === null) return;
-      const handle = sketch(
+      const app = start(
         {
           backend: webgl2(),
           width: SIZE,
@@ -135,19 +127,19 @@ export function App(): JSX.Element {
             }
           },
         },
-        setup,
+        scene,
       );
-      handleRef.current = handle;
-      await handle.ready;
+      appRef.current = app;
+      await app.ready;
       if (runId !== runIdRef.current) {
-        handle.stop();
+        app.stop();
         return;
       }
       setStatus({ text: "Ready", kind: "ok" });
     } catch (error) {
       if (runId !== runIdRef.current) return;
-      handleRef.current?.stop();
-      handleRef.current = null;
+      appRef.current?.stop();
+      appRef.current = null;
       setStatus({ text: describeError(error), kind: "error" });
     }
   }, [editor]);
@@ -155,12 +147,12 @@ export function App(): JSX.Element {
   const exportSvg = useCallback(async (): Promise<void> => {
     if (editor === null) return;
     setStatus({ text: "Exporting", kind: "idle" });
-    let exporter: SketchHandle | null = null;
+    let exporter: MatterApp | null = null;
 
     try {
-      const setup = await compile(editor);
+      const scene = await compile(editor);
       let output = "";
-      exporter = sketch(
+      exporter = start(
         {
           backend: () => ({
             render: (buffer): void => {
@@ -174,10 +166,10 @@ export function App(): JSX.Element {
           canvas: document.createElement("canvas"),
           seed: 1,
         },
-        setup,
+        scene,
       );
       await exporter.ready;
-      // A static setup renders during ready; a setup returning draw has not
+      // A no-loop scene renders during ready; a looping scene has not
       // necessarily reached its first animation frame yet.
       if (output.length === 0) exporter.redraw();
       setSvg(output);
@@ -196,7 +188,7 @@ export function App(): JSX.Element {
     if (editor !== null) void run();
     return (): void => {
       runIdRef.current++;
-      handleRef.current?.stop();
+      appRef.current?.stop();
     };
   }, [editor, run]);
 
@@ -224,11 +216,7 @@ export function App(): JSX.Element {
   return (
     <div className="flex h-dvh min-h-[480px] flex-col overflow-hidden bg-background text-foreground">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-panel/95 px-3 shadow-sm backdrop-blur sm:px-4">
-        <a
-          href="/"
-          className="group mr-1 flex items-center gap-2.5"
-          aria-label="Matter home"
-        >
+        <a href="/" className="group mr-1 flex items-center gap-2.5" aria-label="Matter home">
           <span className="matter-mark">
             <span />
           </span>
@@ -237,7 +225,7 @@ export function App(): JSX.Element {
 
         <div className="mx-1 h-5 w-px bg-border" />
         <Select value={starterIndex} onValueChange={chooseStarter}>
-          <SelectTrigger aria-label="Starter sketch">
+          <SelectTrigger aria-label="Starter scene">
             <Sparkles className="size-3.5 text-primary" />
             <SelectValue />
           </SelectTrigger>
@@ -327,7 +315,6 @@ export function App(): JSX.Element {
           </ResizablePanel>
         </ResizablePanelGroup>
       </main>
-
     </div>
   );
 }

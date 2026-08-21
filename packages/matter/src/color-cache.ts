@@ -26,13 +26,13 @@ const DEFAULT_CAPACITY = 2048;
  *
  * `fill('#ff0000')` inside a draw loop would otherwise re-parse the string and
  * run the full OKLCH conversion for every shape, every frame. Strings in
- * sketches are overwhelmingly literals, so a plain Map hits almost always.
+ * scenes overwhelmingly use literals, so a plain Map hits almost always.
  *
- * It is bounded, because they are not *always* literals: a sketch that builds
+ * It is bounded, because they are not *always* literals: a scene that builds
  * a colour from a continuous value — a template literal interpolating time,
  * say — an
  * entirely ordinary thing to write — produces a fresh key every frame, and an
- * unbounded map would grow for as long as the sketch runs.
+ * unbounded map would grow for as long as the scene runs.
  *
  * Eviction drops the oldest half in one pass rather than maintaining LRU order
  * on every read. Reordering per hit would trade a real per-shape cost against
@@ -59,7 +59,7 @@ export class ColorCache {
     return this.#misses;
   }
 
-  /** How many times the cache has shed entries. Stays 0 for literal-only sketches. */
+  /** How many times the cache has shed entries. Stays 0 for literal-only scenes. */
   get evictions(): number {
     return this.#evictions;
   }

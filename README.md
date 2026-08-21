@@ -1,12 +1,12 @@
 # Matter
 
-A typed 2D graphics library for sketches, generative work and games. The
+A typed 2D graphics library for interactive scenes, generative work and games. The
 drawing API does not rasterise — it encodes a command stream that WebGL2,
 Canvas2D, SVG and a headless recorder each consume on their own terms.
 
 > **Status: 0.1.0, pre-alpha.** The drawing API, bezier paths, SDF text,
 > images, sprites, shader passes and SVG export all work, with twelve example
-> sketches running on them. Not published to npm.
+> scenes running on them. Not published to npm.
 
 ## Why
 
@@ -17,27 +17,29 @@ built for GPU throughput avoid that by handing you buffers and pipelines
 instead — at which point a circle stops being one line of code.
 
 Matter keeps the short API and puts a typed command buffer behind it. One
-sketch can therefore run a hundred thousand shapes in a single draw call,
+scene can therefore run a hundred thousand shapes in a single draw call,
 export as an SVG with real curve commands, and assert in a unit test with no
 browser involved. Shaders are a normal feature rather than an escape hatch.
 
-## A sketch
+## A scene
 
 ```ts
-import { sketch } from 'matter';
+import { start } from 'matter';
 import { webgl2 } from 'matter/backends/webgl2';
 
-sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
-  return ({ background, circle, fill, width, height, t }) => {
-    background('oklch(0.15 0.02 260)');
-    fill('oklch(0.7 0.18 250)');
-    circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
+start({ backend: webgl2(), width: 600, height: 600 }, () => {
+  return {
+    draw(_alpha, { background, circle, fill, width, height, t }) {
+      background('oklch(0.15 0.02 260)');
+      fill('oklch(0.7 0.18 250)');
+      circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
+    },
   };
 });
 ```
 
 The context is destructured in the draw callback rather than injected onto
-`window`. That keeps the terseness of a global-style sketch — bare `circle`,
+`window`. That keeps the terseness of a global-style scene — bare `circle`,
 `fill`, `width` — while staying fully typed, and because the same object is
 mutated in place, reading `t` or `width` costs nothing per frame.
 
@@ -54,12 +56,12 @@ It restores on exit *including when the body throws*, which is the failure
 
 ## A fixed-step game
 
-Setup can instead return separate `update` and `draw` callbacks. Simulation
+A scene can implement separate `update` and `draw` callbacks. Simulation
 runs at the configured fixed rate; rendering still follows the display and
 receives an interpolation alpha:
 
 ```ts
-sketch(
+start(
   { backend: webgl2(), clock: { fixedStep: 1 / 60 } },
   () => {
     let previousX = 100;
@@ -113,7 +115,7 @@ return {
 point for allocation-free use in a hot loop.
 
 Run `bun run dev` and open
-http://localhost:5199/examples to see the twelve sketches in
+http://localhost:5199/examples to see the twelve scenes in
 `examples/`.
 
 ## Design in one page
@@ -127,7 +129,7 @@ Four things fall out of that:
 - **Vector export.** SVG is just another buffer consumer.
 - **Real unit tests.** The headless backend records the command stream, so tests
   assert on what was drawn instead of pixel-diffing a browser.
-- **Deterministic recording.** Seeded RNG plus a decoupled clock means a sketch
+- **Deterministic recording.** Seeded RNG plus a decoupled clock means a scene
   re-runs frame-by-frame at any resolution and produces identical output.
 - **A tractable GPU path.** Backends batch by sorting commands rather than
   re-implementing the drawing API.
@@ -155,7 +157,7 @@ state, what is built but not yet reachable, and what comes next.
 | P1 ✅ | Command buffer + minimal instanced WebGL2 path | **Met** — see measurements below |
 | P2 ✅ | core, math, color | **Met** — 253 tests; plugin types verified at compile time |
 | P3 ✅ | Renderer subsystems + Canvas2D oracle | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255 |
-| P4 ✅ | First vertical slice, `0.1.0` | **Met** — five sketches in `examples/`, no escape hatches |
+| P4 ✅ | First vertical slice, `0.1.0` | **Met** — five scenes in `examples/`, no escape hatches |
 | P5 ✅ | Text, then SVG backend | **Met** — 12 scenes export and rasterise to within 0.31/255 |
 | P6 ✅ | Docs + playground | **Met** — landing page, live editor, 184-symbol reference |
 | P7 ✅ | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below |
@@ -273,7 +275,7 @@ draw the same frames from both source types for this reason.
 
 ### Animations
 
-A sheet can declare its own clips, so a sketch asks for an animation rather than
+A sheet can declare its own clips, so a scene asks for an animation rather than
 tracking frame indices:
 
 ```ts
@@ -306,7 +308,7 @@ and 300 sprites:
 | Grouped by sheet | 3 |
 | Interleaved | 300 |
 
-Group draws by sheet where you can. `handle.stats.drawCalls` reports the number
+Group draws by sheet where you can. `app.stats.drawCalls` reports the number
 for the last frame.
 
 ## Paths
@@ -349,7 +351,7 @@ s.setPasses([
 
 Passes run in order, each reading the previous one's output, ping-ponging
 between two render targets so an N-pass chain still needs only two textures. An
-empty chain allocates no targets at all, so a sketch that never asks for effects
+empty chain allocates no targets at all, so a scene that never asks for effects
 pays nothing for them.
 
 ## Text
@@ -388,8 +390,8 @@ bun run dev
 | --- | --- |
 | `/` | Landing page |
 | `/playground` | Live editor, five starters, SVG export |
-| `/reference` | API reference, 234 symbols |
-| `/examples` | The twelve example sketches |
+| `/reference` | Generated API reference |
+| `/examples` | The twelve example scenes |
 | `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
 | `/bench/gpu.html` | 100k-shape GPU benchmark |
 | `/bench/probe.html` | Stencil-through-a-render-pass regression check |

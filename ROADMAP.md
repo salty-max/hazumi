@@ -4,8 +4,8 @@ What is built, what is built but not reachable, and what is next. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 566 unit tests, 19
-backend-agreement scenes, 12 example sketches. Not published to npm.
+**Where it stands:** 0.1.0, pre-alpha. 10 packages, 575 unit tests, 19
+backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
 
@@ -14,7 +14,7 @@ backend-agreement scenes, 12 example sketches. Not published to npm.
 | P1 ✅ | Struct-of-arrays command buffer; instanced WebGL2 circles in one draw call |
 | P2 ✅ | `core`, `math`, `color` — clock, plugin registry, Vec/Mat4, seeded RNG, noise, OKLCH |
 | P3 ✅ | Renderer subsystems, batching, state cache, and the Canvas2D reference oracle |
-| P4 ✅ | First vertical slice: `sketch()`, the drawing API, `0.1.0` |
+| P4 ✅ | First vertical slice: `start()`, scenes, and the drawing API, `0.1.0` |
 | P5 ✅ | Runtime SDF text, then the SVG export backend |
 | P6 ✅ | Landing page, live playground, generated API reference |
 | P7 ✅ | Images, sprites, bezier paths, shader passes, input, build-time auto-import |
@@ -32,13 +32,13 @@ The measurements that back these:
 | Several sheets | 3 sheets grouped → 3 calls; interleaved → 300 |
 | Context loss | Recovered without reload, back to 1 draw call |
 
-The game loop now also exposes the fixed-step clock through `sketch()`: setup
-may return `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a
+The application loop exposes the fixed-step clock through `start()`: a scene
+may implement `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a
 stalled frame can create an unbounded simulation debt.
 
-The sketch context also carries a 2D camera with pan, zoom, deterministic
+The Matter context also carries a 2D camera with pan, zoom, deterministic
 following, screen↔world conversion, and an explicit screen-space block for HUD
-drawing. Its identity default keeps existing sketches byte-for-byte unchanged.
+drawing. Its identity default keeps existing scenes byte-for-byte unchanged.
 
 ## Built but not reachable
 
@@ -46,12 +46,12 @@ One subsystem is implemented and tested but nothing consumes it. This is a
 wiring job, not a design job — which makes it the cheapest real progress
 available.
 
-- **The plugin system.** `definePlugin` and `createSketch` accumulate a
-  plugin's contributions into the sketch type with no declaration merging, and
-  the types are verified at compile time. But `SketchOptions` has no `plugins`
+- **The plugin system.** `definePlugin` and `createPluginHost` accumulate a
+  plugin's contributions into the host type with no declaration merging, and
+  the types are verified at compile time. But `AppOptions` has no `plugins`
   field and nothing in the repo calls either function. The typed extension
-  story currently cannot be used from `sketch()`.
-  → [plugin.ts](packages/core/src/plugin.ts), [sketch.ts](packages/matter/src/sketch.ts)
+  story currently cannot be used from `start()`.
+  → [plugin.ts](packages/core/src/plugin.ts), [app.ts](packages/matter/src/app.ts)
 
 ## Next: making games viable
 
@@ -60,9 +60,9 @@ library and a real 2D game, roughly in dependency order.
 
 1. **Input edge detection.** `keyIsDown`, `mouseX/Y`, `mouseIsPressed` and
    friends report *state*. A game needs *transitions* — `justPressed`,
-   `justReleased` — which cannot be derived correctly by a sketch polling once
+   `justReleased` — which cannot be derived correctly by a scene polling once
    per frame. Also missing: pointer/touch events, wheel, and gamepad.
-   → [sketch.ts:242](packages/matter/src/sketch.ts:242)
+   → [app.ts](packages/matter/src/app.ts)
 2. **Collision math** in `@matter/math`: AABB and circle overlap, point
    containment, ray casts, and swept tests for tunnelling at speed. Pure
    functions, `bun test`-able, no renderer involved.
@@ -76,10 +76,10 @@ library and a real 2D game, roughly in dependency order.
 - **Pixel access.** No `loadPixels`/`get`/`set`. Genuinely absent, and a
   common expectation for a drawing library.
 - **Canvas export.** SVG export works via `toSvg()`; there is no PNG-or-frame
-  save path from the sketch API.
+  save path from the application API.
 - **Canvas resize.** `pixelRatio` is read once at construction and there is no
-  `resize` listener, so a sketch does not respond to a window resize.
-  → [sketch.ts:170](packages/matter/src/sketch.ts:170)
+  `resize` listener, so an application does not respond to a window resize.
+  → [app.ts](packages/matter/src/app.ts)
 - **Colour packing.** Instances carry colour as four floats. Packing into a
   `u32` would recover roughly a fifth of the upload bandwidth — the clearest
   remaining performance win, and already identified as such.
@@ -119,5 +119,5 @@ Not bugs, and not scheduled to be fixed — recorded so they are not rediscovere
   was built to answer is still open — the Blood Mage clips are named `f0`–`f3`
   because the facing order was never confirmed.
 - The phase table in [README.md](README.md) quotes figures from when each phase
-  closed (253 tests, 10 scenes, five sketches). Those are historical rather than
+  closed (253 tests, 10 comparison scenes, five examples). Those are historical rather than
   wrong, but the current numbers are at the top of this file.

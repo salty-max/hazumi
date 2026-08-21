@@ -68,7 +68,7 @@ export class PathBuilder {
   }
 
   moveTo(x: number, y: number): void {
-    // Grows once to the deepest path a sketch ever draws, then stops.
+    // Grows once to the deepest path a scene ever draws, then stops.
     if (this.#used === this.#pool.length) this.#pool.push([]);
     const contour = this.#pool[this.#used] as number[];
     contour.length = 0;

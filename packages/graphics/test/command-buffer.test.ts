@@ -99,7 +99,7 @@ describe('string table', () => {
   });
 
   test('repeated identical strings are interned per call, not deduplicated', () => {
-    // Deduplication would need a lookup on every text call; sketches emit few
+    // Deduplication would need a lookup on every text call; scenes emit few
     // enough strings per frame that the map would cost more than it saved.
     const buf = new CommandBuffer();
     buf.text(0, 0, 'same');
