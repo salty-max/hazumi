@@ -4,6 +4,10 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { Download, Play, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { toSvg } from "@matter/backend-svg";
 import { start, type MatterApp, type SceneFactory } from "matter";
 import { webgl2 } from "matter/backends/webgl2";
@@ -60,6 +64,22 @@ function describeError(error: unknown): string {
   if (!(error instanceof Error)) return String(error);
   const line = /blob:[^\s)]+:(\d+):(\d+)/.exec(error.stack ?? "");
   return line === null ? error.message : `${error.message} · line ${Number(line[1]) - 1}`;
+}
+
+function focusPreview(event: ReactPointerEvent<HTMLDivElement>): void {
+  event.currentTarget.focus({ preventScroll: true });
+}
+
+function keepGameKeysInPreview(event: ReactKeyboardEvent<HTMLDivElement>): void {
+  switch (event.key) {
+    case "ArrowDown":
+    case "ArrowLeft":
+    case "ArrowRight":
+    case "ArrowUp":
+    case " ":
+      event.preventDefault();
+      break;
+  }
 }
 
 async function compile(view: EditorView): Promise<SceneFactory> {
@@ -315,7 +335,16 @@ export function App(): JSX.Element {
               <PanelHeading title="Preview" />
               <div className="preview-grid min-h-0 flex-1 overflow-auto p-5 sm:p-8">
                 <div className="m-auto w-fit rounded-xl border border-white/10 bg-black/20 p-2 shadow-2xl shadow-black/30">
-                  <div ref={stageRef} id="stage" className="overflow-hidden rounded-lg" />
+                  <div
+                    ref={stageRef}
+                    id="stage"
+                    role="application"
+                    aria-label="Interactive preview"
+                    tabIndex={0}
+                    onPointerDown={focusPreview}
+                    onKeyDown={keepGameKeysInPreview}
+                    className="overflow-hidden rounded-lg outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 focus:ring-offset-canvas"
+                  />
                 </div>
               </div>
             </section>
