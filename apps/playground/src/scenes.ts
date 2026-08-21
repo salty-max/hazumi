@@ -89,10 +89,12 @@ const tiles = spritesheet(tileImage, {
 const sprites = spritesheet(spriteImage, {
   frame: [16, 16],
   clips: {
-    knightRun: { frames: [140, 141, 142, 143, 144, 145], fps: 10 },
+    knightIdle: { frames: [140, 141, 142, 143, 144, 145], fps: 4 },
+    knightRun: { frames: [168, 169, 170, 171, 172, 173], fps: 8 },
     beacon: { frames: [90, 91, 92, 93, 94, 95], fps: 8 },
   },
 });
+const knightIdle = sprites.clip('knightIdle');
 const knightRun = sprites.clip('knightRun');
 const beacon = sprites.clip('beacon');
 const floorTiles = new Int16Array(COLUMNS * ROWS);
@@ -146,15 +148,17 @@ let previousX = x;
 let previousY = y;
 let facing = 1;
 let running = false;
+let animationStartedAt = 0;
 let won = false;
 
-function reset(camera) {
+function reset(camera, time) {
   x = spawn.x;
   y = spawn.y;
   previousX = x;
   previousY = y;
   facing = 1;
   running = false;
+  animationStartedAt = time;
   won = false;
   camera.lookAt(x, y);
 }
@@ -182,12 +186,12 @@ function moveAxis(amount, horizontal) {
   y += delta.y * safe;
 }
 
-reset(s.camera);
+reset(s.camera, 0);
 
 return {
   update(dt, context) {
-    const { camera, keyIsDown, keyJustPressed } = context;
-    if (keyJustPressed('r') || keyJustPressed('R')) reset(camera);
+    const { camera, keyIsDown, keyJustPressed, t } = context;
+    if (keyJustPressed('r') || keyJustPressed('R')) reset(camera, t);
 
     previousX = x;
     previousY = y;
@@ -196,7 +200,9 @@ return {
         Number(keyIsDown('ArrowLeft') || keyIsDown('a') || keyIsDown('A'));
       let dy = Number(keyIsDown('ArrowDown') || keyIsDown('s') || keyIsDown('S')) -
         Number(keyIsDown('ArrowUp') || keyIsDown('w') || keyIsDown('W'));
-      running = dx !== 0 || dy !== 0;
+      const nextRunning = dx !== 0 || dy !== 0;
+      if (nextRunning !== running) animationStartedAt = t;
+      running = nextRunning;
       if (dx !== 0) facing = dx < 0 ? -1 : 1;
       const length = Math.hypot(dx, dy) || 1;
       dx /= length;
@@ -211,7 +217,10 @@ return {
         PLAYER_SIZE,
       );
       won = collision.overlapsCircleAabb(goalShape, player);
-      if (won) running = false;
+      if (won && running) {
+        running = false;
+        animationStartedAt = t;
+      }
     }
     camera.follow(x, y, 0.22);
   },
@@ -230,7 +239,7 @@ return {
     translate(drawX, drawY);
     scale(facing, 1);
     image(
-      running ? knightRun.at(t) : sprites.frame(140),
+      running ? knightRun.at(t - animationStartedAt) : knightIdle.at(t - animationStartedAt),
       -PLAYER_DRAW_SIZE / 2,
       -PLAYER_DRAW_SIZE / 2,
       PLAYER_DRAW_SIZE,
