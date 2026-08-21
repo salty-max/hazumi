@@ -15,32 +15,40 @@ export interface StarterFile {
 export const STARTERS: readonly Starter[] = [
   {
     name: "Hello circle",
-    code: `// Everything you need is destructured from the context.
+    code: `import { background, circle, fill } from 'matter/draw';
+import { screen, time } from 'matter/scene';
+
 return {
-  draw(_alpha, { background, circle, fill, width, height, t }) {
+  draw() {
     background('oklch(0.15 0.02 260)');
     fill('oklch(0.72 0.18 250)');
-    circle(width / 2, height / 2, 180 + Math.sin(t * 2) * 70);
+    circle(
+      screen.width / 2,
+      screen.height / 2,
+      180 + Math.sin(time.elapsed * 2) * 70,
+    );
   },
 };`,
   },
   {
     name: "Noise field",
-    code: `// s is the same context, available while the scene is created.
+    code: `import { background, circle, fill } from 'matter/draw';
+import { noise, random, screen, time } from 'matter/scene';
+
 const points = Array.from({ length: 2500 }, () => ({
-  x: s.random.range(0, s.width),
-  y: s.random.range(0, s.height),
+  x: random.range(0, screen.width),
+  y: random.range(0, screen.height),
 }));
 
 return {
-  draw(_alpha, { background, circle, fill, noise, width, height, t }) {
+  draw() {
     // A translucent background fades the last frame instead of clearing it.
     background('oklch(0.12 0.02 265 / 0.08)');
 
     for (const p of points) {
-      const a = noise.noise3(p.x * 0.003, p.y * 0.003, t * 0.1) * Math.PI * 3;
-      p.x = (p.x + Math.cos(a) * 1.5 + width) % width;
-      p.y = (p.y + Math.sin(a) * 1.5 + height) % height;
+      const a = noise.noise3(p.x * 0.003, p.y * 0.003, time.elapsed * 0.1) * Math.PI * 3;
+      p.x = (p.x + Math.cos(a) * 1.5 + screen.width) % screen.width;
+      p.y = (p.y + Math.sin(a) * 1.5 + screen.height) % screen.height;
       fill('oklch(0.8 0.14 210 / 0.35)');
       circle(p.x, p.y, 2);
     }
@@ -49,12 +57,16 @@ return {
   },
   {
     name: "Input edges",
-    code: `const player = { x: s.width / 2, y: s.height / 2 };
+    code: `import { background, circle, fill } from 'matter/draw';
+import { input, keyIsDown, keyJustPressed, pointerJustPressed } from 'matter/input';
+import { screen } from 'matter/scene';
+
+const player = { x: screen.width / 2, y: screen.height / 2 };
 let hue = 285;
 let size = 72;
 
 return {
-  update(dt, { keyIsDown, keyJustPressed, pointerJustPressed, mouseX, mouseY, wheelY }) {
+  update(dt) {
     if (keyIsDown('ArrowLeft')) player.x -= 240 * dt;
     if (keyIsDown('ArrowRight')) player.x += 240 * dt;
     if (keyIsDown('ArrowUp')) player.y -= 240 * dt;
@@ -64,12 +76,12 @@ return {
     if (keyJustPressed(' ')) hue = (hue + 55) % 360;
     // Pointer Events covers mouse, pen, and touch through the same edge.
     if (pointerJustPressed()) {
-      player.x = mouseX;
-      player.y = mouseY;
+      player.x = input.mouseX;
+      player.y = input.mouseY;
     }
-    size = Math.max(24, Math.min(160, size - wheelY * 0.25));
+    size = Math.max(24, Math.min(160, size - input.wheelY * 0.25));
   },
-  draw(_alpha, { background, circle, fill }) {
+  draw() {
     background('oklch(0.14 0.02 260)');
     fill(\`oklch(0.72 0.18 \${hue})\`);
     circle(player.x, player.y, size);
@@ -83,15 +95,18 @@ return {
   },
   {
     name: "Transform stack",
-    code: `return {
-  draw(_alpha, { background, push, pop, translate, rotate, rect, fill, width, height, t }) {
+    code: `import { background, fill, pop, push, rect, rotate, translate } from 'matter/draw';
+import { screen, time } from 'matter/scene';
+
+return {
+  draw() {
     background('oklch(0.97 0.01 90)');
     push();
-    translate(width / 2, height / 2);
+    translate(screen.width / 2, screen.height / 2);
 
     for (let ring = 1; ring <= 6; ring++) {
       push();
-      rotate(t * 0.3 / ring * (ring % 2 ? 1 : -1));
+      rotate(time.elapsed * 0.3 / ring * (ring % 2 ? 1 : -1));
       for (let i = 0; i < ring * 3; i++) {
         rotate((Math.PI * 2) / (ring * 3));
         push();
@@ -108,34 +123,39 @@ return {
   },
   {
     name: "Scoped style",
-    code: `// with() restores style on exit — even if the body throws,
-// which is the thing push()/pop() cannot promise.
+    code: `import { background, circle, fill, scoped } from 'matter/draw';
+import { screen } from 'matter/scene';
+
+// scoped() restores style and transform even if the body throws.
 return {
-  draw(_alpha, { background, circle, fill, stroke, strokeWeight, with: scoped, width, height }) {
+  draw() {
     background('oklch(0.96 0.01 80)');
     fill('oklch(0.55 0.2 25)');
 
     scoped({ fill: 'oklch(0.6 0.16 200)', stroke: 'white', strokeWeight: 6 }, () => {
-      circle(width / 2 - 90, height / 2, 160);
+      circle(screen.width / 2 - 90, screen.height / 2, 160);
     });
 
     // Back to the red fill, and no stroke.
-    circle(width / 2 + 90, height / 2, 160);
+    circle(screen.width / 2 + 90, screen.height / 2, 160);
   },
 };`,
   },
   {
     name: "Text",
-    code: `return {
-  draw(_alpha, { background, text, textSize, textAlign, textFont, fill, width, height, t }) {
+    code: `import { Align, Baseline, background, fill, text, textAlign, textFont, textSize } from 'matter/draw';
+import { screen, time } from 'matter/scene';
+
+return {
+  draw() {
     background('oklch(0.16 0.03 265)');
-    textFont('Georgia, serif');
-    textAlign(1, 2); // Align.Center, Baseline.Middle
+    textFont('Bricolage Grotesque, sans-serif');
+    textAlign(Align.Center, Baseline.Middle);
 
     for (let i = 0; i < 5; i++) {
       fill(\`oklch(\${0.5 + i * 0.09} 0.15 \${200 + i * 22})\`);
       textSize(20 + i * 14);
-      text('Matter', width / 2, 110 + i * 90 + Math.sin(t + i) * 8);
+      text('Matter', screen.width / 2, 110 + i * 90 + Math.sin(time.elapsed + i) * 8);
     }
   },
 };`,

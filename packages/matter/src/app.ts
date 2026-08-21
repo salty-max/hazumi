@@ -15,6 +15,16 @@ import {
   type PointerInput,
 } from "./context";
 import { PixelAccessUnavailableError, Pixels } from "./pixels";
+import { enterContext, restoreContext } from "./active-context";
+
+export { createPluginHost, definePlugin, DuplicatePluginError } from "@matter/core";
+export type {
+  Plugin,
+  PluginBuilder,
+  PluginHost,
+  PluginLifecycle,
+  PluginSetupContext,
+} from "@matter/core";
 
 export interface AppOptions<Api extends object = Record<never, never>> {
   readonly backend: BackendFactory;
@@ -77,7 +87,13 @@ export interface Scene<Api extends object = Record<never, never>> {
   readonly dispose?: (context: MatterContext & Api) => void;
 }
 
-/** Builds a scene, optionally loading assets before it becomes active. */
+/**
+ * Builds a scene, optionally loading assets before it becomes active.
+ *
+ * Scene-scoped imports are active during synchronous setup. After an `await`,
+ * use the supplied context for app-owned services or values needed to finish
+ * setup; the returned lifecycle callbacks can use capability imports again.
+ */
 export type SceneFactory<Api extends object = Record<never, never>> = (
   context: MatterContext & Api,
 ) => Scene<Api> | Promise<Scene<Api>>;
@@ -235,15 +251,20 @@ function displayPixelRatio(): number {
  * Start a Matter application with its initial scene.
  *
  * ```ts
+ * import { start } from 'matter/app';
+ * import { webgl2 } from 'matter/backends/webgl2';
+ * import { background, circle, fill } from 'matter/draw';
+ * import { camera } from 'matter/scene';
+ *
  * start({ backend: webgl2(), width: 600, height: 600 }, () => {
  *   const player = { x: 300, y: 300 };
  *
  *   return {
- *     update(dt, { camera }) {
+ *     update(dt) {
  *       player.x += 40 * dt;
  *       camera.follow(player.x, player.y, 0.12);
  *     },
- *     draw(_alpha, { background, circle, fill }) {
+ *     draw() {
  *       background('#090d16');
  *       fill('oklch(.74 .18 160)');
  *       circle(player.x, player.y, 48);
@@ -689,9 +710,11 @@ export function start<Api extends object = Record<never, never>>(
   // allocate a closure in the per-frame path.
   const runSceneUpdate = (fixedDt: number): void => {
     beginInputStep();
+    const previousContext = enterContext(sceneContext);
     try {
       activeScene?.update?.(fixedDt, sceneContext);
     } finally {
+      restoreContext(previousContext);
       endInputStep();
     }
   };
@@ -714,9 +737,14 @@ export function start<Api extends object = Record<never, never>>(
       // re-emitted into it before anything is drawn.
       beginFrame();
 
-      pluginHost.predraw(state.dt);
-      activeScene?.draw(clock.alpha(), sceneContext);
-      pluginHost.postdraw(state.dt);
+      const previousContext = enterContext(sceneContext);
+      try {
+        pluginHost.predraw(state.dt);
+        activeScene?.draw(clock.alpha(), sceneContext);
+        pluginHost.postdraw(state.dt);
+      } finally {
+        restoreContext(previousContext);
+      }
       if (supportsPasses(renderer)) renderer.setTime(state.t);
       renderer.render(buffer);
     } catch (error) {
@@ -755,9 +783,11 @@ export function start<Api extends object = Record<never, never>>(
     globalThis.removeEventListener("keyup", onKeyUp);
     globalThis.removeEventListener("blur", onBlur);
     if (options.pixelRatio === undefined) globalThis.removeEventListener("resize", onDisplayResize);
+    const previousContext = enterContext(sceneContext);
     try {
       activeScene?.dispose?.(sceneContext);
     } finally {
+      restoreContext(previousContext);
       activeScene = null;
       try {
         pluginHost.dispose();
@@ -779,7 +809,18 @@ export function start<Api extends object = Record<never, never>>(
 
     let next: Scene<Api>;
     try {
-      next = typeof source === "function" ? await source(sceneContext) : source;
+      if (typeof source === "function") {
+        const previousContext = enterContext(sceneContext);
+        let pending: Scene<Api> | Promise<Scene<Api>>;
+        try {
+          pending = source(sceneContext);
+        } finally {
+          restoreContext(previousContext);
+        }
+        next = await pending;
+      } else {
+        next = source;
+      }
     } catch (error) {
       // A superseded load no longer controls application state. Its failure is
       // therefore no more relevant than its eventual successful result would
@@ -791,13 +832,23 @@ export function start<Api extends object = Record<never, never>>(
       throw new TypeError("A scene must be an object with a draw() function");
     }
     if (stopped || revision !== sceneRevision) {
-      next.dispose?.(sceneContext);
+      const previousContext = enterContext(sceneContext);
+      try {
+        next.dispose?.(sceneContext);
+      } finally {
+        restoreContext(previousContext);
+      }
       return;
     }
 
     const previous = activeScene;
     activeScene = next;
-    previous?.dispose?.(sceneContext);
+    const previousContext = enterContext(sceneContext);
+    try {
+      previous?.dispose?.(sceneContext);
+    } finally {
+      restoreContext(previousContext);
+    }
     if (!state.looping) renderFrame(performance.now());
   };
 

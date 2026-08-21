@@ -11,6 +11,11 @@ export default defineConfig([
     // noise and nothing else.
     entry: [
       "src/index.ts",
+      "src/app.ts",
+      "src/draw.ts",
+      "src/input.ts",
+      "src/scene.ts",
+      "src/assets.ts",
       "src/math.ts",
       "src/color.ts",
       "src/audio.ts",

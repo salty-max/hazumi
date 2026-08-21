@@ -1,14 +1,16 @@
 export const DUNGEON_RUN: readonly { readonly name: string; readonly code: string }[] = [
   {
     name: "scene.js",
-    code: `import { createGame } from './game.js';
+    code: `import { loadImage, spritesheet } from 'matter/assets';
+import { createGame } from './game.js';
 
+const { audio, camera: initialCamera } = s;
 const [tileImage, spriteImage, hit, goal, ambience] = await Promise.all([
-  s.loadImage('/examples/assets/dungeon-tiles.png'),
-  s.loadImage('/examples/assets/dungeon-sprites.png'),
-  s.audio.load('/examples/assets/dungeon-hit.wav'),
-  s.audio.load('/examples/assets/dungeon-goal.wav'),
-  s.audio.load('/examples/assets/dungeon-ambience.wav'),
+  loadImage('/examples/assets/dungeon-tiles.png'),
+  loadImage('/examples/assets/dungeon-sprites.png'),
+  audio.load('/examples/assets/dungeon-hit.wav'),
+  audio.load('/examples/assets/dungeon-goal.wav'),
+  audio.load('/examples/assets/dungeon-ambience.wav'),
 ]);
 
 const tiles = spritesheet(tileImage, { frame: [16, 16] });
@@ -22,7 +24,7 @@ const sprites = spritesheet(spriteImage, {
   },
 });
 
-return createGame(s, {
+return createGame(audio, initialCamera, {
   tiles,
   animation: {
     idle: sprites.clip('knightIdle'),
@@ -35,13 +37,17 @@ return createGame(s, {
   },
   {
     name: "game.js",
-    code: `import { createLevel } from './level.js';
+    code: `import { background, fill, image, pop, push, rect, scale, text, textSize, translate } from 'matter/draw';
+import { keyIsDown, keyJustPressed, pointerJustPressed } from 'matter/input';
+import { collision } from 'matter/math';
+import { camera, time } from 'matter/scene';
+import { createLevel } from './level.js';
 import { bodyFor, createMover } from './physics.js';
 
 const PLAYER = { bodySize: 22, drawSize: 32, speed: 300 };
 const ENEMY = { bodySize: 20, drawSize: 32 };
 
-export function createGame(s, assets) {
+export function createGame(audio, initialCamera, assets) {
   const level = createLevel(assets.tiles);
   const move = createMover(level);
   const spawn = { x: level.tileSize * 2.5, y: level.tileSize * 2.5 };
@@ -80,7 +86,7 @@ export function createGame(s, assets) {
   let hits = 0;
   let won = false;
 
-  function reset(time, clearHits) {
+  function reset(timestamp, clearHits) {
     Object.assign(player, {
       x: spawn.x,
       y: spawn.y,
@@ -88,17 +94,17 @@ export function createGame(s, assets) {
       previousY: spawn.y,
       facing: 1,
       moving: false,
-      animationStartedAt: time,
+      animationStartedAt: timestamp,
     });
     for (let index = 0; index < enemies.length; index++) {
       Object.assign(enemies[index], enemySpawns[index]);
     }
     if (clearHits) hits = 0;
     won = false;
-    s.camera.lookAt(player.x, player.y);
+    initialCamera.lookAt(player.x, player.y);
   }
 
-  function updatePlayer(dt, { keyIsDown, pointerJustPressed, t }) {
+  function updatePlayer(dt) {
     let dx = Number(keyIsDown('ArrowRight') || keyIsDown('d') || keyIsDown('D')) -
       Number(keyIsDown('ArrowLeft') || keyIsDown('a') || keyIsDown('A'));
     let dy = Number(keyIsDown('ArrowDown') || keyIsDown('s') || keyIsDown('S')) -
@@ -106,9 +112,9 @@ export function createGame(s, assets) {
     const moving = dx !== 0 || dy !== 0;
 
     if (ambience === null && (moving || pointerJustPressed())) {
-      ambience = s.audio.loop(assets.sound.ambience, { gain: 0.32 });
+      ambience = audio.loop(assets.sound.ambience, { gain: 0.32 });
     }
-    if (moving !== player.moving) player.animationStartedAt = t;
+    if (moving !== player.moving) player.animationStartedAt = time.elapsed;
     player.moving = moving;
     if (dx !== 0) player.facing = dx < 0 ? -1 : 1;
 
@@ -136,56 +142,54 @@ export function createGame(s, assets) {
     );
   }
 
-  function drawActor(context, frame, actor, drawSize, alpha, facing) {
+  function drawActor(frame, actor, drawSize, alpha, facing) {
     const x = actor.previousX + (actor.x - actor.previousX) * alpha;
     const y = actor.previousY + (actor.y - actor.previousY) * alpha;
-    context.push();
-    context.translate(x, y);
-    context.scale(facing, 1);
-    context.image(frame, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
-    context.pop();
+    push();
+    translate(x, y);
+    scale(facing, 1);
+    image(frame, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+    pop();
   }
 
   reset(0, true);
 
   return {
-    update(dt, context) {
-      const { camera, keyJustPressed, t } = context;
-      if (keyJustPressed('r') || keyJustPressed('R')) reset(t, true);
+    update(dt) {
+      if (keyJustPressed('r') || keyJustPressed('R')) reset(time.elapsed, true);
 
       player.previousX = player.x;
       player.previousY = player.y;
       if (!won) {
-        updatePlayer(dt, context);
+        updatePlayer(dt);
         updateEnemies(dt);
 
         if (touchesEnemy()) {
           hits++;
-          s.audio.play(assets.sound.hit, { gain: 0.7, rate: 0.92 });
-          reset(t, false);
+          audio.play(assets.sound.hit, { gain: 0.7, rate: 0.92 });
+          reset(time.elapsed, false);
         } else {
           won = collision.overlapsCircleAabb(goalShape, bodyFor(player, PLAYER.bodySize));
         }
 
         if (won) {
-          s.audio.play(assets.sound.goal, { gain: 0.85 });
+          audio.play(assets.sound.goal, { gain: 0.85 });
           ambience?.stop();
           ambience = null;
           player.moving = false;
-          player.animationStartedAt = t;
+          player.animationStartedAt = time.elapsed;
         }
       }
       camera.follow(player.x, player.y, 0.22);
     },
 
-    draw(alpha, context) {
-      const { audio, background, camera, fill, image, rect, text, textSize, t } = context;
+    draw(alpha) {
       background('oklch(0.08 0.018 265)');
-      level.map.draw(context);
+      level.map.draw();
 
-      const beaconSize = 36 + Math.sin(t * 5) * 4;
+      const beaconSize = 36 + Math.sin(time.elapsed * 5) * 4;
       image(
-        assets.animation.beacon.at(t),
+        assets.animation.beacon.at(time.elapsed),
         goal.x - beaconSize / 2,
         goal.y - beaconSize / 2,
         beaconSize,
@@ -193,8 +197,7 @@ export function createGame(s, assets) {
       );
       for (const enemy of enemies) {
         drawActor(
-          context,
-          assets.animation.slime.at(t + enemy.phase),
+          assets.animation.slime.at(time.elapsed + enemy.phase),
           enemy,
           ENEMY.drawSize,
           alpha,
@@ -203,8 +206,7 @@ export function createGame(s, assets) {
       }
       const knight = player.moving ? assets.animation.run : assets.animation.idle;
       drawActor(
-        context,
-        knight.at(t - player.animationStartedAt),
+        knight.at(time.elapsed - player.animationStartedAt),
         player,
         PLAYER.drawSize,
         alpha,
@@ -230,7 +232,10 @@ export function createGame(s, assets) {
   },
   {
     name: "level.js",
-    code: `export function createLevel(tiles) {
+    code: `import { EMPTY_TILE, tilemap } from 'matter/assets';
+import { collision } from 'matter/math';
+
+export function createLevel(tiles) {
   const tileSize = 32;
   const columns = 40;
   const rows = 28;
@@ -281,7 +286,9 @@ export function createGame(s, assets) {
   },
   {
     name: "physics.js",
-    code: `export function bodyFor(actor, size) {
+    code: `import { collision } from 'matter/math';
+
+export function bodyFor(actor, size) {
   return collision.aabb(actor.x - size / 2, actor.y - size / 2, size, size);
 }
 

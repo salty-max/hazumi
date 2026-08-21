@@ -24,34 +24,39 @@ browser involved. Shaders are a normal feature rather than an escape hatch.
 ## A scene
 
 ```ts
-import { start } from "matter";
+import { start } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
+import { background, circle, fill } from "matter/draw";
+import { screen, time } from "matter/scene";
 
 start({ backend: webgl2(), width: 600, height: 600 }, () => {
   return {
-    draw(_alpha, { background, circle, fill, width, height, t }) {
+    draw() {
       background("oklch(0.15 0.02 260)");
       fill("oklch(0.7 0.18 250)");
-      circle(width / 2, height / 2, 200 + Math.sin(t) * 80);
+      circle(screen.width / 2, screen.height / 2, 200 + Math.sin(time.elapsed) * 80);
     },
   };
 });
 ```
 
-The context is destructured in the draw callback rather than injected onto
-`window`. That keeps the terseness of a global-style scene — bare `circle`,
-`fill`, `width` — while staying fully typed, and because the same object is
-mutated in place, reading `t` or `width` costs nothing per frame.
+The API is split by capability: drawing, input, scene state, assets, audio,
+math, colour, and backends can be imported independently. Actions are regular
+functions; changing values live behind typed getters such as `screen.width`,
+`time.elapsed`, and `input.mouseX`. They resolve to the application whose
+lifecycle callback is currently running, without writing anything to `window`.
+
+The scene factory still receives the application context once. That is where
+app-owned plugin services such as audio belong; `update()` and `draw()` do not
+need to unpack it every frame. The old callback arguments remain supported
+during the transition.
 
 Style can be scoped instead of pushed and popped:
 
 ```ts
-with (
-  ({ fill: "red", stroke: null },
-  () => {
-    drawPetals();
-  })
-);
+scoped({ fill: "red", stroke: null }, () => {
+  drawPetals();
+});
 ```
 
 It restores on exit _including when the body throws_, which is the failure
@@ -64,17 +69,20 @@ runs at the configured fixed rate; rendering still follows the display and
 receives an interpolation alpha:
 
 ```ts
+import { background, circle, fill } from "matter/draw";
+import { keyIsDown, keyJustPressed } from "matter/input";
+
 start({ backend: webgl2(), clock: { fixedStep: 1 / 60 } }, () => {
   let previousX = 100;
   let x = 100;
 
   return {
-    update(dt, { keyIsDown, keyJustPressed }) {
+    update(dt) {
       previousX = x;
       if (keyIsDown("ArrowRight")) x += 120 * dt;
       if (keyJustPressed(" ")) jump();
     },
-    draw(alpha, { background, circle, fill }) {
+    draw(alpha) {
       background("#111827");
       fill("#60a5fa");
       circle(previousX + (x - previousX) * alpha, 300, 32);
@@ -135,13 +143,16 @@ the centre of the canvas; the default preserves the original canvas coordinate
 system exactly:
 
 ```ts
+import { background, circle, text } from "matter/draw";
+import { camera } from "matter/scene";
+
 return {
-  update(dt, { camera }) {
+  update(dt) {
     movePlayer(dt);
     camera.follow(player.x, player.y, 0.12);
     camera.setZoom(2);
   },
-  draw(alpha, { background, camera, circle, text }) {
+  draw(alpha) {
     background("#111827"); // always covers the screen
     circle(player.x, player.y, 32); // world space
 
@@ -362,7 +373,7 @@ const hero = spritesheet(await loadImage("hero.png"), {
   },
 });
 
-image(hero.clip("run").at(t), x, y);
+image(hero.clip("run").at(time.elapsed), x, y);
 ```
 
 Sampling is stateless — `at(seconds)` is a pure function of time — so any
@@ -391,11 +402,11 @@ const world = tilemap({
 });
 
 return {
-  update(_dt, { camera }) {
+  update() {
     camera.follow(player.x, player.y, 0.12);
   },
-  draw(_alpha, context) {
-    world.draw(context);
+  draw() {
+    world.draw();
   },
 };
 ```
@@ -448,7 +459,7 @@ Post-processing is a normal feature, not an escape hatch. A pass is only a
 `u_resolution`, `u_time` and a `texelSize()` helper:
 
 ```ts
-s.setPasses([
+setPasses([
   {
     fragment: `void main() {
       vec4 c = texture(u_texture, v_uv);

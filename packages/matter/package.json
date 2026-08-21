@@ -13,6 +13,26 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./app": {
+      "types": "./dist/app.d.ts",
+      "default": "./dist/app.js"
+    },
+    "./draw": {
+      "types": "./dist/draw.d.ts",
+      "default": "./dist/draw.js"
+    },
+    "./input": {
+      "types": "./dist/input.d.ts",
+      "default": "./dist/input.js"
+    },
+    "./scene": {
+      "types": "./dist/scene.d.ts",
+      "default": "./dist/scene.js"
+    },
+    "./assets": {
+      "types": "./dist/assets.d.ts",
+      "default": "./dist/assets.js"
+    },
     "./math": {
       "types": "./dist/math.d.ts",
       "default": "./dist/math.js"

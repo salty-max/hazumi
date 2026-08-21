@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import type { ImageSource } from "@matter/graphics";
 import { EMPTY_TILE, tilemap, type TilemapDrawContext } from "../src/index";
 import { spritesheet } from "../src/spritesheet";
+import { enterContext, restoreContext } from "../src/active-context";
+import type { MatterContext } from "../src/context";
 
 const source = { width: 64, height: 32 } as ImageSource;
 const sheet = spritesheet(source, { frame: [16, 16] });
@@ -103,6 +105,25 @@ describe("tilemap construction", () => {
 });
 
 describe("tilemap drawing", () => {
+  test("uses the active scene when no context is passed", () => {
+    const map = tilemap({
+      columns: 1,
+      rows: 1,
+      tileWidth: 16,
+      tileHeight: 16,
+      layers: [layer([2])],
+    });
+    const { context, calls } = drawingContext(16, 16, 8, 8);
+    const previous = enterContext(context as MatterContext);
+    try {
+      map.draw(5, 7);
+    } finally {
+      restoreContext(previous);
+    }
+
+    expect(calls).toEqual([[2, 5, 7, 16, 16]]);
+  });
+
   test("skips empty cells and draws layers back to front", () => {
     const map = tilemap({
       columns: 2,

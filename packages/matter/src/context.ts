@@ -3,6 +3,7 @@ import { isSpriteFrame, type SpriteFrame } from "./spritesheet";
 import { createNoise, type Noise, type Rng, seeded } from "@matter/math";
 import { type ColorCache, type ColorLike } from "./color-cache";
 import { type Camera2D, createCamera2D } from "./camera";
+import { loadImage } from "./load-image";
 
 /** Style overrides accepted by `with()`. */
 export interface StyleOverrides {
@@ -50,13 +51,13 @@ export interface GamepadInput {
 /**
  * Everything a scene can reach.
  *
- * Handed to `draw` on every frame as one object so it can be destructured at
- * the top of the callback and still read current values — the same object is
- * mutated in place rather than rebuilt, so this costs nothing per frame.
+ * Handed to the scene factory and retained as the compatibility argument for
+ * lifecycle callbacks. New scenes normally import built-in capabilities from
+ * `matter/draw`, `matter/input`, and `matter/scene`; the context remains useful
+ * for app-owned plugin extensions such as audio.
  *
- * This is what stands in for a global object. Destructuring recovers nearly all
- * of the terseness of bare `circle(50, 50, 20)` while staying fully typed and
- * never touching `window`.
+ * The same object is mutated in place rather than rebuilt, so code that keeps
+ * it for a plugin service or a live getter does not receive a stale snapshot.
  */
 export interface MatterContext {
   // --- environment ---
@@ -487,15 +488,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
 
     setPasses: deps.setPasses,
 
-    loadImage: async (url: string): Promise<ImageSource> => {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Could not load image ${JSON.stringify(url)}: ${response.status}`);
-      }
-      // createImageBitmap decodes off the main thread, so a large image does
-      // not stall the first frame.
-      return createImageBitmap(await response.blob());
-    },
+    loadImage,
     image: (
       source: ImageSource | SpriteFrame,
       x: number,

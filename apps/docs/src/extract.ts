@@ -167,6 +167,12 @@ const DECLARATION =
  */
 export function collectExportedNames(source: string): Set<string> {
   const names = new Set<string>();
+  for (const match of source.matchAll(
+    /^\s*export\s+(?:declare\s+)?(?:abstract\s+)?(?:function|class|interface|type|const)\s+([A-Za-z_$][\w$]*)/gm,
+  )) {
+    const name = match[1];
+    if (name !== undefined) names.add(name);
+  }
   for (const match of source.matchAll(/export\s*(?:type\s*)?\{([^}]*)\}/g)) {
     for (const part of (match[1] ?? "").split(",")) {
       // Handles `a`, `a as b`, and `type a`.
@@ -205,8 +211,12 @@ function captureSignature(lines: readonly string[], start: number): { text: stri
   return { text: parts.join("\n"), next: lines.length };
 }
 
-export function extractModule(name: string, source: string): DocModule {
-  const exported = collectExportedNames(source);
+export function extractModule(
+  name: string,
+  source: string,
+  publicSource: string = source,
+): DocModule {
+  const exported = collectExportedNames(publicSource);
   const lines = source.split("\n");
   const entries: DocEntry[] = [];
 
@@ -230,7 +240,7 @@ export function extractModule(name: string, source: string): DocModule {
       continue;
     }
 
-    const decl = DECLARATION.exec(trimmed);
+    const decl = DECLARATION.exec(trimmed.replace(/^export\s+/, ""));
     if (decl !== null) {
       const kindRaw = (decl[1] ?? "").replace("abstract ", "");
       const entryName = decl[2] ?? "";
@@ -245,7 +255,10 @@ export function extractModule(name: string, source: string): DocModule {
         entries.push({
           name: entryName,
           kind: kindRaw as DocKind,
-          signature: captured.text.replace(/^declare\s+/, "").trim(),
+          signature: captured.text
+            .replace(/^export\s+/, "")
+            .replace(/^declare\s+/, "")
+            .trim(),
           ...doc,
         });
       }
@@ -272,6 +285,13 @@ export function extractModule(name: string, source: string): DocModule {
   const sorted = entries.toSorted(
     (a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name),
   );
+  const seen = new Set<string>();
+  const unique = sorted.filter((entry) => {
+    const key = `${entry.kind}\0${entry.name}\0${entry.signature}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-  return { name, entries: sorted };
+  return { name, entries: unique };
 }

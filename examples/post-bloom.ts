@@ -6,8 +6,10 @@
  * rather than an escape hatch. The scene is deliberately plain; the whole look
  * comes from the chain.
  */
-import { Blend, start, type MatterApp, type MatterContext } from "matter";
+import { start, type MatterApp } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
+import { background, blendMode, Blend, circle, fill } from "matter/draw";
+import { screen, setPasses, time } from "matter/scene";
 
 /** Keep only the bright parts, so the blur has something to bloom. */
 const THRESHOLD = `
@@ -31,27 +33,24 @@ void main() {
 `;
 
 export function postBloom(parent: HTMLElement): MatterApp {
-  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 9 }, (s) => {
+  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 9 }, () => {
     // Configuration, so it belongs in scene creation rather than the draw loop.
-    s.setPasses([
+    setPasses([
       { fragment: THRESHOLD, uniforms: { u_cutoff: 0.5 } },
       { fragment: blur(4, 0) },
       { fragment: blur(0, 4) },
     ]);
 
     return {
-      draw: (
-        _alpha,
-        { background, circle, fill, blendMode, width, height, t }: MatterContext,
-      ): void => {
+      draw: (): void => {
         background("oklch(0.11 0.02 265)");
         blendMode(Blend.Add);
 
         for (let i = 0; i < 60; i++) {
-          const a = (i / 60) * Math.PI * 2 + t * 0.3;
-          const r = 120 + Math.sin(t + i * 0.35) * 70;
-          fill(`oklch(${0.72 + 0.2 * Math.sin(i)} 0.22 ${(i * 6 + t * 40) % 360})`);
-          circle(width / 2 + Math.cos(a) * r, height / 2 + Math.sin(a * 1.3) * r, 26);
+          const a = (i / 60) * Math.PI * 2 + time.elapsed * 0.3;
+          const r = 120 + Math.sin(time.elapsed + i * 0.35) * 70;
+          fill(`oklch(${0.72 + 0.2 * Math.sin(i)} 0.22 ${(i * 6 + time.elapsed * 40) % 360})`);
+          circle(screen.width / 2 + Math.cos(a) * r, screen.height / 2 + Math.sin(a * 1.3) * r, 26);
         }
       },
     };

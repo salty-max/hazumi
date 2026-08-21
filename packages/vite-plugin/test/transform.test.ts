@@ -138,13 +138,14 @@ describe("matterAutoImport", () => {
  * The member list is maintained here rather than imported, so that a build
  * tool does not depend on the library it serves. That trades a dependency for
  * a drift risk, so the risk is checked directly: the list is compared against
- * the MatterContext declaration in the shipped types.
+ * the MatterContext declaration in the source. The declaration build may put
+ * shared types in a content-hashed chunk when several public subpaths use it.
  */
 describe("drift against the real context", () => {
   const ROOT = new URL("../../../", import.meta.url).pathname;
 
   async function declaredContextMembers(): Promise<string[]> {
-    const source = await Bun.file(`${ROOT}packages/matter/dist/index.d.ts`).text();
+    const source = await Bun.file(`${ROOT}packages/matter/src/context.ts`).text();
     const start = source.indexOf("interface MatterContext {");
     expect(start).toBeGreaterThan(-1);
 
@@ -165,7 +166,7 @@ describe("drift against the real context", () => {
 
     const body = source.slice(start, end);
     const names = new Set<string>();
-    for (const match of body.matchAll(/^\s*(?:readonly\s+)?([a-zA-Z_$][\w$]*)\s*[?:]/gm)) {
+    for (const match of body.matchAll(/^ {2}(?:readonly\s+)?([a-zA-Z_$][\w$]*)\s*[?:]/gm)) {
       names.add(match[1] as string);
     }
     return [...names].toSorted();

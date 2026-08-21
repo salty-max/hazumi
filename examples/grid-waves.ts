@@ -2,8 +2,12 @@
  * A grid modulated by layered noise.
  * Tests: dense per-frame drawing, rect, easing, colour interpolation.
  */
-import { easing, mix, oklch, start, toCss, type MatterApp, type MatterContext } from "matter";
+import { start, type MatterApp } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
+import { mix, oklch, toCss } from "matter/color";
+import { background, fill, rect } from "matter/draw";
+import { easing } from "matter/math";
+import { noise, screen, time } from "matter/scene";
 
 const COLS = 34;
 const ROWS = 34;
@@ -17,15 +21,15 @@ export function gridWaves(parent: HTMLElement): MatterApp {
     const ramp = Array.from({ length: 32 }, (_, i) => toCss(mix(cool, warm, i / 31)));
 
     return {
-      draw: (_alpha, { background, rect, fill, noise, width, height, t }: MatterContext): void => {
+      draw: (): void => {
         background("oklch(0.12 0.02 260)");
 
-        const cellW = width / COLS;
-        const cellH = height / ROWS;
+        const cellW = screen.width / COLS;
+        const cellH = screen.height / ROWS;
 
         for (let cx = 0; cx < COLS; cx++) {
           for (let cy = 0; cy < ROWS; cy++) {
-            const n = noise.fbm2(cx * 0.09 + t * 0.15, cy * 0.09, 3);
+            const n = noise.fbm2(cx * 0.09 + time.elapsed * 0.15, cy * 0.09, 3);
             const level = easing.quadInOut(Math.min(Math.max((n + 1) / 2, 0), 1));
             const size = 4 + level * (Math.min(cellW, cellH) - 5);
 

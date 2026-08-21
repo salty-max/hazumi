@@ -1,5 +1,6 @@
 import type { Camera2D } from "./camera";
 import type { SpriteFrame, Spritesheet } from "./spritesheet";
+import { getActiveContext } from "./active-context";
 
 /** Sentinel used for a cell that should not be drawn. */
 export const EMPTY_TILE = -1;
@@ -47,6 +48,13 @@ export interface TilemapLayer {
   fill: (tile: number) => void;
 }
 
+export interface TilemapDraw {
+  /** Draw with the active scene at an optional world-space origin. */
+  (x?: number, y?: number): void;
+  /** Draw with an explicit context, primarily for tools and tests. */
+  (context: TilemapDrawContext, x?: number, y?: number): void;
+}
+
 export interface Tilemap {
   readonly columns: number;
   readonly rows: number;
@@ -57,8 +65,11 @@ export interface Tilemap {
   readonly layers: readonly TilemapLayer[];
   /** Find a layer by its unique name. */
   layer: (name: string) => TilemapLayer;
-  /** Draw visible cells at a world-space origin. Defaults to `(0, 0)`. */
-  draw: (context: TilemapDrawContext, x?: number, y?: number) => void;
+  /**
+   * Draw visible cells at a world-space origin. Defaults to the active scene
+   * context and `(0, 0)`; an explicit context remains available for tools and tests.
+   */
+  draw: TilemapDraw;
 }
 
 interface StoredLayer {
@@ -182,6 +193,55 @@ export function tilemap(options: TilemapOptions): Tilemap {
 
   const width = columns * tileWidth;
   const height = rows * tileHeight;
+  const draw = (contextOrX?: TilemapDrawContext | number, xOrY = 0, providedY = 0): void => {
+    const usesActiveContext = contextOrX === undefined || typeof contextOrX === "number";
+    const context = usesActiveContext ? getActiveContext() : contextOrX;
+    const x = typeof contextOrX === "number" ? contextOrX : xOrY;
+    const y = typeof contextOrX === "number" ? xOrY : providedY;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      throw new RangeError("tilemap draw origin must be finite");
+    }
+
+    const halfViewWidth = context.width / (2 * context.camera.zoom);
+    const halfViewHeight = context.height / (2 * context.camera.zoom);
+    const firstColumn = clamp(
+      Math.floor((context.camera.x - halfViewWidth - x) / tileWidth),
+      0,
+      columns,
+    );
+    const lastColumn = clamp(
+      Math.ceil((context.camera.x + halfViewWidth - x) / tileWidth),
+      0,
+      columns,
+    );
+    const firstRow = clamp(
+      Math.floor((context.camera.y - halfViewHeight - y) / tileHeight),
+      0,
+      rows,
+    );
+    const lastRow = clamp(Math.ceil((context.camera.y + halfViewHeight - y) / tileHeight), 0, rows);
+
+    if (firstColumn >= lastColumn || firstRow >= lastRow) return;
+
+    for (let layerIndex = 0; layerIndex < storedLayers.length; layerIndex++) {
+      const layer = storedLayers[layerIndex] as StoredLayer;
+      if (!layer.publicLayer.visible) continue;
+      for (let row = firstRow; row < lastRow; row++) {
+        const rowStart = row * columns;
+        for (let column = firstColumn; column < lastColumn; column++) {
+          const tile = layer.tiles[rowStart + column] as number;
+          if (tile === EMPTY_TILE) continue;
+          context.image(
+            layer.publicLayer.sheet.frame(tile),
+            x + column * tileWidth,
+            y + row * tileHeight,
+            tileWidth,
+            tileHeight,
+          );
+        }
+      }
+    }
+  };
 
   return {
     columns,
@@ -197,54 +257,6 @@ export function tilemap(options: TilemapOptions): Tilemap {
       }
       throw new Error(`unknown tilemap layer ${JSON.stringify(name)}`);
     },
-    draw: (context: TilemapDrawContext, x = 0, y = 0): void => {
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        throw new RangeError("tilemap draw origin must be finite");
-      }
-
-      const halfViewWidth = context.width / (2 * context.camera.zoom);
-      const halfViewHeight = context.height / (2 * context.camera.zoom);
-      const firstColumn = clamp(
-        Math.floor((context.camera.x - halfViewWidth - x) / tileWidth),
-        0,
-        columns,
-      );
-      const lastColumn = clamp(
-        Math.ceil((context.camera.x + halfViewWidth - x) / tileWidth),
-        0,
-        columns,
-      );
-      const firstRow = clamp(
-        Math.floor((context.camera.y - halfViewHeight - y) / tileHeight),
-        0,
-        rows,
-      );
-      const lastRow = clamp(
-        Math.ceil((context.camera.y + halfViewHeight - y) / tileHeight),
-        0,
-        rows,
-      );
-
-      if (firstColumn >= lastColumn || firstRow >= lastRow) return;
-
-      for (let layerIndex = 0; layerIndex < storedLayers.length; layerIndex++) {
-        const layer = storedLayers[layerIndex] as StoredLayer;
-        if (!layer.publicLayer.visible) continue;
-        for (let row = firstRow; row < lastRow; row++) {
-          const rowStart = row * columns;
-          for (let column = firstColumn; column < lastColumn; column++) {
-            const tile = layer.tiles[rowStart + column] as number;
-            if (tile === EMPTY_TILE) continue;
-            context.image(
-              layer.publicLayer.sheet.frame(tile),
-              x + column * tileWidth,
-              y + row * tileHeight,
-              tileWidth,
-              tileHeight,
-            );
-          }
-        }
-      }
-    },
+    draw,
   };
 }

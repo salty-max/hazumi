@@ -1,4 +1,5 @@
-import type { AudioApi, SceneFactory } from "matter";
+import type { SceneFactory } from "matter/app";
+import type { AudioApi } from "matter/audio";
 import type { Starter, StarterFile } from "./scenes";
 
 export interface EditableFile {
@@ -7,8 +8,28 @@ export interface EditableFile {
 }
 
 const MODULE_SPECIFIER = /(from\s*|import\s*\(\s*|import\s+)(["'])(\.\.?\/[^"']+)\2/g;
-const SCENE_GLOBALS =
-  "const { collision, EMPTY_TILE, spritesheet, tilemap } = globalThis.__matterPlaygroundSceneApi;\n";
+const MATTER_IMPORT = /^import\s*\{([^}]*)\}\s*from\s*(["'])(matter\/[^"']+)\2\s*;?/gm;
+const MATTER_MODULES = new Set([
+  "matter/assets",
+  "matter/audio",
+  "matter/color",
+  "matter/draw",
+  "matter/input",
+  "matter/math",
+  "matter/scene",
+]);
+
+function rewriteMatterImports(source: string): string {
+  return source.replace(MATTER_IMPORT, (_match, names: string, _quote: string, module: string) => {
+    if (!MATTER_MODULES.has(module)) throw new Error(`Unsupported playground import: ${module}`);
+    const bindings = names
+      .split(",")
+      .map((name) => name.trim().replace(/\s+as\s+/, ": "))
+      .filter((name) => name.length > 0)
+      .join(", ");
+    return `const { ${bindings} } = globalThis.__matterPlaygroundModules[${JSON.stringify(module)}];`;
+  });
+}
 
 export function copyStarterFiles(starter: Starter): EditableFile[] {
   const files: readonly StarterFile[] = starter.files ?? [{ name: "scene.js", code: starter.code }];
@@ -30,7 +51,7 @@ export async function compileWorkspace(
     if (building.has(name)) throw new Error(`Circular playground import: ${name}`);
     building.add(name);
 
-    const rewritten = source.replace(
+    const rewritten = rewriteMatterImports(source).replace(
       MODULE_SPECIFIER,
       (match, prefix: string, quote: string, specifier: string): string => {
         const resolved = new URL(specifier, `https://playground.local/${name}`).pathname.slice(1);
@@ -48,8 +69,8 @@ export async function compileWorkspace(
         : rewritten;
     const module =
       name === "scene.js"
-        ? `${SCENE_GLOBALS}${entryImports.join("\n")}\nexport default async (s) => {\n${body}\n};`
-        : SCENE_GLOBALS + body;
+        ? `${entryImports.join("\n")}\nexport default async (s) => {\n${body}\n};`
+        : body;
     const url = URL.createObjectURL(new Blob([module], { type: "text/javascript" }));
     urls.set(name, url);
     building.delete(name);

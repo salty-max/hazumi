@@ -10,17 +10,21 @@
  * Interleaving them would cost one draw call per sprite instead of one per
  * sheet, because batching only merges adjacent instances.
  */
-import { ClipEnd, start, spritesheet, type MatterApp, type MatterContext } from "matter";
+import { ClipEnd, loadImage, spritesheet } from "matter/assets";
+import { start, type MatterApp } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
+import { background, fill, image, text, textSize } from "matter/draw";
+import { screen, time } from "matter/scene";
 
 const COUNT = 40;
 const TILE = 40;
 
 export function characters(parent: HTMLElement): MatterApp {
-  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 21 }, async (s) => {
+  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 21 }, async (scene) => {
+    const { random, width, height } = scene;
     const [tilesImage, heroImage] = await Promise.all([
-      s.loadImage("/examples/assets/tiles.png"),
-      s.loadImage("/examples/assets/hero.png"),
+      loadImage("/examples/assets/tiles.png"),
+      loadImage("/examples/assets/hero.png"),
     ]);
 
     const tiles = spritesheet(tilesImage, { frame: [16, 16] });
@@ -33,24 +37,21 @@ export function characters(parent: HTMLElement): MatterApp {
       },
     });
 
-    const cols = Math.ceil(s.width / TILE) + 1;
-    const rows = Math.ceil(s.height / TILE) + 1;
-    const ground = Array.from({ length: cols * rows }, () => s.random.int(0, tiles.length));
+    const cols = Math.ceil(width / TILE) + 1;
+    const rows = Math.ceil(height / TILE) + 1;
+    const ground = Array.from({ length: cols * rows }, () => random.int(0, tiles.length));
 
     const actors = Array.from({ length: COUNT }, () => ({
-      x: s.random.range(0, s.width),
-      y: s.random.range(60, s.height - 60),
-      speed: s.random.range(18, 70),
-      offset: s.random.range(0, 4),
-      clip: s.random.pick(["idle", "run", "run"] as const),
-      scale: s.random.range(1.6, 3),
+      x: random.range(0, width),
+      y: random.range(60, height - 60),
+      speed: random.range(18, 70),
+      offset: random.range(0, 4),
+      clip: random.pick(["idle", "run", "run"] as const),
+      scale: random.range(1.6, 3),
     }));
 
     return {
-      draw: (
-        _alpha,
-        { background, image, text, textSize, fill, width, height, t, dt }: MatterContext,
-      ): void => {
+      draw: (): void => {
         background("oklch(0.13 0.02 265)");
 
         // Pass one: every tile, from one sheet.
@@ -70,16 +71,22 @@ export function characters(parent: HTMLElement): MatterApp {
         // is what keeps this at two draw calls rather than hundreds.
         for (const actor of actors) {
           if (actor.clip === "run") {
-            actor.x += actor.speed * dt;
-            if (actor.x > width + 40) actor.x = -40;
+            actor.x += actor.speed * time.delta;
+            if (actor.x > screen.width + 40) actor.x = -40;
           }
           const clip = hero.clip(actor.clip);
-          image(clip.at(t + actor.offset), actor.x, actor.y, 16 * actor.scale, 24 * actor.scale);
+          image(
+            clip.at(time.elapsed + actor.offset),
+            actor.x,
+            actor.y,
+            16 * actor.scale,
+            24 * actor.scale,
+          );
         }
 
         fill("oklch(0.95 0.02 90)");
         textSize(13);
-        text(`${cols * rows} tiles + ${COUNT} characters · 2 sheets`, 14, height - 16);
+        text(`${cols * rows} tiles + ${COUNT} characters · 2 sheets`, 14, screen.height - 16);
       },
     };
   });

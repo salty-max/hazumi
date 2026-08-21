@@ -4,6 +4,13 @@ import { createPluginHost, definePlugin } from "@matter/core";
 import type { CommandBuffer, Renderer } from "@matter/graphics";
 import { start } from "../src/app";
 import { PixelAccessUnavailableError, Pixels } from "../src/pixels";
+import { background, circle, fill } from "../src/draw";
+import {
+  input,
+  keyIsDown as activeKeyIsDown,
+  keyJustPressed as activeKeyJustPressed,
+} from "../src/input";
+import { camera, random, screen, time } from "../src/scene";
 
 class TestCanvas extends EventTarget {
   width = 0;
@@ -210,6 +217,90 @@ describe("plugins", () => {
     ).toThrow("setup failed");
     expect(rendererDisposed).toBe(true);
     expect((h.canvas as unknown as TestCanvas).removed).toBe(true);
+  });
+});
+
+describe("capability imports", () => {
+  test("expose the active factory, update, and draw context", async () => {
+    const h = harness();
+    const observations: Array<readonly [string, number]> = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        width: 320,
+        height: 180,
+        clock: { fixedStep: 0.01 },
+      },
+      () => {
+        observations.push(["factory-width", screen.width]);
+        observations.push(["seed", random.seed]);
+        return {
+          update: (dt): void => {
+            observations.push(["update-dt", dt]);
+            observations.push(["key-down", Number(activeKeyIsDown("ArrowRight"))]);
+            observations.push(["key-edge", Number(activeKeyJustPressed("ArrowRight"))]);
+            camera.lookAt(10, 20);
+          },
+          draw: (): void => {
+            observations.push(["draw-width", screen.width]);
+            observations.push(["frame", time.frame]);
+            observations.push(["mouse-x", input.mouseX]);
+            background("black");
+            fill("white");
+            circle(10, 20, 8);
+          },
+          dispose: (): void => {
+            observations.push(["dispose-width", screen.width]);
+          },
+        };
+      },
+    );
+
+    await app.ready;
+    globalThis.dispatchEvent(inputEvent("keydown", { key: "ArrowRight" }));
+    h.runFrame(0);
+    h.runFrame(20);
+
+    expect(observations).toContainEqual(["factory-width", 320]);
+    expect(observations).toContainEqual(["seed", 1]);
+    expect(observations).toContainEqual(["update-dt", 0.01]);
+    expect(observations).toContainEqual(["key-down", 1]);
+    expect(observations).toContainEqual(["key-edge", 1]);
+    expect(observations).toContainEqual(["draw-width", 320]);
+    expect(h.frames.at(-1)?.some((command) => command.op === "background")).toBe(true);
+    expect(h.frames.at(-1)?.some((command) => command.op === "circle")).toBe(true);
+    expect(() => screen.width).toThrow("active scene");
+
+    globalThis.dispatchEvent(inputEvent("keyup", { key: "ArrowRight" }));
+    app.stop();
+    expect(observations).toContainEqual(["dispose-width", 320]);
+  });
+
+  test("clears the active context when draw throws", async () => {
+    const h = harness();
+    const failure = new Error("draw failed");
+    const errors: unknown[] = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        onError: (error): void => void errors.push(error),
+      },
+      {
+        draw: (): never => {
+          background("black");
+          throw failure;
+        },
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+
+    expect(errors).toEqual([failure]);
+    expect(() => screen.width).toThrow("active scene");
+    app.stop();
   });
 });
 

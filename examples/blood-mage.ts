@@ -10,15 +10,11 @@
  * drawn grouped by the sheet they currently need rather than one at a time.
  * Interleaving would cost a draw call per mage.
  */
-import {
-  ClipEnd,
-  start,
-  spritesheet,
-  type MatterApp,
-  type MatterContext,
-  type Spritesheet,
-} from "matter";
+import { ClipEnd, loadImage, spritesheet, type Spritesheet } from "matter/assets";
+import { start, type MatterApp } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
+import { background, fill, image, text, textSize } from "matter/draw";
+import { screen, time } from "matter/scene";
 
 const CELL = 32;
 const SCALE = 4;
@@ -54,15 +50,20 @@ export function bloodMage(parent: HTMLElement): MatterApp {
       parent,
       seed: 31,
     },
-    async (s) => {
+    async (scene) => {
+      const { random, width, height } = scene;
       const names = ["Idle", "Walk", "Attack", "Attack_Effect"] as const;
       const images = await Promise.all(
-        names.map((n) => s.loadImage(`/examples/assets/blood-mage/${n}.png`)),
+        names.map((n) => loadImage(`/examples/assets/blood-mage/${n}.png`)),
       );
 
       /** One sheet per animation, each with a clip per facing. */
-      function sheetFor(image: (typeof images)[number], fps: number, end?: ClipEnd): Spritesheet {
-        const columns = Math.floor(image.width / CELL);
+      function sheetFor(
+        sourceImage: (typeof images)[number],
+        fps: number,
+        end?: ClipEnd,
+      ): Spritesheet {
+        const columns = Math.floor(sourceImage.width / CELL);
         const clips: Record<string, { frames: number[]; fps: number; end?: ClipEnd }> = {};
         for (let facing = 0; facing < FACINGS; facing++) {
           clips[`f${facing}`] = {
@@ -71,7 +72,7 @@ export function bloodMage(parent: HTMLElement): MatterApp {
             ...(end === undefined ? {} : { end }),
           };
         }
-        return spritesheet(image, { frame: [CELL, CELL], clips });
+        return spritesheet(sourceImage, { frame: [CELL, CELL], clips });
       }
 
       const idle = sheetFor(images[0] as never, 5);
@@ -82,42 +83,39 @@ export function bloodMage(parent: HTMLElement): MatterApp {
       const sheets: Record<StateName, Spritesheet> = { idle, walk, attack };
 
       const mages: Mage[] = Array.from({ length: COUNT }, () => ({
-        x: s.random.range(20, s.width - 60),
-        y: s.random.range(20, s.height - 60),
-        facing: s.random.int(0, FACINGS),
+        x: random.range(20, width - 60),
+        y: random.range(20, height - 60),
+        facing: random.int(0, FACINGS),
         state: "idle",
         since: 0,
-        next: s.random.range(0.5, 3),
-        speed: s.random.range(14, 34),
+        next: random.range(0.5, 3),
+        speed: random.range(14, 34),
       }));
 
       const size = CELL * SCALE;
 
       return {
-        draw: (
-          _alpha,
-          { background, image, text, textSize, fill, width, height, t, dt }: MatterContext,
-        ): void => {
+        draw: (): void => {
           background("oklch(0.14 0.03 20)");
 
           for (const m of mages) {
-            m.since += dt;
+            m.since += time.delta;
             if (m.since >= m.next) {
               m.since = 0;
-              m.state = s.random.pick(["idle", "walk", "attack"] as const);
-              m.next = m.state === "attack" ? 0.6 : s.random.range(1, 3.5);
-              if (m.state === "walk") m.facing = s.random.int(0, FACINGS);
+              m.state = random.pick(["idle", "walk", "attack"] as const);
+              m.next = m.state === "attack" ? 0.6 : random.range(1, 3.5);
+              if (m.state === "walk") m.facing = random.int(0, FACINGS);
             }
 
             if (m.state === "walk") {
               // Facings are two mirror pairs, so even rows read as one direction
               // and odd rows as its mirror.
               const dir = m.facing % 2 === 0 ? 1 : -1;
-              m.x += dir * m.speed * dt;
-              if (m.x < -size) m.x = width;
-              if (m.x > width) m.x = -size;
-              m.y += Math.sin(t * 1.3 + m.x * 0.01) * 8 * dt;
-              m.y = Math.min(Math.max(m.y, 10), height - size - 10);
+              m.x += dir * m.speed * time.delta;
+              if (m.x < -size) m.x = screen.width;
+              if (m.x > screen.width) m.x = -size;
+              m.y += Math.sin(time.elapsed * 1.3 + m.x * 0.01) * 8 * time.delta;
+              m.y = Math.min(Math.max(m.y, 10), screen.height - size - 10);
             }
           }
 
@@ -139,7 +137,7 @@ export function bloodMage(parent: HTMLElement): MatterApp {
 
           fill("oklch(0.95 0.03 30)");
           textSize(13);
-          text(`${COUNT} Blood Mages · 4 sheets · grouped by animation`, 14, height - 16);
+          text(`${COUNT} Blood Mages · 4 sheets · grouped by animation`, 14, screen.height - 16);
         },
       };
     },

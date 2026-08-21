@@ -6,24 +6,28 @@
  * and batching could not merge them because it only joins adjacent instances —
  * so this same scene cost one call per tile.
  */
-import { start, spritesheet, tilemap, type MatterApp, type MatterContext } from "matter";
+import { loadImage, spritesheet, tilemap } from "matter/assets";
+import { start, type MatterApp } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
+import { background, fill, text, textSize } from "matter/draw";
+import { screen, time } from "matter/scene";
 
 const TILE = 34;
 
 export function tileField(parent: HTMLElement): MatterApp {
-  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 12 }, async (s) => {
-    const image = await s.loadImage("/examples/assets/tiles.png");
+  return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 12 }, async (scene) => {
+    const { random, width, height } = scene;
+    const image = await loadImage("/examples/assets/tiles.png");
     const sheet = spritesheet(image, { frame: [16, 16] });
 
-    const cols = Math.ceil(s.width / TILE) + 2;
-    const rows = Math.ceil(s.height / TILE) + 2;
+    const cols = Math.ceil(width / TILE) + 2;
+    const rows = Math.ceil(height / TILE) + 2;
 
     // Which tile sits where, decided once so the field is stable as it
     // scrolls rather than shimmering.
     const tiles = new Uint8Array(cols * rows);
     for (let i = 0; i < tiles.length; i++) {
-      tiles[i] = s.random.int(0, sheet.length);
+      tiles[i] = random.int(0, sheet.length);
     }
     const field = tilemap({
       columns: cols,
@@ -34,17 +38,16 @@ export function tileField(parent: HTMLElement): MatterApp {
     });
 
     return {
-      draw: (_alpha, context: MatterContext): void => {
-        const { background, text, textSize, fill, height, t } = context;
+      draw: (): void => {
         background("oklch(0.12 0.02 270)");
 
-        const offsetX = -((t * 26) % TILE);
-        const offsetY = -((t * 14) % TILE);
-        field.draw(context, offsetX, offsetY);
+        const offsetX = -((time.elapsed * 26) % TILE);
+        const offsetY = -((time.elapsed * 14) % TILE);
+        field.draw(offsetX, offsetY);
 
         fill("oklch(0.95 0.02 90)");
         textSize(14);
-        text(`${cols * rows} sprites · 16 frames · one texture`, 16, height - 18);
+        text(`${cols * rows} sprites · 16 frames · one texture`, 16, screen.height - 18);
       },
     };
   });

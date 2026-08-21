@@ -91,6 +91,17 @@ describe("collectExportedNames", () => {
     expect([...names].toSorted()).toEqual(["B", "a", "d"]);
   });
 
+  test("reads declarations exported inline", () => {
+    const names = collectExportedNames(`
+      export interface Options {}
+      export class Failure extends Error {}
+      export function run(): void {}
+      export const version: string = "1";
+      export type Result = string;
+    `);
+    expect([...names].toSorted()).toEqual(["Failure", "Options", "Result", "run", "version"]);
+  });
+
   test("an empty file exports nothing", () => {
     expect(collectExportedNames("").size).toBe(0);
   });
@@ -158,6 +169,14 @@ export type { Widget };
     expect(kinds.indexOf("function")).toBeLessThan(kinds.indexOf("const"));
   });
 
+  test("deduplicates declarations gathered from shared chunks", () => {
+    const mod = extractModule(
+      "demo",
+      "declare function thing(): void;\ndeclare function thing(): void;\nexport { thing };",
+    );
+    expect(mod.entries.map((entry) => entry.name)).toEqual(["thing"]);
+  });
+
   test("a comment separated from its declaration is dropped", () => {
     // Otherwise a file-level note would be attributed to whatever follows it.
     const mod = extractModule(
@@ -199,13 +218,22 @@ describe("against the real build output", () => {
   });
 
   test("finds start() with its example", async () => {
-    const source = await Bun.file(`${REPO_ROOT}packages/matter/dist/index.d.ts`).text();
-    const mod = extractModule("matter", source);
+    const source = await Bun.file(`${REPO_ROOT}packages/matter/src/app.ts`).text();
+    const mod = extractModule("matter/app", source);
     const start = mod.entries.find((e) => e.name === "start");
 
     expect(start?.kind).toBe("function");
     expect(start?.description).toContain("Start a Matter application");
     expect(start?.examples.length).toBeGreaterThan(0);
+  });
+
+  test("finds capability functions exported inline", async () => {
+    const source = await Bun.file(`${REPO_ROOT}packages/matter/src/draw.ts`).text();
+    const names = extractModule("matter/draw", source).entries.map((entry) => entry.name);
+
+    expect(names).toContain("background");
+    expect(names).toContain("circle");
+    expect(names).toContain("scoped");
   });
 });
 

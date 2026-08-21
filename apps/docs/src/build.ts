@@ -16,8 +16,37 @@ const FONT_FILES = [
 ] as const;
 
 /** Order matters: the reference reads top-down as the layer stack. */
-const PACKAGES: ReadonlyArray<[string, string, string]> = [
-  ["matter", "packages/matter/dist/index.d.ts", "The batteries-included entry point."],
+const PACKAGES: ReadonlyArray<[string, string, string, boolean?]> = [
+  [
+    "matter/app",
+    "packages/matter/dist/app.d.ts",
+    "Application lifecycle and scene switching.",
+    true,
+  ],
+  [
+    "matter/draw",
+    "packages/matter/dist/draw.d.ts",
+    "Drawing, style, paths, text and transforms.",
+    true,
+  ],
+  [
+    "matter/input",
+    "packages/matter/dist/input.d.ts",
+    "Keyboard, pointer, wheel and gamepad input.",
+    true,
+  ],
+  [
+    "matter/scene",
+    "packages/matter/dist/scene.d.ts",
+    "Live viewport, time, camera and randomness.",
+    true,
+  ],
+  [
+    "matter/assets",
+    "packages/matter/dist/assets.d.ts",
+    "Images, sprites, animations and tilemaps.",
+    true,
+  ],
   [
     "@matter/audio",
     "packages/audio/dist/index.d.ts",
@@ -125,25 +154,37 @@ function renderNav(modules: ReadonlyArray<[DocModule, string]>): string {
     .join("");
 }
 
+const matterDeclarations = await Array.fromAsync(
+  new Bun.Glob("*.d.ts").scan({ cwd: ROOT + "packages/matter/dist", onlyFiles: true }),
+  async (path) => Bun.file(ROOT + "packages/matter/dist/" + path).text(),
+);
+
 // Read every declaration file at once, then assemble in declared order — the
 // reference reads top-down as the layer stack, so order is part of the output.
 const sources = await Promise.all(
-  PACKAGES.map(async ([name, relative, blurb]) => {
+  PACKAGES.map(async ([name, relative, blurb, includeMatterDeclarations]) => {
     const file = Bun.file(ROOT + relative);
     const exists = await file.exists();
-    return { name, relative, blurb, text: exists ? await file.text() : null };
+    const publicText = exists ? await file.text() : null;
+    const text =
+      publicText === null
+        ? null
+        : includeMatterDeclarations === true
+          ? `${publicText}\n${matterDeclarations.join("\n")}`
+          : publicText;
+    return { name, relative, blurb, publicText, text };
   }),
 );
 
 const modules: Array<[DocModule, string]> = [];
 let total = 0;
 
-for (const { name, relative, blurb, text } of sources) {
-  if (text === null) {
+for (const { name, relative, blurb, publicText, text } of sources) {
+  if (text === null || publicText === null) {
     console.warn(`skipping ${name}: ${relative} not built`);
     continue;
   }
-  const mod = extractModule(name, text);
+  const mod = extractModule(name, text, publicText);
   total += mod.entries.length;
   modules.push([mod, blurb]);
 }

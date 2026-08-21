@@ -73,17 +73,22 @@
               <span class="size-2.5 rounded-full bg-[#ff6b6b]"></span
               ><span class="size-2.5 rounded-full bg-[#ffd166]"></span
               ><span class="size-2.5 rounded-full bg-[#68d391]"></span>
-              <span class="ml-auto font-mono text-[10px] text-white/40">orbit.ts</span>
+              <span class="ml-auto font-mono text-[10px] text-white/40">scene.ts</span>
             </div>
-            <pre><code><span class="tok-variableName">start</span>({ <span class="tok-propertyName">backend</span>: <span class="tok-variableName">webgl2</span>(), <span class="tok-propertyName">width</span>: <span class="tok-number">600</span>, <span class="tok-propertyName">height</span>: <span class="tok-number">600</span> }, () =&gt; {
+            <pre><code><span class="tok-keyword">import</span> { <span class="tok-variableName">start</span> } <span class="tok-keyword">from</span> <span class="tok-string">'matter/app'</span>;
+<span class="tok-keyword">import</span> { <span class="tok-variableName">background</span>, <span class="tok-variableName">circle</span>, <span class="tok-variableName">fill</span> } <span class="tok-keyword">from</span> <span class="tok-string">'matter/draw'</span>;
+<span class="tok-keyword">import</span> { <span class="tok-variableName">camera</span> } <span class="tok-keyword">from</span> <span class="tok-string">'matter/scene'</span>;
+<span class="tok-keyword">import</span> { <span class="tok-variableName">webgl2</span> } <span class="tok-keyword">from</span> <span class="tok-string">'matter/backends/webgl2'</span>;
+
+<span class="tok-variableName">start</span>({ <span class="tok-propertyName">backend</span>: <span class="tok-variableName">webgl2</span>(), <span class="tok-propertyName">width</span>: <span class="tok-number">600</span>, <span class="tok-propertyName">height</span>: <span class="tok-number">600</span> }, () =&gt; {
   <span class="tok-keyword">const</span> <span class="tok-variableName tok-definition">player</span> = { <span class="tok-propertyName">x</span>: <span class="tok-number">300</span>, <span class="tok-propertyName">y</span>: <span class="tok-number">300</span> };
 
   <span class="tok-keyword">return</span> {
-    <span class="tok-propertyName tok-definition">update</span>(<span class="tok-variableName">dt</span>, { <span class="tok-propertyName">camera</span> }) {
+    <span class="tok-propertyName tok-definition">update</span>(<span class="tok-variableName">dt</span>) {
       <span class="tok-variableName">player</span>.<span class="tok-propertyName">x</span> += <span class="tok-number">40</span> * <span class="tok-variableName">dt</span>;
       <span class="tok-variableName">camera</span>.<span class="tok-propertyName">follow</span>(<span class="tok-variableName">player</span>.<span class="tok-propertyName">x</span>, <span class="tok-variableName">player</span>.<span class="tok-propertyName">y</span>, <span class="tok-number">0.12</span>);
     },
-    <span class="tok-propertyName tok-definition">draw</span>(<span class="tok-variableName">_alpha</span>, { <span class="tok-propertyName">background</span>, <span class="tok-propertyName">circle</span>, <span class="tok-propertyName">fill</span> }) {
+    <span class="tok-propertyName tok-definition">draw</span>() {
       <span class="tok-variableName">background</span>(<span class="tok-string">'#090d16'</span>);
       <span class="tok-variableName">fill</span>(<span class="tok-string">'oklch(.74 .18 160)'</span>);
       <span class="tok-variableName">circle</span>(<span class="tok-variableName">player</span>.<span class="tok-propertyName">x</span>, <span class="tok-variableName">player</span>.<span class="tok-propertyName">y</span>, <span class="tok-number">48</span>);

@@ -6,17 +6,15 @@ import { Download, Play, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { toSvg } from "@matter/backend-svg";
-import {
-  audio,
-  collision,
-  createPluginHost,
-  EMPTY_TILE,
-  spritesheet,
-  start,
-  tilemap,
-  type AudioApi,
-  type MatterApp,
-} from "matter";
+import * as assetsApi from "matter/assets";
+import * as audioApi from "matter/audio";
+import * as colorApi from "matter/color";
+import * as drawApi from "matter/draw";
+import * as inputApi from "matter/input";
+import * as mathApi from "matter/math";
+import * as sceneApi from "matter/scene";
+import { createPluginHost, start, type MatterApp } from "matter/app";
+import { audio, type AudioApi } from "matter/audio";
 import { webgl2 } from "matter/backends/webgl2";
 import { Button } from "./components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./components/ui/resizable";
@@ -34,10 +32,18 @@ import { compileWorkspace, copyStarterFiles, type EditableFile } from "./workspa
 const SIZE = 520;
 const INITIAL_STARTER: Starter = STARTERS[0] ?? { name: "Empty", code: "return {};" };
 
-const PLAYGROUND_SCENE_API = Object.freeze({ collision, EMPTY_TILE, spritesheet, tilemap });
-Object.defineProperty(globalThis, "__matterPlaygroundSceneApi", {
+const PLAYGROUND_MODULES = Object.freeze({
+  "matter/assets": assetsApi,
+  "matter/audio": audioApi,
+  "matter/color": colorApi,
+  "matter/draw": drawApi,
+  "matter/input": inputApi,
+  "matter/math": mathApi,
+  "matter/scene": sceneApi,
+});
+Object.defineProperty(globalThis, "__matterPlaygroundModules", {
   configurable: true,
-  value: PLAYGROUND_SCENE_API,
+  value: PLAYGROUND_MODULES,
 });
 
 interface PlaygroundStatus {

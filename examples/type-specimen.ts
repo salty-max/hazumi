@@ -3,19 +3,28 @@
  * Tests: glyph layout, alignment, the second render pipeline, and whether the
  * distance field actually stays crisp as the size climbs.
  */
-import { Align, Baseline, start, type MatterApp, type MatterContext } from "matter";
+import { start, type MatterApp } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
+import {
+  Align,
+  Baseline,
+  background,
+  circle,
+  fill,
+  text,
+  textAlign,
+  textFont,
+  textSize,
+} from "matter/draw";
+import { screen, time } from "matter/scene";
 
 export function typeSpecimen(parent: HTMLElement): MatterApp {
   return start(
     { backend: webgl2(), width: 600, height: 600, parent },
     {
-      draw: (
-        _alpha,
-        { background, fill, text, textSize, textAlign, textFont, circle, width, t }: MatterContext,
-      ): void => {
+      draw: (): void => {
         background("oklch(0.96 0.01 90)");
-        textFont("Georgia, serif");
+        textFont("Bricolage Grotesque, sans-serif");
 
         fill("oklch(0.25 0.04 260)");
         textAlign(Align.Left, Baseline.Alphabetic);
@@ -28,7 +37,7 @@ export function typeSpecimen(parent: HTMLElement): MatterApp {
         textAlign(Align.Center, Baseline.Middle);
         textSize(30);
         fill("oklch(0.55 0.2 25)");
-        text("centred", width / 2 + Math.sin(t) * 90, 520);
+        text("centred", screen.width / 2 + Math.sin(time.elapsed) * 90, 520);
 
         // Shapes and glyphs interleaved: each switch is a pipeline change, so
         // this is also a check that batching does not reorder them.

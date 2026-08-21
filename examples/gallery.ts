@@ -1,4 +1,4 @@
-import type { MatterApp } from "matter";
+import type { MatterApp } from "matter/app";
 import { flowField } from "./flow-field";
 import { gridWaves } from "./grid-waves";
 import { mouseTrail } from "./mouse-trail";

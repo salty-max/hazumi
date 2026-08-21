@@ -15,6 +15,8 @@
 
 // --- application and scene API ---
 export { start } from "./app";
+export { loadImage } from "./load-image";
+export { NoActiveSceneError } from "./active-context";
 export { Pixels, PixelAccessUnavailableError } from "./pixels";
 export type { MutablePixelColor, PixelColor } from "./pixels";
 export type {
@@ -43,6 +45,7 @@ export type { AnimationClip, ClipOptions } from "./animation";
 export { tilemap, EMPTY_TILE } from "./tilemap";
 export type {
   Tilemap,
+  TilemapDraw,
   TilemapDrawContext,
   TilemapLayer,
   TilemapLayerOptions,
