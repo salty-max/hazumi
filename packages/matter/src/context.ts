@@ -62,6 +62,8 @@ export interface MatterContext {
   // --- environment ---
   readonly width: number;
   readonly height: number;
+  /** Physical pixels per logical canvas unit. */
+  readonly pixelRatio: number;
   /** Frames drawn so far. */
   readonly frameCount: number;
   /** Seconds since the application started. */
@@ -221,6 +223,7 @@ export interface MatterContext {
 export interface ContextState {
   width: number;
   height: number;
+  pixelRatio: number;
   frameCount: number;
   t: number;
   dt: number;
@@ -284,6 +287,8 @@ export interface ContextBundle {
    * what makes `fill()` in a scene factory behave the way anyone would expect.
    */
   readonly beginFrame: () => void;
+  /** Update camera geometry after the logical canvas size changes. */
+  readonly resize: (width: number, height: number) => void;
 }
 
 function hasGamepadEdge(
@@ -298,7 +303,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
   const { buffer, colors, state } = deps;
   const random = seeded(deps.seed);
   const noise = createNoise(seeded(deps.seed));
-  const { camera, beginFrame: beginCameraFrame } = createCamera2D(
+  const { camera, beginFrame: beginCameraFrame, resize } = createCamera2D(
     buffer,
     state.width,
     state.height,
@@ -337,6 +342,9 @@ export function createContext(deps: ContextDeps): ContextBundle {
     },
     get height() {
       return state.height;
+    },
+    get pixelRatio() {
+      return state.pixelRatio;
     },
     get frameCount() {
       return state.frameCount;
@@ -599,5 +607,5 @@ export function createContext(deps: ContextDeps): ContextBundle {
   // Establish the defaults the first frame starts from.
   beginFrame();
 
-  return { context, beginFrame };
+  return { context, beginFrame, resize };
 }

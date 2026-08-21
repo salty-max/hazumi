@@ -5,6 +5,7 @@ import {
   Blend,
   type CommandBuffer,
   type CommandVisitor,
+  type PixelData,
   copyAffine,
   decode,
   identityAffine,
@@ -24,6 +25,7 @@ import {
   PATH_VERTEX_SHADER,
   SDF_FRAGMENT_SHADER,
   SDF_VERTEX_SHADER,
+  POST_VERTEX_SHADER,
 } from './shaders';
 import { PathBuilder } from './path/builder';
 import { fanTriangles, quadTriangles, strokeTriangles } from './path/geometry';
@@ -33,6 +35,7 @@ import type { ImageSource } from '@matter/graphics';
 import { PingPongTargets } from './framebuffer';
 import {
   COPY_PASS_FRAGMENT_BODY,
+  COPY_PASS_FRAGMENT,
   PassCache,
   setUniform,
   setUniformInt,
@@ -60,6 +63,61 @@ const GLYPH_BYTES = GLYPH_FLOATS * 4;
 const PATH_FLOATS = 6;
 const PATH_BYTES = PATH_FLOATS * 4;
 const INITIAL_PATH_VERTICES = 4096;
+
+/** Convert bottom-up premultiplied GL bytes to top-down straight RGBA. */
+export function readbackToPixels(
+  source: Uint8Array,
+  width: number,
+  height: number,
+): Uint8ClampedArray {
+  const output = new Uint8ClampedArray(source.length);
+  const rowLength = width * 4;
+  for (let y = 0; y < height; y++) {
+    const sourceRow = (height - 1 - y) * rowLength;
+    const outputRow = y * rowLength;
+    for (let x = 0; x < rowLength; x += 4) {
+      const sourceIndex = sourceRow + x;
+      const outputIndex = outputRow + x;
+      const alpha = source[sourceIndex + 3]!;
+      output[outputIndex + 3] = alpha;
+      if (alpha === 0) continue;
+      if (alpha === 255) {
+        output[outputIndex] = source[sourceIndex]!;
+        output[outputIndex + 1] = source[sourceIndex + 1]!;
+        output[outputIndex + 2] = source[sourceIndex + 2]!;
+      } else {
+        output[outputIndex] = Math.round((source[sourceIndex]! * 255) / alpha);
+        output[outputIndex + 1] = Math.round((source[sourceIndex + 1]! * 255) / alpha);
+        output[outputIndex + 2] = Math.round((source[sourceIndex + 2]! * 255) / alpha);
+      }
+    }
+  }
+  return output;
+}
+
+/** Convert top-down straight RGBA to bottom-up premultiplied GL bytes. */
+export function pixelsToUpload(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8Array {
+  const output = new Uint8Array(source.length);
+  const rowLength = width * 4;
+  for (let y = 0; y < height; y++) {
+    const sourceRow = y * rowLength;
+    const outputRow = (height - 1 - y) * rowLength;
+    for (let x = 0; x < rowLength; x += 4) {
+      const sourceIndex = sourceRow + x;
+      const outputIndex = outputRow + x;
+      const alpha = source[sourceIndex + 3]!;
+      output[outputIndex] = Math.round((source[sourceIndex]! * alpha) / 255);
+      output[outputIndex + 1] = Math.round((source[sourceIndex + 1]! * alpha) / 255);
+      output[outputIndex + 2] = Math.round((source[sourceIndex + 2]! * alpha) / 255);
+      output[outputIndex + 3] = alpha;
+    }
+  }
+  return output;
+}
 
 export interface Webgl2Options {
   readonly samples?: number;
@@ -182,6 +240,9 @@ export class Webgl2Renderer {
   #pathBufferId: ResourceId;
   #pathVao: WebGLVertexArrayObject | null = null;
   #pathViewProjLocation: WebGLUniformLocation | null = null;
+  #pixelTextureId: ResourceId;
+  #pixelProgramId: ResourceId;
+  #pixelTextureLocation: WebGLUniformLocation | null = null;
 
   #pathVertices: Float32Array;
   #pathCapacity: number;
@@ -264,6 +325,17 @@ export class Webgl2Renderer {
       vertex: PATH_VERTEX_SHADER,
       fragment: PATH_FRAGMENT_SHADER,
     });
+    this.#pixelTextureId = this.#registry.register({
+      kind: 'rgba-texture',
+      width: 1,
+      height: 1,
+      data: new Uint8Array(4),
+    });
+    this.#pixelProgramId = this.#registry.register({
+      kind: 'program',
+      vertex: POST_VERTEX_SHADER,
+      fragment: COPY_PASS_FRAGMENT,
+    });
 
     this.#visitor = this.#makeVisitor();
 
@@ -343,6 +415,52 @@ export class Webgl2Renderer {
     mat4.ortho(this.#viewProj, 0, width, height, 0, -1, 1);
   }
 
+  readPixels(): PixelData {
+    const gl = this.#pixelContext();
+    const width = this.#canvas.width;
+    const height = this.#canvas.height;
+    const raw = new Uint8Array(width * height * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, raw);
+    return { width, height, data: readbackToPixels(raw, width, height) };
+  }
+
+  writePixels(pixels: PixelData): void {
+    const width = this.#canvas.width;
+    const height = this.#canvas.height;
+    if (pixels.width !== width || pixels.height !== height) {
+      throw new RangeError(
+        `Pixel surface is ${pixels.width}x${pixels.height}; expected ${width}x${height}`,
+      );
+    }
+    const gl = this.#pixelContext();
+    const upload = pixelsToUpload(pixels.data, width, height);
+    this.#registry.updateRgbaTexture(gl, this.#pixelTextureId, width, height, upload);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, width, height);
+    gl.disable(gl.BLEND);
+    try {
+      const program = this.#registry.program(this.#pixelProgramId);
+      gl.useProgram(program);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.#registry.texture(this.#pixelTextureId));
+      gl.uniform1i(this.#pixelTextureLocation, 0);
+      gl.bindVertexArray(null);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    } finally {
+      gl.enable(gl.BLEND);
+      this.#state?.invalidate();
+    }
+  }
+
+  #pixelContext(): WebGL2RenderingContext {
+    if (this.#gl === null || this.#contextLost) {
+      throw new Error('WebGL pixel access is unavailable while the context is lost');
+    }
+    return this.#gl;
+  }
+
   render(buffer: CommandBuffer): void {
     const gl = this.#gl;
     this.#drawCalls = 0;
@@ -388,7 +506,10 @@ export class Webgl2Renderer {
       gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
-    if (this.#count === 0 && this.#glyphCount === 0 && this.#pathCount === 0) return;
+    if (this.#count === 0 && this.#glyphCount === 0 && this.#pathCount === 0) {
+      if (usePasses) this.#runPasses(gl);
+      return;
+    }
 
     const state = this.#state as GlStateCache;
 
@@ -1142,6 +1263,10 @@ export class Webgl2Renderer {
 
     this.#gl = gl;
     this.#registry.realize(gl);
+    this.#pixelTextureLocation = gl.getUniformLocation(
+      this.#registry.program(this.#pixelProgramId),
+      'u_texture',
+    );
     this.#state = new GlStateCache(gl);
     this.#buildVao(gl);
     this.#buildGlyphVao(gl);

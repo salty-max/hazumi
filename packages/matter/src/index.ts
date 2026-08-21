@@ -15,6 +15,8 @@
 
 // --- application and scene API ---
 export { start } from "./app";
+export { Pixels, PixelAccessUnavailableError } from "./pixels";
+export type { MutablePixelColor, PixelColor } from "./pixels";
 export type {
   AppOptions,
   MatterApp,

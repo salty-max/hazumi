@@ -45,6 +45,8 @@ export interface CameraBundle {
   readonly camera: Camera2D;
   /** Encode the current view into a freshly reset frame buffer. */
   readonly beginFrame: () => void;
+  /** Update the canvas centre while preserving an explicitly positioned view. */
+  readonly resize: (width: number, height: number) => void;
 }
 
 function assertFinite(value: number, name: string): void {
@@ -60,11 +62,12 @@ export function createCamera2D(
   width: number,
   height: number,
 ): CameraBundle {
-  const centreX = width / 2;
-  const centreY = height / 2;
+  let centreX = width / 2;
+  let centreY = height / 2;
   let x = centreX;
   let y = centreY;
   let zoom = 1;
+  let followsCanvasCentre = true;
 
   const writeView = (reset: boolean): void => {
     if (reset) buffer.resetTransform();
@@ -95,6 +98,7 @@ export function createCamera2D(
     lookAt: (nextX: number, nextY: number): void => {
       assertFinite(nextX, 'camera x');
       assertFinite(nextY, 'camera y');
+      followsCanvasCentre = false;
       if (nextX === x && nextY === y) return;
       x = nextX;
       y = nextY;
@@ -110,6 +114,7 @@ export function createCamera2D(
       const nextX = x + (targetX - x) * amount;
       const nextY = y + (targetY - y) * amount;
       if (nextX === x && nextY === y) return;
+      followsCanvasCentre = false;
       x = nextX;
       y = nextY;
       writeView(true);
@@ -150,5 +155,16 @@ export function createCamera2D(
     },
   };
 
-  return { camera, beginFrame: (): void => writeView(false) };
+  const resize = (nextWidth: number, nextHeight: number): void => {
+    const nextCentreX = nextWidth / 2;
+    const nextCentreY = nextHeight / 2;
+    if (followsCanvasCentre) {
+      x = nextCentreX;
+      y = nextCentreY;
+    }
+    centreX = nextCentreX;
+    centreY = nextCentreY;
+  };
+
+  return { camera, beginFrame: (): void => writeView(false), resize };
 }

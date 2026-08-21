@@ -3,6 +3,7 @@ import { record, type RecordedCommand } from "@matter/backend-headless";
 import { createPluginHost, definePlugin } from "@matter/core";
 import type { CommandBuffer, Renderer } from "@matter/graphics";
 import { start } from "../src/app";
+import { PixelAccessUnavailableError, Pixels } from "../src/pixels";
 
 class TestCanvas extends EventTarget {
   width = 0;
@@ -29,6 +30,7 @@ class TestCanvas extends EventTarget {
 interface RuntimeHarness {
   readonly canvas: HTMLCanvasElement;
   readonly frames: RecordedCommand[][];
+  readonly viewports: Array<readonly [number, number]>;
   readonly renderer: Renderer;
   runFrame: (nowMs: number) => void;
 }
@@ -37,6 +39,7 @@ const originalDocument = globalThis.document;
 const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
 const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
 const originalGetGamepads = globalThis.navigator.getGamepads;
+const originalDevicePixelRatio = globalThis.devicePixelRatio;
 
 let callbacks: FrameRequestCallback[];
 
@@ -72,17 +75,24 @@ afterEach(() => {
     configurable: true,
     value: originalGetGamepads,
   });
+  Object.defineProperty(globalThis, "devicePixelRatio", {
+    configurable: true,
+    value: originalDevicePixelRatio,
+  });
 });
 
 function harness(): RuntimeHarness {
   const fakeCanvas = new TestCanvas();
   const canvas = fakeCanvas as unknown as HTMLCanvasElement;
   const frames: RecordedCommand[][] = [];
+  const viewports: Array<readonly [number, number]> = [];
   const renderer: Renderer = {
     render: (buffer: CommandBuffer): void => {
       frames.push(record(buffer));
     },
-    setViewport: (): void => {},
+    setViewport: (width: number, height: number): void => {
+      viewports.push([width, height]);
+    },
     dispose: (): void => {},
   };
   Object.defineProperty(globalThis, "document", {
@@ -96,6 +106,7 @@ function harness(): RuntimeHarness {
   return {
     canvas,
     frames,
+    viewports,
     renderer,
     runFrame: (nowMs: number): void => {
       const callback = callbacks.shift();
@@ -264,6 +275,120 @@ describe("canvas sizing", () => {
     app.stop();
   });
 
+  test("resizes logical coordinates, backing pixels, camera, and viewport together", async () => {
+    const h = harness();
+    const app = start(
+      { backend: () => h.renderer, canvas: h.canvas, width: 400, height: 300, pixelRatio: 1 },
+      { draw: (): void => {} },
+    );
+    await app.ready;
+
+    app.resize(800, 450, 2);
+
+    expect(app.context.width).toBe(800);
+    expect(app.context.height).toBe(450);
+    expect(app.context.pixelRatio).toBe(2);
+    expect(app.context.camera.worldToScreen(40, 30)).toEqual({ x: 40, y: 30 });
+    expect(h.canvas.width).toBe(1600);
+    expect(h.canvas.height).toBe(900);
+    expect(h.canvas.style.width).toBe("800px");
+    expect(h.canvas.style.aspectRatio).toBe("800 / 450");
+    expect(h.viewports).toEqual([
+      [400, 300],
+      [800, 450],
+    ]);
+
+    app.stop();
+  });
+
+  test("preserves a positioned camera and pointer mapping across resize", async () => {
+    const h = harness();
+    const canvas = h.canvas as unknown as TestCanvas;
+    canvas.displayWidth = 400;
+    canvas.displayHeight = 200;
+    const app = start(
+      { backend: () => h.renderer, canvas: h.canvas, width: 400, height: 200 },
+      { draw: (): void => {} },
+    );
+    await app.ready;
+    app.context.camera.lookAt(90, 70);
+
+    app.resize(800, 400);
+    h.canvas.dispatchEvent(
+      inputEvent("pointermove", {
+        pointerId: 1,
+        pointerType: "mouse",
+        isPrimary: true,
+        pressure: 0,
+        clientX: 200,
+        clientY: 100,
+      }),
+    );
+
+    expect(app.context.camera.x).toBe(90);
+    expect(app.context.camera.y).toBe(70);
+    expect(app.context.camera.worldToScreen(90, 70)).toEqual({ x: 400, y: 200 });
+    expect(app.context.mouseX).toBe(400);
+    expect(app.context.mouseY).toBe(200);
+
+    app.stop();
+  });
+
+  test("validates resize dimensions and caps pixel ratio", async () => {
+    const h = harness();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, { draw: (): void => {} });
+    await app.ready;
+
+    expect(() => app.resize(0, 100)).toThrow("width must be a finite positive number");
+    expect(() => app.resize(100, Number.NaN)).toThrow("height must be a finite positive number");
+    expect(() => app.resize(100, 100, 0)).toThrow("pixelRatio must be a finite positive number");
+    app.resize(100, 50, 4);
+    expect(app.context.pixelRatio).toBe(2);
+    expect(h.canvas.width).toBe(200);
+    expect(h.canvas.height).toBe(100);
+
+    app.stop();
+  });
+
+  test("redraws a no-loop scene after resize clears its backing store", async () => {
+    const h = harness();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, (context) => {
+      context.noLoop();
+      return { draw: (): void => {} };
+    });
+    await app.ready;
+    expect(h.frames).toHaveLength(1);
+
+    app.resize(320, 180);
+
+    expect(h.frames).toHaveLength(2);
+    app.stop();
+  });
+
+  test("tracks display pixel ratio changes unless the ratio is explicit", async () => {
+    Object.defineProperty(globalThis, "devicePixelRatio", { configurable: true, value: 1 });
+    const h = harness();
+    const app = start(
+      { backend: () => h.renderer, canvas: h.canvas, width: 100, height: 50 },
+      { draw: (): void => {} },
+    );
+    await app.ready;
+
+    Object.defineProperty(globalThis, "devicePixelRatio", { configurable: true, value: 2 });
+    globalThis.dispatchEvent(new Event("resize"));
+
+    expect(app.context.pixelRatio).toBe(2);
+    expect(h.canvas.width).toBe(200);
+    expect(h.canvas.height).toBe(100);
+    expect(h.viewports.at(-1)).toEqual([100, 50]);
+
+    app.stop();
+    const viewportCount = h.viewports.length;
+    Object.defineProperty(globalThis, "devicePixelRatio", { configurable: true, value: 1 });
+    globalThis.dispatchEvent(new Event("resize"));
+    expect(h.viewports).toHaveLength(viewportCount);
+  });
+
   test("removes an owned canvas even when renderer disposal throws", async () => {
     const h = harness();
     const renderer: Renderer = {
@@ -277,6 +402,101 @@ describe("canvas sizing", () => {
 
     expect(() => app.stop()).toThrow("dispose failed");
     expect((h.canvas as unknown as TestCanvas).removed).toBe(true);
+  });
+});
+
+describe("pixels and capture", () => {
+  test("loads a mutable snapshot and writes it back at physical resolution", async () => {
+    const h = harness();
+    let written: Uint8ClampedArray | undefined;
+    const renderer: Renderer = {
+      ...h.renderer,
+      readPixels: () => ({
+        width: 2,
+        height: 1,
+        data: new Uint8ClampedArray([1, 2, 3, 255, 4, 5, 6, 128]),
+      }),
+      writePixels: (pixels): void => {
+        written = new Uint8ClampedArray(pixels.data);
+      },
+    };
+    const app = start(
+      { backend: () => renderer, canvas: h.canvas, width: 2, height: 1, pixelRatio: 1 },
+      { draw: (): void => {} },
+    );
+    await app.ready;
+
+    const pixels = app.loadPixels();
+    expect(() => app.updatePixels(new Pixels(1, 1, 1))).toThrow(RangeError);
+    pixels.set(1, 0, [9, 8, 7, 6]);
+    app.updatePixels(pixels);
+
+    expect(pixels).toBeInstanceOf(Pixels);
+    expect(pixels.get(0, 0)).toEqual([1, 2, 3, 255]);
+    expect(written).toEqual(new Uint8ClampedArray([1, 2, 3, 255, 9, 8, 7, 6]));
+    app.stop();
+  });
+
+  test("rejects unsupported backends and access after stop", async () => {
+    const h = harness();
+    const app = start(
+      { backend: () => h.renderer, canvas: h.canvas, width: 2, height: 1, pixelRatio: 1 },
+      { draw: (): void => {} },
+    );
+    await app.ready;
+
+    expect(() => app.loadPixels()).toThrow(PixelAccessUnavailableError);
+    expect(() => app.updatePixels(new Pixels(1, 1, 1))).toThrow(PixelAccessUnavailableError);
+    app.stop();
+    expect(() => app.loadPixels()).toThrow("after app.stop()");
+  });
+
+  test("encodes a PNG from read-back pixels instead of relying on the drawing buffer", async () => {
+    const h = harness();
+    const source = new Uint8ClampedArray([10, 20, 30, 255, 40, 50, 60, 128]);
+    const renderer: Renderer = {
+      ...h.renderer,
+      readPixels: () => ({ width: 2, height: 1, data: new Uint8ClampedArray(source) }),
+      writePixels: (): void => {},
+    };
+    const encoded = new Blob(["png"], { type: "image/png" });
+    let encodedPixels: Uint8ClampedArray | undefined;
+    const output = {
+      width: 0,
+      height: 0,
+      getContext: (): CanvasRenderingContext2D =>
+        ({
+          createImageData: (width: number, height: number): ImageData =>
+            ({ width, height, data: new Uint8ClampedArray(width * height * 4) }) as ImageData,
+          putImageData: (image: ImageData): void => {
+            encodedPixels = new Uint8ClampedArray(image.data);
+          },
+        }) as unknown as CanvasRenderingContext2D,
+      toBlob: (callback: BlobCallback, type?: string): void => {
+        expect(type).toBe("image/png");
+        callback(encoded);
+      },
+    };
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: {
+        createElement: (): HTMLCanvasElement => output as unknown as HTMLCanvasElement,
+        body: { append: (): void => {} },
+      },
+    });
+    const app = start(
+      { backend: () => renderer, canvas: h.canvas, width: 2, height: 1, pixelRatio: 1 },
+      { draw: (): void => {} },
+    );
+    await app.ready;
+
+    const blob = await app.capturePng();
+
+    expect(blob).toBe(encoded);
+    expect(output.width).toBe(2);
+    expect(output.height).toBe(1);
+    expect(encodedPixels).toEqual(source);
+    app.stop();
   });
 });
 
@@ -700,12 +920,7 @@ describe("input transitions", () => {
       {
         update: (
           _dt,
-          {
-            gamepads,
-            gamepadButtonIsDown,
-            gamepadButtonJustPressed,
-            gamepadButtonJustReleased,
-          },
+          { gamepads, gamepadButtonIsDown, gamepadButtonJustPressed, gamepadButtonJustReleased },
         ): void => {
           snapshots.push([
             gamepads.length,

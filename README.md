@@ -5,8 +5,8 @@ drawing API does not rasterise — it encodes a command stream that WebGL2,
 Canvas2D, SVG and a headless recorder each consume on their own terms.
 
 > **Status: 0.1.0, pre-alpha.** The drawing API, bezier paths, SDF text,
-> images, sprites, shader passes and SVG export all work, with twelve example
-> scenes running on them. Not published to npm.
+> images, sprites, shader passes, SVG/PNG export and pixel access all work,
+> with twelve example scenes running on them. Not published to npm.
 
 ## Why
 
@@ -156,6 +156,32 @@ return {
 `worldToScreen()` does the reverse. Both accept an optional reusable output
 point for allocation-free use in a hot loop.
 
+## Canvas size and pixels
+
+`resize()` changes the logical surface and its physical backing store together.
+The context exposes the current `width`, `height`, and `pixelRatio`; when no
+ratio is forced in `start()`, moving the canvas between displays updates the
+backing resolution automatically.
+
+Raster backends also expose a top-down, straight-alpha RGBA snapshot at physical
+resolution:
+
+```ts
+const app = start({ backend: webgl2(), width: 320, height: 180 }, scene);
+await app.ready;
+
+app.resize(640, 360);
+const pixels = app.loadPixels();
+pixels.set(0, 0, [255, 0, 255, 255]);
+app.updatePixels(pixels);
+
+const png = await app.capturePng();
+```
+
+`Pixels.get()` and `set()` address physical pixels; `pixels.pixelRatio` makes
+the relationship to scene coordinates explicit. SVG and headless backends throw
+`PixelAccessUnavailableError` because they have no raster surface to read.
+
 Run `bun run dev` and open
 http://localhost:5199/examples to see the twelve scenes in
 `examples/`.
@@ -191,7 +217,7 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 
 ## Build order
 
-All eight phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
+All nine phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
 state, remaining library gaps, and deferred work.
 
 | Phase | Work | Done when |
@@ -204,6 +230,7 @@ state, remaining library gaps, and deferred work.
 | P6 ✅ | Docs + playground | **Met** — landing page, live editor, 184-symbol reference |
 | P7 ✅ | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below |
 | P8 ✅ | Typed runtime plugins + audio | **Met** — load, play, loop, gain, lifecycle, bounded voice pool |
+| P9 ✅ | Canvas resize, pixels + PNG capture | **Met** — DPR-aware Canvas2D/WebGL2, top-down RGBA round-trip |
 
 ## P1 measurements
 

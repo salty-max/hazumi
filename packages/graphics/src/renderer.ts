@@ -1,5 +1,12 @@
 import type { CommandBuffer } from './command-buffer';
 
+/** A top-down snapshot of a raster backend's physical RGBA pixels. */
+export interface PixelData {
+  readonly width: number;
+  readonly height: number;
+  readonly data: Uint8ClampedArray;
+}
+
 /**
  * What every backend implements.
  *
@@ -12,6 +19,10 @@ export interface Renderer {
   render: (buffer: CommandBuffer) => void;
   /** Called on construction and whenever the canvas is resized. */
   setViewport: (width: number, height: number) => void;
+  /** Read physical canvas pixels, when the backend is raster-based. */
+  readPixels?: () => PixelData;
+  /** Replace physical canvas pixels, when the backend is raster-based. */
+  writePixels?: (pixels: PixelData) => void;
   /** Release GPU or canvas resources. */
   dispose: () => void;
 }

@@ -4,6 +4,7 @@ import {
   Blend,
   type CommandBuffer,
   type CommandVisitor,
+  type PixelData,
   decode,
 } from '@matter/graphics';
 
@@ -125,6 +126,27 @@ export class Canvas2dRenderer {
     return this.#viewport;
   }
 
+  readPixels(): PixelData {
+    const image = this.#ctx.getImageData(0, 0, this.#canvas.width, this.#canvas.height);
+    return {
+      width: image.width,
+      height: image.height,
+      data: new Uint8ClampedArray(image.data),
+    };
+  }
+
+  writePixels(pixels: PixelData): void {
+    if (pixels.width !== this.#canvas.width || pixels.height !== this.#canvas.height) {
+      throw new RangeError(
+        `Pixel surface is ${pixels.width}x${pixels.height}; expected ` +
+          `${this.#canvas.width}x${this.#canvas.height}`,
+      );
+    }
+    const image = this.#ctx.createImageData(pixels.width, pixels.height);
+    image.data.set(pixels.data);
+    this.#ctx.putImageData(image, 0, 0);
+  }
+
   dispose(): void {
     this.#ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.#ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
@@ -136,7 +158,7 @@ export class Canvas2dRenderer {
     this.#styleStack.length = 0;
     this.#style = Canvas2dRenderer.#defaultStyle();
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.#resetTransform();
     ctx.globalCompositeOperation = 'source-over';
     // Deliberately no clearRect: a scene that never calls background()
     // accumulates across frames, matching the GPU backend.
@@ -145,6 +167,12 @@ export class Canvas2dRenderer {
     decode(buffer, this.#visitor);
 
     ctx.restore();
+  }
+
+  #resetTransform(): void {
+    const scaleX = this.#viewport.width === 0 ? 1 : this.#canvas.width / this.#viewport.width;
+    const scaleY = this.#viewport.height === 0 ? 1 : this.#canvas.height / this.#viewport.height;
+    this.#ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
   }
 
   #applyBlend(): void {
@@ -205,7 +233,7 @@ export class Canvas2dRenderer {
       translate: (x: number, y: number): void => void ctx.translate(x, y),
       rotate: (radians: number): void => void ctx.rotate(radians),
       scale: (x: number, y: number): void => void ctx.scale(x, y),
-      resetTransform: (): void => void ctx.setTransform(1, 0, 0, 1, 0, 0),
+      resetTransform: (): void => this.#resetTransform(),
 
       background: (r: number, g: number, b: number, a: number): void => {
         // Painted under identity transform, ignoring whatever the scene has

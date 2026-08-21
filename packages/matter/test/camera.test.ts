@@ -51,6 +51,33 @@ describe('Camera2D view', () => {
     expect(() => camera.setZoom(0)).toThrow(RangeError);
     expect(() => camera.follow(0, 0, 1.1)).toThrow(RangeError);
   });
+
+  test('keeps the default canvas coordinate system after resize', () => {
+    const buffer = new CommandBuffer();
+    const { camera, beginFrame, resize } = createCamera2D(buffer, 400, 300);
+
+    resize(800, 450);
+    buffer.reset();
+    beginFrame();
+
+    expect(camera.x).toBe(400);
+    expect(camera.y).toBe(225);
+    expect(camera.worldToScreen(32, 48)).toEqual({ x: 32, y: 48 });
+    expect(record(buffer)).toEqual([]);
+  });
+
+  test('preserves an explicitly positioned world view after resize', () => {
+    const buffer = new CommandBuffer();
+    const { camera, resize } = createCamera2D(buffer, 400, 300);
+    // Explicitly pinning the current default is still an intentional world view.
+    camera.lookAt(200, 150);
+
+    resize(800, 450);
+
+    expect(camera.x).toBe(200);
+    expect(camera.y).toBe(150);
+    expect(camera.worldToScreen(200, 150)).toEqual({ x: 400, y: 225 });
+  });
 });
 
 describe('coordinate conversion', () => {

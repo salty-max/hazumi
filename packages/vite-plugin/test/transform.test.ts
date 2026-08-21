@@ -18,6 +18,7 @@ describe("findUsedMembers", () => {
 
   test("finds bare value references, not just calls", () => {
     expect(findUsedMembers("const x = width / 2;")).toContain("width");
+    expect(findUsedMembers("const physical = width * pixelRatio;")).toContain("pixelRatio");
   });
 
   test("ignores property access", () => {

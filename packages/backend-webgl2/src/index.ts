@@ -26,6 +26,7 @@ export type {
   ResourceDescriptor,
   BufferDescriptor,
   ProgramDescriptor,
+  RgbaTextureDescriptor,
 } from './resource';
 export { SDF_VERTEX_SHADER, SDF_FRAGMENT_SHADER } from './shaders';
 export {

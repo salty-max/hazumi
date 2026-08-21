@@ -1,5 +1,10 @@
 import { AppClock, createPluginHost, type ClockOptions, type PluginBuilder } from "@matter/core";
-import { type BackendFactory, CommandBuffer, type Renderer } from "@matter/graphics";
+import {
+  type BackendFactory,
+  CommandBuffer,
+  type PixelData,
+  type Renderer,
+} from "@matter/graphics";
 import { ColorCache } from "./color-cache";
 import {
   type ContextState,
@@ -9,6 +14,7 @@ import {
   type MatterContext,
   type PointerInput,
 } from "./context";
+import { PixelAccessUnavailableError, Pixels } from "./pixels";
 
 export interface AppOptions<Api extends object = Record<never, never>> {
   readonly backend: BackendFactory;
@@ -108,6 +114,11 @@ interface StatsCapableRenderer extends Renderer {
   readonly stats: FrameStats;
 }
 
+interface PixelCapableRenderer extends Renderer {
+  readPixels: () => PixelData;
+  writePixels: (pixels: PixelData) => void;
+}
+
 interface MutablePointerInput extends PointerInput {
   id: number;
   type: string;
@@ -155,6 +166,13 @@ function supportsPasses(renderer: Renderer): renderer is PostCapableRenderer {
   );
 }
 
+function supportsPixels(renderer: Renderer): renderer is PixelCapableRenderer {
+  return (
+    typeof (renderer as PixelCapableRenderer).readPixels === "function" &&
+    typeof (renderer as PixelCapableRenderer).writePixels === "function"
+  );
+}
+
 export interface MatterApp<Api extends object = Record<never, never>> {
   readonly context: MatterContext & Api;
   readonly canvas: HTMLCanvasElement;
@@ -180,6 +198,14 @@ export interface MatterApp<Api extends object = Record<never, never>> {
   setPasses: (passes: readonly ShaderPass[]) => void;
   /** Load and activate a scene, disposing the previous one after it is ready. */
   setScene: (scene: SceneSource<Api>) => Promise<void>;
+  /** Resize the logical canvas and its device-pixel backing store. */
+  resize: (width: number, height: number, pixelRatio?: number) => void;
+  /** Copy the current physical canvas pixels into a mutable top-down RGBA surface. */
+  loadPixels: () => Pixels;
+  /** Replace the current canvas with a pixel surface returned by loadPixels(). */
+  updatePixels: (pixels: Pixels) => void;
+  /** Encode the current frame as a PNG at physical canvas resolution. */
+  capturePng: () => Promise<Blob>;
   /** Draw exactly one frame. Useful when the loop is stopped. No-op after stop(). */
   redraw: () => void;
   /**
@@ -193,6 +219,17 @@ export interface MatterApp<Api extends object = Record<never, never>> {
 }
 
 const MAX_PIXEL_RATIO = 2;
+
+function positiveFinite(value: number, name: string): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${name} must be a finite positive number`);
+  }
+  return value;
+}
+
+function displayPixelRatio(): number {
+  return Math.min(positiveFinite(globalThis.devicePixelRatio ?? 1, "pixelRatio"), MAX_PIXEL_RATIO);
+}
 
 /**
  * Start a Matter application with its initial scene.
@@ -219,15 +256,18 @@ export function start<Api extends object = Record<never, never>>(
   options: AppOptions<Api>,
   initialScene: SceneSource<Api>,
 ): MatterApp<Api> {
-  const width = options.width ?? 600;
-  const height = options.height ?? 600;
+  const width = positiveFinite(options.width ?? 600, "width");
+  const height = positiveFinite(options.height ?? 600, "height");
   // Validate timing before acquiring a renderer or attaching a canvas. Invalid
   // configuration must not leak resources while construction unwinds.
   const clock = new AppClock(options.clock);
 
   const canvas = options.canvas ?? document.createElement("canvas");
   const ownsCanvas = options.canvas === undefined;
-  const ratio = Math.min(options.pixelRatio ?? globalThis.devicePixelRatio ?? 1, MAX_PIXEL_RATIO);
+  let ratio = Math.min(
+    positiveFinite(options.pixelRatio ?? globalThis.devicePixelRatio ?? 1, "pixelRatio"),
+    MAX_PIXEL_RATIO,
+  );
 
   canvas.width = Math.round(width * ratio);
   canvas.height = Math.round(height * ratio);
@@ -246,8 +286,8 @@ export function start<Api extends object = Record<never, never>>(
   }
 
   const renderer = options.backend(canvas);
-  // The viewport is in device pixels; scene coordinates stay in CSS pixels,
-  // so a scene does not have to know what display it landed on.
+  // The viewport stays in logical coordinates. Each backend maps it onto the
+  // physical backing store, so a scene does not need to know its display DPR.
   renderer.setViewport(width, height);
 
   const buffer = new CommandBuffer();
@@ -256,6 +296,7 @@ export function start<Api extends object = Record<never, never>>(
   const state: ContextState = {
     width,
     height,
+    pixelRatio: ratio,
     frameCount: 0,
     t: 0,
     dt: 0,
@@ -386,7 +427,7 @@ export function start<Api extends object = Record<never, never>>(
     renderer.setPasses(passes);
   };
 
-  const { context, beginFrame } = createContext({
+  const { context, beginFrame, resize: resizeContext } = createContext({
     buffer,
     colors,
     state,
@@ -556,6 +597,29 @@ export function start<Api extends object = Record<never, never>>(
   let sceneRevision = 0;
   let frameHandle = 0;
   let stopped = false;
+  const resize = (nextWidth: number, nextHeight: number, pixelRatio = ratio): void => {
+    if (stopped) return;
+    const logicalWidth = positiveFinite(nextWidth, "width");
+    const logicalHeight = positiveFinite(nextHeight, "height");
+    const nextRatio = Math.min(positiveFinite(pixelRatio, "pixelRatio"), MAX_PIXEL_RATIO);
+
+    canvas.width = Math.round(logicalWidth * nextRatio);
+    canvas.height = Math.round(logicalHeight * nextRatio);
+    canvas.style.width = `${logicalWidth}px`;
+    canvas.style.aspectRatio = `${logicalWidth} / ${logicalHeight}`;
+    state.width = logicalWidth;
+    state.height = logicalHeight;
+    state.pixelRatio = nextRatio;
+    ratio = nextRatio;
+    resizeContext(logicalWidth, logicalHeight);
+    renderer.setViewport(logicalWidth, logicalHeight);
+    if (!state.looping && activeScene !== null) renderFrame(performance.now());
+  };
+  const onDisplayResize = (): void => {
+    const nextRatio = displayPixelRatio();
+    if (nextRatio !== ratio) resize(state.width, state.height, nextRatio);
+  };
+  if (options.pixelRatio === undefined) globalThis.addEventListener("resize", onDisplayResize);
   const beginInputStep = (): void => {
     let previous = state.keysPressed;
     state.keysPressed = pendingKeysPressed;
@@ -686,6 +750,7 @@ export function start<Api extends object = Record<never, never>>(
     globalThis.removeEventListener("keydown", onKeyDown);
     globalThis.removeEventListener("keyup", onKeyUp);
     globalThis.removeEventListener("blur", onBlur);
+    if (options.pixelRatio === undefined) globalThis.removeEventListener("resize", onDisplayResize);
     try {
       activeScene?.dispose?.(sceneContext);
     } finally {
@@ -754,6 +819,45 @@ export function start<Api extends object = Record<never, never>>(
     }
   };
 
+  const rasterRenderer = (): PixelCapableRenderer => {
+    if (stopped) {
+      throw new PixelAccessUnavailableError("Pixel access is unavailable after app.stop()");
+    }
+    if (!supportsPixels(renderer)) throw new PixelAccessUnavailableError();
+    return renderer;
+  };
+  const loadPixels = (): Pixels => {
+    const snapshot = rasterRenderer().readPixels();
+    return new Pixels(snapshot.width, snapshot.height, state.pixelRatio, snapshot.data);
+  };
+  const updatePixels = (pixels: Pixels): void => {
+    const raster = rasterRenderer();
+    if (pixels.width !== canvas.width || pixels.height !== canvas.height) {
+      throw new RangeError(
+        `Pixel surface is ${pixels.width}x${pixels.height}; expected ` +
+          `${canvas.width}x${canvas.height}`,
+      );
+    }
+    raster.writePixels(pixels);
+  };
+  const capturePng = async (): Promise<Blob> => {
+    const pixels = loadPixels();
+    const output = document.createElement("canvas");
+    output.width = pixels.width;
+    output.height = pixels.height;
+    const outputContext = output.getContext("2d");
+    if (outputContext === null) throw new Error("Canvas2D is required to encode a PNG");
+    const image = outputContext.createImageData(pixels.width, pixels.height);
+    image.data.set(pixels.data);
+    outputContext.putImageData(image, 0, 0);
+    return new Promise<Blob>((resolve, reject) => {
+      output.toBlob((blob) => {
+        if (blob === null) reject(new Error("The browser could not encode the canvas as PNG"));
+        else resolve(blob);
+      }, "image/png");
+    });
+  };
+
   return {
     context: sceneContext,
     canvas,
@@ -766,6 +870,10 @@ export function start<Api extends object = Record<never, never>>(
     },
     setPasses: applyPasses,
     setScene,
+    resize,
+    loadPixels,
+    updatePixels,
+    capturePng,
     get stopped(): boolean {
       return stopped;
     },

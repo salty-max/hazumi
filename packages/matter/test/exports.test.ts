@@ -12,6 +12,8 @@ describe("matter exports", () => {
     expect(typeof matter.AppClock).toBe("function");
     expect(typeof matter.createPluginHost).toBe("function");
     expect(typeof matter.audio).toBe("function");
+    expect(typeof matter.Pixels).toBe("function");
+    expect(typeof matter.PixelAccessUnavailableError).toBe("function");
   });
 
   test("exports the command buffer API as values, not just types", () => {

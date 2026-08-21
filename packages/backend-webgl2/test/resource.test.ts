@@ -17,12 +17,16 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
   unpackAlignment: number;
   filters: number[];
   unpacks: [number, number][];
+  uploads: Uint8Array[];
+  subUploads: Uint8Array[];
 } {
   let nextId = 1;
   const created = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
   const deleted = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
   const filters: number[] = [];
   const unpacks: [number, number][] = [];
+  const uploads: Uint8Array[] = [];
+  const subUploads: Uint8Array[] = [];
   const state = { unpackAlignment: 4 };
 
   return {
@@ -30,6 +34,8 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     deleted,
     filters,
     unpacks,
+    uploads,
+    subUploads,
     get unpackAlignment() {
       return state.unpackAlignment;
     },
@@ -55,7 +61,14 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
       return { id: nextId++ } as unknown as WebGLTexture;
     },
     bindTexture: () => {},
-    texImage2D: () => {},
+    texImage2D: (...args: unknown[]) => {
+      const value = args.at(-1);
+      if (value instanceof Uint8Array) uploads.push(new Uint8Array(value));
+    },
+    texSubImage2D: (...args: unknown[]) => {
+      const value = args.at(-1);
+      if (value instanceof Uint8Array) subUploads.push(new Uint8Array(value));
+    },
     texParameteri: (_t: number, pname: number, param: number) => {
       if (pname === 10241 || pname === 10240) filters.push(param);
     },
@@ -207,6 +220,50 @@ describe('ResourceRegistry', () => {
     registry.register({ kind: 'texture', width: 3, height: 3, data: new Uint8Array(9) });
     registry.realize(gl);
     expect(gl.unpackAlignment).toBe(1);
+  });
+
+  test('updates one retained RGBA texture without growing the registry', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    const id = registry.register({
+      kind: 'rgba-texture',
+      width: 1,
+      height: 1,
+      data: new Uint8Array(4),
+    });
+    registry.realize(gl);
+    const input = new Uint8Array([1, 2, 3, 4]);
+
+    registry.updateRgbaTexture(gl, id, 1, 1, input);
+    input[0] = 99;
+
+    expect(registry.size).toBe(1);
+    expect(gl.subUploads).toEqual([new Uint8Array([1, 2, 3, 4])]);
+    expect(registry.descriptor(id)).toMatchObject({
+      kind: 'rgba-texture',
+      data: new Uint8Array([1, 2, 3, 4]),
+    });
+  });
+
+  test('reallocates resized RGBA textures and restores their latest pixels', () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    const id = registry.register({
+      kind: 'rgba-texture',
+      width: 1,
+      height: 1,
+      data: new Uint8Array(4),
+    });
+    registry.realize(gl);
+    const latest = new Uint8Array(8).fill(7);
+
+    registry.updateRgbaTexture(gl, id, 2, 1, latest);
+    registry.invalidate();
+    registry.realize(gl);
+
+    expect(registry.size).toBe(1);
+    expect(gl.uploads.at(-2)).toEqual(latest);
+    expect(gl.uploads.at(-1)).toEqual(latest);
   });
 
   test('reports which shader stage failed to compile', () => {

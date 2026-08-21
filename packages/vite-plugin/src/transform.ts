@@ -9,6 +9,7 @@
 export const CONTEXT_MEMBERS: readonly string[] = [
   "width",
   "height",
+  "pixelRatio",
   "frameCount",
   "t",
   "dt",

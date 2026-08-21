@@ -4,7 +4,7 @@ What is built, what is next, and what is deliberately deferred. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 11 packages, 633 unit tests, 19
+**Where it stands:** 0.1.0, pre-alpha. 11 packages, 655 unit tests, 19
 backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
@@ -19,6 +19,7 @@ backend-agreement scenes, 12 example scenes. Not published to npm.
 | P6 ✅ | Landing page, live playground, generated API reference |
 | P7 ✅ | Images, sprites, bezier paths, shader passes, input, build-time auto-import |
 | P8 ✅ | Typed runtime plugins and Web Audio with bounded pooled voices |
+| P9 ✅ | Runtime resize and DPR tracking, mutable pixels, and PNG frame capture |
 
 The measurements that back these:
 
@@ -66,15 +67,20 @@ looping playback with master and per-voice gain, unlocks on the first user gestu
 and caps simultaneous playback with reusable voice slots. Dungeon run exercises
 the full path with ambience, impact, and victory sounds.
 
+The canvas can now resize its logical surface and physical backing store in one
+operation. Display pixel-ratio changes are tracked unless a ratio is explicitly
+pinned. Canvas2D applies the logical-to-physical transform and WebGL2 updates its
+viewport, so neither backend deforms scene geometry.
+
+Both raster backends expose owned, top-down straight-alpha RGBA snapshots through
+`loadPixels()`. `Pixels.get()` and `set()` edit physical pixels,
+`updatePixels()` writes them back, and `capturePng()` encodes the current frame
+without depending on a preserved browser drawing buffer. The WebGL upload is a
+single retained resource, so repeated updates and context restoration do not grow
+the GPU registry.
+
 ## Library gaps, independent of games
 
-- **Pixel access.** No `loadPixels`/`get`/`set`. Genuinely absent, and a
-  common expectation for a drawing library.
-- **Canvas export.** SVG export works via `toSvg()`; there is no PNG-or-frame
-  save path from the application API.
-- **Canvas resize.** `pixelRatio` is read once at construction and there is no
-  `resize` listener, so an application does not respond to a window resize.
-  → [app.ts](packages/matter/src/app.ts)
 - **Colour packing.** Instances carry colour as four floats. Packing into a
   `u32` would recover roughly a fifth of the upload bandwidth — the clearest
   remaining performance win, and already identified as such.

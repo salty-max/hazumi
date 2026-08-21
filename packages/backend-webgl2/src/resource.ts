@@ -31,6 +31,14 @@ export interface TextureDescriptor {
   readonly data: Uint8Array;
 }
 
+/** A mutable RGBA upload retained so context restoration reproduces it. */
+export interface RgbaTextureDescriptor {
+  readonly kind: 'rgba-texture';
+  width: number;
+  height: number;
+  data: Uint8Array;
+}
+
 /** An RGBA texture uploaded from a decoded image. */
 export interface ImageTextureDescriptor {
   readonly kind: 'image-texture';
@@ -49,6 +57,7 @@ export type ResourceDescriptor =
   | BufferDescriptor
   | ProgramDescriptor
   | TextureDescriptor
+  | RgbaTextureDescriptor
   | ImageTextureDescriptor;
 
 /** Minimal slice of WebGL2 the registry needs, so it can be tested with a fake. */
@@ -69,6 +78,11 @@ export interface GlLike {
     target: number, level: number, internalformat: number,
     width: number, height: number, border: number,
     format: number, type: number, pixels: ArrayBufferView | null,
+  ): void;
+  texSubImage2D(
+    target: number, level: number, xoffset: number, yoffset: number,
+    width: number, height: number, format: number, type: number,
+    pixels: ArrayBufferView,
   ): void;
   texImage2D(
     target: number, level: number, internalformat: number,
@@ -203,10 +217,49 @@ export class ResourceRegistry {
     const id = this.register(descriptor);
     if (descriptor.kind === 'buffer') this.#buffers.set(id, createBuffer(gl, descriptor));
     else if (descriptor.kind === 'texture') this.#textures.set(id, createTexture(gl, descriptor));
-    else if (descriptor.kind === 'image-texture') {
+    else if (descriptor.kind === 'rgba-texture') {
+      this.#textures.set(id, createRgbaTexture(gl, descriptor));
+    } else if (descriptor.kind === 'image-texture') {
       this.#textures.set(id, createImageTexture(gl, descriptor));
     } else this.#programs.set(id, createProgram(gl, descriptor));
     return id;
+  }
+
+  /** Replace one retained RGBA texture without growing the registry. */
+  updateRgbaTexture(
+    gl: GlLike,
+    id: ResourceId,
+    width: number,
+    height: number,
+    data: Uint8Array,
+  ): void {
+    const descriptor = this.descriptor(id);
+    if (descriptor.kind !== 'rgba-texture') {
+      throw new TypeError(`Resource ${id} is not an RGBA texture`);
+    }
+    if (data.length !== width * height * 4) {
+      throw new RangeError(
+        `RGBA texture has ${data.length} channels; expected ${width * height * 4}`,
+      );
+    }
+    const sameSize = descriptor.width === width && descriptor.height === height;
+    descriptor.width = width;
+    descriptor.height = height;
+    descriptor.data = new Uint8Array(data);
+
+    gl.bindTexture(gl.TEXTURE_2D, this.texture(id));
+    if (sameSize) {
+      gl.texSubImage2D(
+        gl.TEXTURE_2D, 0, 0, 0,
+        width, height, gl.RGBA, gl.UNSIGNED_BYTE, descriptor.data,
+      );
+    } else {
+      gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RGBA,
+        width, height, 0,
+        gl.RGBA, gl.UNSIGNED_BYTE, descriptor.data,
+      );
+    }
   }
 
   /**
@@ -224,6 +277,8 @@ export class ResourceRegistry {
         this.#buffers.set(id, createBuffer(gl, desc));
       } else if (desc.kind === 'texture') {
         this.#textures.set(id, createTexture(gl, desc));
+      } else if (desc.kind === 'rgba-texture') {
+        this.#textures.set(id, createRgbaTexture(gl, desc));
       } else if (desc.kind === 'image-texture') {
         this.#textures.set(id, createImageTexture(gl, desc));
       } else {
@@ -233,6 +288,23 @@ export class ResourceRegistry {
 
     this.#realizations++;
   }
+}
+
+function createRgbaTexture(gl: GlLike, desc: RgbaTextureDescriptor): WebGLTexture {
+  const texture = gl.createTexture();
+  if (texture === null) throw new Error('gl.createTexture() returned null');
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(
+    gl.TEXTURE_2D, 0, gl.RGBA,
+    desc.width, desc.height, 0,
+    gl.RGBA, gl.UNSIGNED_BYTE, desc.data,
+  );
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return texture;
 }
 
 function createBuffer(gl: GlLike, desc: BufferDescriptor): WebGLBuffer {

@@ -8,6 +8,7 @@ function makeState(width: number, height: number): ContextState {
   return {
     width,
     height,
+    pixelRatio: 1,
     frameCount: 0,
     t: 0,
     dt: 0,

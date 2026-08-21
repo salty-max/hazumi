@@ -233,6 +233,24 @@ export function App(): JSX.Element {
     }
   }, [editorReady]);
 
+  const exportPng = useCallback(async (): Promise<void> => {
+    const app = appRef.current;
+    if (app === null) return;
+    setStatus({ text: "Exporting PNG", kind: "idle" });
+    try {
+      const blob = await app.capturePng();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "matter-frame.png";
+      link.click();
+      URL.revokeObjectURL(url);
+      setStatus({ text: `PNG saved · ${(blob.size / 1024).toFixed(1)} kB`, kind: "ok" });
+    } catch (error) {
+      setStatus({ text: describeError(error), kind: "error" });
+    }
+  }, []);
+
   useEffect(() => {
     if (editorReady) void run();
     return (): void => {
@@ -308,7 +326,11 @@ export function App(): JSX.Element {
           </span>
           <Button variant="outline" size="sm" onClick={() => void exportSvg()}>
             <Download />
-            <span className="hidden sm:inline">Export SVG</span>
+            <span className="hidden sm:inline">SVG</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void exportPng()}>
+            <Download />
+            <span className="hidden sm:inline">PNG</span>
           </Button>
           <Button size="sm" onClick={() => void run()}>
             <Play className="fill-current" />
