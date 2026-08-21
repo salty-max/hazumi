@@ -71,19 +71,35 @@ return {
   {
     name: "Dungeon run",
     code: `// Click the preview, then use WASD or the arrow keys.
-// Reach the violet beacon. Press R to restart.
+// Reach the orange beacon. Press R to restart.
 const TILE = 32;
 const COLUMNS = 40;
 const ROWS = 28;
 const PLAYER_SIZE = 22;
+const PLAYER_DRAW_SIZE = 32;
 const SPEED = 300;
 
-const sheet = spritesheet(await s.loadImage('/examples/assets/tiles.png'), {
+const [tileImage, spriteImage] = await Promise.all([
+  s.loadImage('/examples/assets/dungeon-tiles.png'),
+  s.loadImage('/examples/assets/dungeon-sprites.png'),
+]);
+const tiles = spritesheet(tileImage, {
   frame: [16, 16],
 });
+const sprites = spritesheet(spriteImage, {
+  frame: [16, 16],
+  clips: {
+    knightRun: { frames: [140, 141, 142, 143, 144, 145], fps: 10 },
+    beacon: { frames: [90, 91, 92, 93, 94, 95], fps: 8 },
+  },
+});
+const knightRun = sprites.clip('knightRun');
+const beacon = sprites.clip('beacon');
 const floorTiles = new Int16Array(COLUMNS * ROWS);
+const decorTiles = new Int16Array(COLUMNS * ROWS);
 const wallTiles = new Int16Array(COLUMNS * ROWS);
-floorTiles.fill(EMPTY_TILE);
+const props = [0, 1, 2, 13, 14];
+decorTiles.fill(EMPTY_TILE);
 wallTiles.fill(EMPTY_TILE);
 
 const wallBoxes = new Array(COLUMNS * ROWS).fill(null);
@@ -99,11 +115,12 @@ for (let row = 0; row < ROWS; row++) {
       barrier = Math.abs(row - gap) > 1;
     }
 
+    floorTiles[index] = (column * 3 + row * 5) % 7 === 0 ? 32 : 23;
     if (border || barrier) {
-      wallTiles[index] = 12 + (column + row) % 4;
+      wallTiles[index] = (column * 7 + row * 11) % 29 === 0 ? 52 : 42 + (column + row) % 3;
       wallBoxes[index] = collision.aabb(column * TILE, row * TILE, TILE, TILE);
-    } else if ((column * 11 + row * 7) % 19 === 0) {
-      floorTiles[index] = 8 + (column + row) % 4;
+    } else if ((column * 11 + row * 7) % 37 === 0) {
+      decorTiles[index] = props[(column + row) % props.length];
     }
   }
 }
@@ -114,8 +131,9 @@ const dungeon = tilemap({
   tileWidth: TILE,
   tileHeight: TILE,
   layers: [
-    { name: 'floor', sheet, tiles: floorTiles },
-    { name: 'walls', sheet, tiles: wallTiles },
+    { name: 'floor', sheet: tiles, tiles: floorTiles },
+    { name: 'decor', sheet: tiles, tiles: decorTiles },
+    { name: 'walls', sheet: tiles, tiles: wallTiles },
   ],
 });
 
@@ -126,6 +144,8 @@ let x = spawn.x;
 let y = spawn.y;
 let previousX = x;
 let previousY = y;
+let facing = 1;
+let running = false;
 let won = false;
 
 function reset(camera) {
@@ -133,6 +153,8 @@ function reset(camera) {
   y = spawn.y;
   previousX = x;
   previousY = y;
+  facing = 1;
+  running = false;
   won = false;
   camera.lookAt(x, y);
 }
@@ -174,6 +196,8 @@ return {
         Number(keyIsDown('ArrowLeft') || keyIsDown('a') || keyIsDown('A'));
       let dy = Number(keyIsDown('ArrowDown') || keyIsDown('s') || keyIsDown('S')) -
         Number(keyIsDown('ArrowUp') || keyIsDown('w') || keyIsDown('W'));
+      running = dx !== 0 || dy !== 0;
+      if (dx !== 0) facing = dx < 0 ? -1 : 1;
       const length = Math.hypot(dx, dy) || 1;
       dx /= length;
       dy /= length;
@@ -187,29 +211,39 @@ return {
         PLAYER_SIZE,
       );
       won = collision.overlapsCircleAabb(goalShape, player);
+      if (won) running = false;
     }
     camera.follow(x, y, 0.22);
   },
 
   draw(alpha, context) {
-    const { background, camera, circle, fill, rect, text, textSize, t } = context;
-    background('oklch(0.09 0.025 275)');
+    const { background, camera, fill, image, pop, push, rect, scale, text, textSize, t, translate } = context;
+    background('oklch(0.08 0.018 265)');
     dungeon.draw(context);
 
-    fill('oklch(0.72 0.2 300)');
-    circle(goal.x, goal.y, 24 + Math.sin(t * 5) * 6);
+    const beaconSize = 36 + Math.sin(t * 5) * 4;
+    image(beacon.at(t), goal.x - beaconSize / 2, goal.y - beaconSize / 2, beaconSize, beaconSize);
 
     const drawX = previousX + (x - previousX) * alpha;
     const drawY = previousY + (y - previousY) * alpha;
-    fill('oklch(0.92 0.16 105)');
-    rect(drawX - PLAYER_SIZE / 2, drawY - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+    push();
+    translate(drawX, drawY);
+    scale(facing, 1);
+    image(
+      running ? knightRun.at(t) : sprites.frame(140),
+      -PLAYER_DRAW_SIZE / 2,
+      -PLAYER_DRAW_SIZE / 2,
+      PLAYER_DRAW_SIZE,
+      PLAYER_DRAW_SIZE,
+    );
+    pop();
 
     camera.screen(() => {
       fill('oklch(0.13 0.025 275 / 0.88)');
       rect(14, 14, won ? 244 : 300, 58);
       fill('white');
       textSize(14);
-      text(won ? 'Beacon reached — press R to replay' : 'WASD / arrows · find the violet beacon', 28, 49);
+      text(won ? 'Beacon reached — press R to replay' : 'WASD / arrows · find the orange beacon', 28, 49);
     });
   },
 };`,
