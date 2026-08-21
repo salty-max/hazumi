@@ -10,7 +10,7 @@ describe('Op', () => {
   test('opcode values are stable', () => {
     expect(Op.Circle).toBe(0);
     expect(Op.Rect).toBe(1);
-    expect(Op.Path).toBe(2);
+    expect(Op.FillPath).toBe(2);
     expect(Op.StrokePath).toBe(3);
     expect(Op.Push).toBe(4);
     expect(Op.Pop).toBe(5);
@@ -29,6 +29,12 @@ describe('Op', () => {
     expect(Op.SetTextAlign).toBe(18);
     expect(Op.SetFont).toBe(19);
     expect(Op.Image).toBe(20);
+    expect(Op.BeginPath).toBe(21);
+    expect(Op.MoveTo).toBe(22);
+    expect(Op.LineTo).toBe(23);
+    expect(Op.QuadraticTo).toBe(24);
+    expect(Op.CubicTo).toBe(25);
+    expect(Op.ClosePath).toBe(26);
   });
 
   test('no duplicate opcode values', () => {
@@ -66,6 +72,14 @@ describe('encoder width matches OP_SIZE', () => {
     ['setTextAlign', Op.SetTextAlign, (b) => b.setTextAlign(1, 2)],
     ['setFont', Op.SetFont, (b) => b.setFont('serif')],
     ['image', Op.Image, (b) => b.image({ width: 1, height: 1 } as never, 1, 2, 3, 4)],
+    ['beginPath', Op.BeginPath, (b) => b.beginPath()],
+    ['moveTo', Op.MoveTo, (b) => b.moveTo(1, 2)],
+    ['lineTo', Op.LineTo, (b) => b.lineTo(1, 2)],
+    ['quadraticTo', Op.QuadraticTo, (b) => b.quadraticTo(1, 2, 3, 4)],
+    ['cubicTo', Op.CubicTo, (b) => b.cubicTo(1, 2, 3, 4, 5, 6)],
+    ['closePath', Op.ClosePath, (b) => b.closePath()],
+    ['fillPath', Op.FillPath, (b) => b.fillPath()],
+    ['strokePath', Op.StrokePath, (b) => b.strokePath()],
     ['rect', Op.Rect, (b) => b.rect(1, 2, 3, 4)],
     ['line', Op.Line, (b) => b.line(1, 2, 3, 4)],
     ['push', Op.Push, (b) => b.push()],
@@ -90,12 +104,9 @@ describe('encoder width matches OP_SIZE', () => {
 
   test('every opcode an encoder can emit is covered above', () => {
     const covered = new Set(cases.map(([, op]) => op));
-    // Reserved for P5; they must stay unencodable until both the writer and
-    // OP_SIZE are updated together.
-    const reserved = new Set<number>([Op.Path, Op.StrokePath]);
-
+    // Nothing is reserved any more: every opcode has an encoder.
     for (const op of Object.values(Op)) {
-      expect(covered.has(op) || reserved.has(op)).toBe(true);
+      expect(covered.has(op)).toBe(true);
     }
   });
 });

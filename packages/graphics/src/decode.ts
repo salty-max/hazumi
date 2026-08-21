@@ -25,6 +25,18 @@ export interface CommandVisitor {
   /** The resolved string, not its id — backends never see the table. */
   setFont?: (family: string) => void;
   text?: (x: number, y: number, content: string) => void;
+  beginPath?: () => void;
+  moveTo?: (x: number, y: number) => void;
+  lineTo?: (x: number, y: number) => void;
+  quadraticTo?: (cx: number, cy: number, x: number, y: number) => void;
+  cubicTo?: (
+    c1x: number, c1y: number,
+    c2x: number, c2y: number,
+    x: number, y: number,
+  ) => void;
+  closePath?: () => void;
+  fillPath?: () => void;
+  strokePath?: () => void;
   /** Receives the resolved image, not its id — backends never see the table. */
   image?: (
     source: ImageSource,
@@ -123,6 +135,37 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
           f32[i + 2] as number,
           strings[u32[i + 3] as number] ?? '',
         );
+        break;
+      case Op.BeginPath:
+        visitor.beginPath?.();
+        break;
+      case Op.MoveTo:
+        visitor.moveTo?.(f32[i + 1] as number, f32[i + 2] as number);
+        break;
+      case Op.LineTo:
+        visitor.lineTo?.(f32[i + 1] as number, f32[i + 2] as number);
+        break;
+      case Op.QuadraticTo:
+        visitor.quadraticTo?.(
+          f32[i + 1] as number, f32[i + 2] as number,
+          f32[i + 3] as number, f32[i + 4] as number,
+        );
+        break;
+      case Op.CubicTo:
+        visitor.cubicTo?.(
+          f32[i + 1] as number, f32[i + 2] as number,
+          f32[i + 3] as number, f32[i + 4] as number,
+          f32[i + 5] as number, f32[i + 6] as number,
+        );
+        break;
+      case Op.ClosePath:
+        visitor.closePath?.();
+        break;
+      case Op.FillPath:
+        visitor.fillPath?.();
+        break;
+      case Op.StrokePath:
+        visitor.strokePath?.();
         break;
       case Op.Image: {
         const source = images[u32[i + 1] as number];

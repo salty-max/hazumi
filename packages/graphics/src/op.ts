@@ -10,9 +10,9 @@
 export const Op = {
   Circle: 0,
   Rect: 1,
-  /** Reserved for P5 bezier paths. */
-  Path: 2,
-  /** Reserved for P5 polyline strokes. */
+  /** Fill the path built since BeginPath. */
+  FillPath: 2,
+  /** Stroke the path built since BeginPath. */
   StrokePath: 3,
   /** Saves style and transform together, like p5's push(). */
   Push: 4,
@@ -32,6 +32,12 @@ export const Op = {
   SetTextAlign: 18,
   SetFont: 19,
   Image: 20,
+  BeginPath: 21,
+  MoveTo: 22,
+  LineTo: 23,
+  QuadraticTo: 24,
+  CubicTo: 25,
+  ClosePath: 26,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -40,8 +46,8 @@ export type Op = (typeof Op)[keyof typeof Op];
 export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.Circle]: 4, // op, x, y, r
   [Op.Rect]: 5, // op, x, y, w, h
-  [Op.Path]: 1, // reserved
-  [Op.StrokePath]: 1, // reserved
+  [Op.FillPath]: 1,
+  [Op.StrokePath]: 1,
   [Op.Push]: 1,
   [Op.Pop]: 1,
   [Op.SetFill]: 5, // op, r, g, b, a
@@ -59,6 +65,16 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.SetTextAlign]: 3, // op, horizontal, vertical
   [Op.SetFont]: 2, // op, stringId
   [Op.Image]: 6, // op, imageId, x, y, w, h
+  // A path is a run of fixed-width commands rather than one variable-length
+  // record. Every command keeps a constant size, so the decoder needs no
+  // special case, and the sequence maps directly onto both Canvas2D's path API
+  // and an SVG `d` attribute.
+  [Op.BeginPath]: 1,
+  [Op.MoveTo]: 3, // op, x, y
+  [Op.LineTo]: 3, // op, x, y
+  [Op.QuadraticTo]: 5, // op, cx, cy, x, y
+  [Op.CubicTo]: 7, // op, c1x, c1y, c2x, c2y, x, y
+  [Op.ClosePath]: 1,
 };
 
 /** Horizontal text anchor. */

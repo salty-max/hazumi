@@ -230,6 +230,66 @@ export class CommandBuffer {
     return id;
   }
 
+  // --- paths ---
+
+  /**
+   * Start a new path.
+   *
+   * Segments accumulate until fillPath() or strokePath() consumes them. The
+   * buffer stores bezier control points, never the flattened polyline — that
+   * is what lets SVG export real curve commands and what keeps the GPU free to
+   * flatten at whatever resolution it is actually drawing.
+   */
+  beginPath(): void {
+    this.#u32[this.#reserve(1)] = Op.BeginPath;
+  }
+
+  moveTo(x: number, y: number): void {
+    const i = this.#reserve(3);
+    this.#u32[i] = Op.MoveTo;
+    this.#f32[i + 1] = x;
+    this.#f32[i + 2] = y;
+  }
+
+  lineTo(x: number, y: number): void {
+    const i = this.#reserve(3);
+    this.#u32[i] = Op.LineTo;
+    this.#f32[i + 1] = x;
+    this.#f32[i + 2] = y;
+  }
+
+  quadraticTo(cx: number, cy: number, x: number, y: number): void {
+    this.#write4(Op.QuadraticTo, cx, cy, x, y);
+  }
+
+  cubicTo(
+    c1x: number, c1y: number,
+    c2x: number, c2y: number,
+    x: number, y: number,
+  ): void {
+    const i = this.#reserve(7);
+    const f = this.#f32;
+    this.#u32[i] = Op.CubicTo;
+    f[i + 1] = c1x;
+    f[i + 2] = c1y;
+    f[i + 3] = c2x;
+    f[i + 4] = c2y;
+    f[i + 5] = x;
+    f[i + 6] = y;
+  }
+
+  closePath(): void {
+    this.#u32[this.#reserve(1)] = Op.ClosePath;
+  }
+
+  fillPath(): void {
+    this.#u32[this.#reserve(1)] = Op.FillPath;
+  }
+
+  strokePath(): void {
+    this.#u32[this.#reserve(1)] = Op.StrokePath;
+  }
+
   #write4(op: Op, a: number, b: number, c: number, d: number): void {
     const i = this.#reserve(5);
     const f = this.#f32;
