@@ -700,12 +700,12 @@ export class Webgl2Renderer {
         const iw = source.width;
         const ih = source.height;
         if (iw <= 0 || ih <= 0) return;
-        // Textures are uploaded flipped, so the sprite's top edge is the
-        // larger v. Getting this backwards renders every sprite upside down.
+        // Textures upload unflipped, so v runs top-down exactly like the source
+        // rectangle does — the same convention as the whole-image case above.
         this.#emitImage(
           source, dx, dy, dw, dh,
-          sx / iw, 1 - sy / ih,
-          (sx + sw) / iw, 1 - (sy + sh) / ih,
+          sx / iw, sy / ih,
+          (sx + sw) / iw, (sy + sh) / ih,
         );
       },
 

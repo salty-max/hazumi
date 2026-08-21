@@ -16,17 +16,20 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
   deleted: { buffers: number; programs: number; shaders: number; textures: number };
   unpackAlignment: number;
   filters: number[];
+  unpacks: [number, number][];
 } {
   let nextId = 1;
   const created = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
   const deleted = { buffers: 0, programs: 0, shaders: 0, textures: 0 };
   const filters: number[] = [];
+  const unpacks: [number, number][] = [];
   const state = { unpackAlignment: 4 };
 
   return {
     created,
     deleted,
     filters,
+    unpacks,
     get unpackAlignment() {
       return state.unpackAlignment;
     },
@@ -47,7 +50,6 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     CLAMP_TO_EDGE: 33071,
     UNPACK_ALIGNMENT: 3317,
     RGBA: 6408,
-    UNPACK_FLIP_Y_WEBGL: 37440,
     createTexture: () => {
       created.textures++;
       return { id: nextId++ } as unknown as WebGLTexture;
@@ -57,8 +59,9 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     texParameteri: (_t: number, pname: number, param: number) => {
       if (pname === 10241 || pname === 10240) filters.push(param);
     },
-    pixelStorei: (_pname: number, param: number) => {
-      state.unpackAlignment = param;
+    pixelStorei: (pname: number, param: number) => {
+      unpacks.push([pname, param]);
+      if (pname === 3317) state.unpackAlignment = param;
     },
     deleteTexture: () => void deleted.textures++,
     createBuffer: () => {
@@ -308,6 +311,24 @@ describe('image texture filtering', () => {
     });
     registry.realize(gl);
     expect(gl.filters).toEqual([9728, 9728]);
+  });
+
+  test('image textures upload unflipped', () => {
+    // UNPACK_FLIP_Y_WEBGL is honoured for canvas and <img> but IGNORED for
+    // ImageBitmap, so a flip on upload makes a texture's orientation depend on
+    // how the caller decoded the image. `loadImage()` returns an ImageBitmap,
+    // so relying on it rendered every sprite upside down while the same picture
+    // drawn from a canvas came out fine. Rows upload in source order instead,
+    // and the renderer's UVs run top-down to match.
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    registry.register({
+      kind: 'image-texture',
+      source: {} as never,
+      smoothing: false,
+    });
+    registry.realize(gl);
+    expect(gl.unpacks).toEqual([]);
   });
 
   test('the SDF atlas stays linear either way', () => {

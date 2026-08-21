@@ -100,7 +100,6 @@ export interface GlLike {
   readonly CLAMP_TO_EDGE: number;
   readonly UNPACK_ALIGNMENT: number;
   readonly RGBA: number;
-  readonly UNPACK_FLIP_Y_WEBGL: number;
 }
 
 export class ShaderCompileError extends Error {
@@ -268,11 +267,14 @@ function createImageTexture(gl: GlLike, desc: ImageTextureDescriptor): WebGLText
   if (texture === null) throw new Error('gl.createTexture() returned null');
 
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  // Images are top-down and GL texture space is bottom-up; flipping on upload
-  // is cheaper than flipping the quad's UVs and keeps them shared with glyphs.
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+  // Deliberately NOT flipped on upload. UNPACK_FLIP_Y_WEBGL is honoured for a
+  // canvas and an <img> but silently ignored for an ImageBitmap, so relying on
+  // it gives a texture whose orientation depends on how the caller happened to
+  // decode the image — and `loadImage()` returns an ImageBitmap, so sprites came
+  // out upside down while the same picture drawn from a canvas did not.
+  // Uploading rows in source order makes v=0 the image's top row for every
+  // source type, and the renderer's UVs run top-down to match.
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, desc.source);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
   const filter = desc.smoothing ? gl.LINEAR : gl.NEAREST;
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
