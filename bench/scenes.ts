@@ -5,7 +5,32 @@
  * about: antialiasing, stroke geometry, painter order, transform composition,
  * or blend state.
  */
-import { Blend, type CommandBuffer } from '@matter/graphics';
+import { Blend, type CommandBuffer, type ImageSource } from '@matter/graphics';
+
+/**
+ * A 2x2 sheet with a distinct colour per quadrant, built once.
+ *
+ * Distinct colours are what make a wrong sub-rectangle visible: a size or flip
+ * error picks a different quadrant rather than looking subtly off.
+ */
+let sheet: ImageSource | null = null;
+function testSheet(): ImageSource {
+  if (sheet !== null) return sheet;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext('2d') as CanvasRenderingContext2D;
+  const quadrants: ReadonlyArray<[number, number, string]> = [
+    [0, 0, '#ff2d2d'], [32, 0, '#22c55e'],
+    [0, 32, '#3b82f6'], [32, 32, '#eab308'],
+  ];
+  for (const [x, y, colour] of quadrants) {
+    ctx.fillStyle = colour;
+    ctx.fillRect(x, y, 32, 32);
+  }
+  sheet = c;
+  return c;
+}
 
 export interface Scene {
   readonly name: string;
@@ -226,6 +251,21 @@ export const SCENES: readonly Scene[] = [
     // Joins differ in principle — the GPU expands round joins on the CPU while
     // Canvas2D uses its miter default — but at these widths the seam is well
     // inside the standard tolerance, so no override.
+  },
+  {
+    name: 'spritesheet frames',
+    // Every quadrant drawn from one texture. A flip or offset error picks the
+    // wrong colour, which is far easier to see than a subtle sampling shift.
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      const img = testSheet();
+      const cells: ReadonlyArray<[number, number]> = [[0, 0], [32, 0], [0, 32], [32, 32]];
+      for (const [i, [sx, sy]] of cells.entries()) {
+        const dx = 40 + (i % 2) * 170;
+        const dy = 40 + Math.floor(i / 2) * 170;
+        b.imageRegion(img, dx, dy, 150, 150, sx, sy, 32, 32);
+      }
+    },
   },
   {
     name: 'push/pop restores style',
