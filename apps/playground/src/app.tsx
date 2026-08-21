@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { Download, Play, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type JSX } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
@@ -19,7 +19,6 @@ import {
   tilemap,
   type AudioApi,
   type MatterApp,
-  type SceneFactory,
 } from "matter";
 import { webgl2 } from "matter/backends/webgl2";
 import { Button } from "./components/ui/button";
@@ -31,10 +30,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./components/ui/select";
-import { STARTERS } from "./scenes";
+import { STARTERS, type Starter } from "./scenes";
 import { matterSyntaxHighlighting } from "./syntax-theme";
+import { compileWorkspace, copyStarterFiles, type EditableFile } from "./workspace";
 
 const SIZE = 520;
+const INITIAL_STARTER: Starter = STARTERS[0] ?? { name: "Empty", code: "return {};" };
 
 const PLAYGROUND_SCENE_API = Object.freeze({ collision, EMPTY_TILE, spritesheet, tilemap });
 Object.defineProperty(globalThis, "__matterPlaygroundSceneApi", {
@@ -49,10 +50,11 @@ interface PlaygroundStatus {
 
 interface CodeEditorProps {
   readonly initialCode: string;
+  readonly onChange: (code: string) => void;
   readonly onReady: (view: EditorView) => void;
 }
 
-function CodeEditor({ initialCode, onReady }: CodeEditorProps): JSX.Element {
+function CodeEditor({ initialCode, onChange, onReady }: CodeEditorProps): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,13 +68,16 @@ function CodeEditor({ initialCode, onReady }: CodeEditorProps): JSX.Element {
           matterSyntaxHighlighting,
           keymap.of([]),
           EditorView.lineWrapping,
+          EditorView.updateListener.of((update): void => {
+            if (update.docChanged) onChange(update.state.doc.toString());
+          }),
         ],
       }),
       parent: hostRef.current,
     });
     onReady(view);
     return (): void => view.destroy();
-  }, [initialCode, onReady]);
+  }, [initialCode, onChange, onReady]);
 
   return <div ref={hostRef} className="min-h-0 flex-1 overflow-hidden" />;
 }
@@ -99,19 +104,6 @@ function keepGameKeysInPreview(event: ReactKeyboardEvent<HTMLDivElement>): void 
   }
 }
 
-async function compile(view: EditorView): Promise<SceneFactory<AudioApi>> {
-  const source = view.state.doc.toString();
-  const module = `const { collision, EMPTY_TILE, spritesheet, tilemap } = globalThis.__matterPlaygroundSceneApi; export default async (s) => {\n${source}\n};`;
-  const url = URL.createObjectURL(new Blob([module], { type: "text/javascript" }));
-
-  try {
-    const loaded = (await import(/* @vite-ignore */ url)) as { default: SceneFactory<AudioApi> };
-    return loaded.default;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
 function useNarrowLayout(): boolean {
   const [narrow, setNarrow] = useState(false);
 
@@ -126,10 +118,17 @@ function useNarrowLayout(): boolean {
   return narrow;
 }
 
-function PanelHeading({ title }: { readonly title: string }): JSX.Element {
+function PanelHeading({
+  title,
+  children,
+}: {
+  readonly title: string;
+  readonly children?: ReactNode;
+}): JSX.Element {
   return (
-    <div className="flex h-9 shrink-0 items-center border-b border-border bg-panel px-3">
+    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border bg-panel px-3">
       <span className="text-xs font-medium text-foreground">{title}</span>
+      {children}
     </div>
   );
 }
@@ -138,17 +137,21 @@ export function App(): JSX.Element {
   const stageRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<MatterApp<AudioApi> | null>(null);
   const runIdRef = useRef(0);
-  const [editor, setEditor] = useState<EditorView | null>(null);
+  const filesRef = useRef<EditableFile[]>(copyStarterFiles(INITIAL_STARTER));
+  const [editorReady, setEditorReady] = useState(false);
   const [starterIndex, setStarterIndex] = useState("0");
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
+  const [editorRevision, setEditorRevision] = useState(0);
   const [status, setStatus] = useState<PlaygroundStatus>({
     text: "Preparing editor",
     kind: "idle",
   });
   const [svg, setSvg] = useState("");
   const narrow = useNarrowLayout();
+  const handleEditorReady = useCallback((): void => setEditorReady(true), []);
 
   const run = useCallback(async (): Promise<void> => {
-    if (editor === null || stageRef.current === null) return;
+    if (!editorReady || stageRef.current === null) return;
     const runId = ++runIdRef.current;
     appRef.current?.stop();
     appRef.current = null;
@@ -156,11 +159,11 @@ export function App(): JSX.Element {
     setStatus({ text: "Compiling", kind: "idle" });
 
     try {
-      const scene = await compile(editor);
+      const scene = await compileWorkspace(filesRef.current);
       if (runId !== runIdRef.current || stageRef.current === null) return;
       const app = start(
         {
-          backend: webgl2(),
+          backend: webgl2({ smoothing: false }),
           width: SIZE,
           height: SIZE,
           parent: stageRef.current,
@@ -187,15 +190,15 @@ export function App(): JSX.Element {
       appRef.current = null;
       setStatus({ text: describeError(error), kind: "error" });
     }
-  }, [editor]);
+  }, [editorReady]);
 
   const exportSvg = useCallback(async (): Promise<void> => {
-    if (editor === null) return;
+    if (!editorReady) return;
     setStatus({ text: "Exporting", kind: "idle" });
     let exporter: MatterApp<AudioApi> | null = null;
 
     try {
-      const scene = await compile(editor);
+      const scene = await compileWorkspace(filesRef.current);
       let output = "";
       exporter = start(
         {
@@ -228,15 +231,15 @@ export function App(): JSX.Element {
     } finally {
       exporter?.stop();
     }
-  }, [editor]);
+  }, [editorReady]);
 
   useEffect(() => {
-    if (editor !== null) void run();
+    if (editorReady) void run();
     return (): void => {
       runIdRef.current++;
       appRef.current?.stop();
     };
-  }, [editor, run]);
+  }, [editorReady, run]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -252,12 +255,20 @@ export function App(): JSX.Element {
   const chooseStarter = (value: string): void => {
     setStarterIndex(value);
     const starter = STARTERS[Number(value)];
-    if (starter === undefined || editor === null) return;
-    editor.dispatch({
-      changes: { from: 0, to: editor.state.doc.length, insert: starter.code },
-    });
+    if (starter === undefined) return;
+    filesRef.current = copyStarterFiles(starter);
+    setActiveFileIndex(0);
+    setEditorRevision((revision) => revision + 1);
     queueMicrotask(() => void run());
   };
+
+  const updateActiveFile = useCallback(
+    (code: string): void => {
+      const file = filesRef.current[activeFileIndex];
+      if (file !== undefined) file.code = code;
+    },
+    [activeFileIndex],
+  );
 
   return (
     <div className="flex h-dvh min-h-[480px] flex-col overflow-hidden bg-background text-foreground">
@@ -315,8 +326,32 @@ export function App(): JSX.Element {
             <ResizablePanelGroup orientation="vertical" id="code-output">
               <ResizablePanel id="editor" defaultSize="72" minSize="180px">
                 <section className="flex size-full min-h-0 flex-col bg-editor">
-                  <PanelHeading title="Code" />
-                  <CodeEditor initialCode={STARTERS[0]?.code ?? ""} onReady={setEditor} />
+                  <PanelHeading title="Code">
+                    {filesRef.current.length > 1 && (
+                      <div className="ml-2 flex h-full items-end gap-0.5">
+                        {filesRef.current.map((file, index) => (
+                          <button
+                            type="button"
+                            key={file.name}
+                            onClick={() => setActiveFileIndex(index)}
+                            className={
+                              index === activeFileIndex
+                                ? "h-7 border-b-2 border-primary px-2 font-mono text-[11px] text-foreground"
+                                : "h-7 border-b-2 border-transparent px-2 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                            }
+                          >
+                            {file.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </PanelHeading>
+                  <CodeEditor
+                    key={`${editorRevision}:${activeFileIndex}`}
+                    initialCode={filesRef.current[activeFileIndex]?.code ?? ""}
+                    onChange={updateActiveFile}
+                    onReady={handleEditorReady}
+                  />
                 </section>
               </ResizablePanel>
               <ResizableHandle />
