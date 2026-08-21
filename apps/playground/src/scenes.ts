@@ -76,7 +76,7 @@ const TILE = 32;
 const COLUMNS = 40;
 const ROWS = 28;
 const PLAYER_SIZE = 22;
-const SPEED = 220;
+const SPEED = 300;
 
 const sheet = spritesheet(await s.loadImage('/examples/assets/tiles.png'), {
   frame: [16, 16],
@@ -86,7 +86,7 @@ const wallTiles = new Int16Array(COLUMNS * ROWS);
 floorTiles.fill(EMPTY_TILE);
 wallTiles.fill(EMPTY_TILE);
 
-const walls = [];
+const wallBoxes = new Array(COLUMNS * ROWS).fill(null);
 const reusableHit = collision.createSweepHit();
 
 for (let row = 0; row < ROWS; row++) {
@@ -101,7 +101,7 @@ for (let row = 0; row < ROWS; row++) {
 
     if (border || barrier) {
       wallTiles[index] = 12 + (column + row) % 4;
-      walls.push(collision.aabb(column * TILE, row * TILE, TILE, TILE));
+      wallBoxes[index] = collision.aabb(column * TILE, row * TILE, TILE, TILE);
     } else if ((column * 11 + row * 7) % 19 === 0) {
       floorTiles[index] = 8 + (column + row) % 4;
     }
@@ -141,11 +141,19 @@ function moveAxis(amount, horizontal) {
   if (amount === 0) return;
   const moving = collision.aabb(x - PLAYER_SIZE / 2, y - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
   const delta = { x: horizontal ? amount : 0, y: horizontal ? 0 : amount };
+  const firstColumn = Math.max(0, Math.floor(Math.min(moving.minX, moving.minX + delta.x) / TILE));
+  const lastColumn = Math.min(COLUMNS - 1, Math.floor(Math.max(moving.maxX, moving.maxX + delta.x) / TILE));
+  const firstRow = Math.max(0, Math.floor(Math.min(moving.minY, moving.minY + delta.y) / TILE));
+  const lastRow = Math.min(ROWS - 1, Math.floor(Math.max(moving.maxY, moving.maxY + delta.y) / TILE));
   let safe = 1;
 
-  for (const wall of walls) {
-    const hit = collision.sweepAabb(moving, delta, wall, reusableHit);
-    if (hit !== null && hit.time < safe) safe = hit.time;
+  for (let row = firstRow; row <= lastRow; row++) {
+    for (let column = firstColumn; column <= lastColumn; column++) {
+      const wall = wallBoxes[row * COLUMNS + column];
+      if (wall === null) continue;
+      const hit = collision.sweepAabb(moving, delta, wall, reusableHit);
+      if (hit !== null && hit.time < safe) safe = hit.time;
+    }
   }
 
   x += delta.x * safe;
@@ -162,10 +170,10 @@ return {
     previousX = x;
     previousY = y;
     if (!won) {
-      let dx = Number(keyIsDown('ArrowRight') || keyIsDown('d')) -
-        Number(keyIsDown('ArrowLeft') || keyIsDown('a'));
-      let dy = Number(keyIsDown('ArrowDown') || keyIsDown('s')) -
-        Number(keyIsDown('ArrowUp') || keyIsDown('w'));
+      let dx = Number(keyIsDown('ArrowRight') || keyIsDown('d') || keyIsDown('D')) -
+        Number(keyIsDown('ArrowLeft') || keyIsDown('a') || keyIsDown('A'));
+      let dy = Number(keyIsDown('ArrowDown') || keyIsDown('s') || keyIsDown('S')) -
+        Number(keyIsDown('ArrowUp') || keyIsDown('w') || keyIsDown('W'));
       const length = Math.hypot(dx, dy) || 1;
       dx /= length;
       dy /= length;
@@ -180,7 +188,7 @@ return {
       );
       won = collision.overlapsCircleAabb(goalShape, player);
     }
-    camera.follow(x, y, 0.16);
+    camera.follow(x, y, 0.22);
   },
 
   draw(alpha, context) {

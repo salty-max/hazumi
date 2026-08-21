@@ -149,6 +149,12 @@ describe('sweepAabb', () => {
     expect(collision.sweepAabb(moving, vec2.vec2(1, 0), touching)?.time).toBe(0);
   });
 
+  test('allows movement tangent to a touching edge', () => {
+    const diagonal = collision.aabb(2, 2, 2, 2);
+    expect(collision.sweepAabb(moving, vec2.vec2(0, 1), diagonal)).toBeNull();
+    expect(collision.sweepAabb(moving, vec2.vec2(1, 0), diagonal)).toBeNull();
+  });
+
   test('reports initial penetration and reuses output', () => {
     const out = collision.createSweepHit();
     const overlap = collision.aabb(1, 0, 2, 2);

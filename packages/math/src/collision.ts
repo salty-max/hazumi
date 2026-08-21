@@ -283,7 +283,7 @@ export function sweepAabb(
   let farX = Infinity;
   let xNormal = 0;
   if (delta.x === 0) {
-    if (centerX < expandedMinX || centerX > expandedMaxX) return null;
+    if (centerX <= expandedMinX || centerX >= expandedMaxX) return null;
   } else {
     const inverse = 1 / delta.x;
     const first = (expandedMinX - centerX) * inverse;
@@ -297,7 +297,7 @@ export function sweepAabb(
   let farY = Infinity;
   let yNormal = 0;
   if (delta.y === 0) {
-    if (centerY < expandedMinY || centerY > expandedMaxY) return null;
+    if (centerY <= expandedMinY || centerY >= expandedMaxY) return null;
   } else {
     const inverse = 1 / delta.y;
     const first = (expandedMinY - centerY) * inverse;
