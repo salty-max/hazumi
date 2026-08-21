@@ -28,6 +28,7 @@ describe('Op', () => {
     expect(Op.SetTextSize).toBe(17);
     expect(Op.SetTextAlign).toBe(18);
     expect(Op.SetFont).toBe(19);
+    expect(Op.Image).toBe(20);
   });
 
   test('no duplicate opcode values', () => {
@@ -64,6 +65,7 @@ describe('encoder width matches OP_SIZE', () => {
     ['setTextSize', Op.SetTextSize, (b) => b.setTextSize(24)],
     ['setTextAlign', Op.SetTextAlign, (b) => b.setTextAlign(1, 2)],
     ['setFont', Op.SetFont, (b) => b.setFont('serif')],
+    ['image', Op.Image, (b) => b.image({ width: 1, height: 1 } as never, 1, 2, 3, 4)],
     ['rect', Op.Rect, (b) => b.rect(1, 2, 3, 4)],
     ['line', Op.Line, (b) => b.line(1, 2, 3, 4)],
     ['push', Op.Push, (b) => b.push()],

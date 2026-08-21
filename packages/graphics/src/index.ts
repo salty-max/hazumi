@@ -9,6 +9,7 @@
 
 export { Op, OP_SIZE, Blend, Align, Baseline } from './op';
 export { CommandBuffer } from './command-buffer';
+export type { ImageSource } from './command-buffer';
 export { decode, UnknownOpcodeError } from './decode';
 export type { CommandVisitor } from './decode';
 export {

@@ -1,5 +1,8 @@
 import { type Align, type Baseline, Blend, Op } from './op';
 
+/** Anything a backend can draw as an image. */
+export type ImageSource = ImageBitmap | HTMLImageElement | HTMLCanvasElement;
+
 /** Words (4 bytes each) reserved on first allocation. */
 const INITIAL_WORDS = 1024;
 
@@ -30,6 +33,14 @@ export class CommandBuffer {
    * what keeps the two from drifting apart.
    */
   #strings: string[] = [];
+  /**
+   * Images referenced by draw commands, indexed the same way strings are.
+   *
+   * The buffer holds a handle, not pixels: an image is a resource the backend
+   * owns, and copying it into the stream every frame would defeat the point of
+   * the stream being cheap.
+   */
+  #images: ImageSource[] = [];
 
   constructor(initialWords: number = INITIAL_WORDS) {
     this.#data = new ArrayBuffer(initialWords * 4);
@@ -69,12 +80,18 @@ export class CommandBuffer {
     return this.#strings;
   }
 
+  /** Images referenced by draw commands, indexed by the id each one carries. */
+  get images(): readonly ImageSource[] {
+    return this.#images;
+  }
+
   /** Rewind the write cursor. Does not release memory — that is the point. */
   reset(): void {
     this.#length = 0;
     // Length assignment rather than a new array: no allocation, and the
     // backing store is reused next frame.
     this.#strings.length = 0;
+    this.#images.length = 0;
   }
 
   // --- state ---
@@ -189,6 +206,22 @@ export class CommandBuffer {
     this.#f32[i + 1] = x;
     this.#f32[i + 2] = y;
     this.#u32[i + 3] = this.#intern(content);
+  }
+
+  image(source: ImageSource, x: number, y: number, width: number, height: number): void {
+    const i = this.#reserve(6);
+    this.#u32[i] = Op.Image;
+    this.#u32[i + 1] = this.#internImage(source);
+    this.#f32[i + 2] = x;
+    this.#f32[i + 3] = y;
+    this.#f32[i + 4] = width;
+    this.#f32[i + 5] = height;
+  }
+
+  #internImage(source: ImageSource): number {
+    const id = this.#images.length;
+    this.#images.push(source);
+    return id;
   }
 
   #intern(value: string): number {

@@ -1,4 +1,4 @@
-import type { CommandBuffer } from './command-buffer';
+import type { CommandBuffer, ImageSource } from './command-buffer';
 import { type Align, type Baseline, type Blend, Op, OP_SIZE } from './op';
 
 /**
@@ -25,6 +25,14 @@ export interface CommandVisitor {
   /** The resolved string, not its id — backends never see the table. */
   setFont?: (family: string) => void;
   text?: (x: number, y: number, content: string) => void;
+  /** Receives the resolved image, not its id — backends never see the table. */
+  image?: (
+    source: ImageSource,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => void;
 }
 
 /** Thrown when the stream contains an opcode this build does not know. */
@@ -49,6 +57,7 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
   const u32 = buffer.u32;
   const f32 = buffer.f32;
   const strings = buffer.strings;
+  const images = buffer.images;
   const end = buffer.length;
 
   let i = 0;
@@ -115,6 +124,19 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
           strings[u32[i + 3] as number] ?? '',
         );
         break;
+      case Op.Image: {
+        const source = images[u32[i + 1] as number];
+        if (source !== undefined) {
+          visitor.image?.(
+            source,
+            f32[i + 2] as number,
+            f32[i + 3] as number,
+            f32[i + 4] as number,
+            f32[i + 5] as number,
+          );
+        }
+        break;
+      }
       default: {
         const size = OP_SIZE[op] as number | undefined;
         if (size === undefined) throw new UnknownOpcodeError(op, i);

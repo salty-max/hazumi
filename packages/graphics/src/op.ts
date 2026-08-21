@@ -31,6 +31,7 @@ export const Op = {
   SetTextSize: 17,
   SetTextAlign: 18,
   SetFont: 19,
+  Image: 20,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -57,6 +58,7 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.SetTextSize]: 2, // op, size
   [Op.SetTextAlign]: 3, // op, horizontal, vertical
   [Op.SetFont]: 2, // op, stringId
+  [Op.Image]: 6, // op, imageId, x, y, w, h
 };
 
 /** Horizontal text anchor. */

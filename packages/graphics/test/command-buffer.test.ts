@@ -107,3 +107,41 @@ describe('string table', () => {
     expect(buf.strings).toEqual(['same', 'same']);
   });
 });
+
+const fakeImage = (id: number): never => ({ width: id, height: id }) as never;
+
+describe('image table', () => {
+
+  test('image commands reference an interned source', () => {
+    const buf = new CommandBuffer();
+    const source = fakeImage(7);
+    buf.image(source, 1, 2, 3, 4);
+
+    expect(buf.images).toEqual([source]);
+    expect(buf.u32[1]).toBe(0);
+  });
+
+  test('reset clears images alongside strings and the stream', () => {
+    const buf = new CommandBuffer();
+    buf.image(fakeImage(1), 0, 0, 1, 1);
+    buf.text(0, 0, 'x');
+    buf.reset();
+
+    expect(buf.images).toEqual([]);
+    expect(buf.strings).toEqual([]);
+    expect(buf.length).toBe(0);
+  });
+
+  test('images and strings index independently', () => {
+    // Two side tables, two id spaces — mixing them up would draw the wrong
+    // image or the wrong text.
+    const buf = new CommandBuffer();
+    buf.text(0, 0, 'first');
+    const source = fakeImage(2);
+    buf.image(source, 0, 0, 1, 1);
+    buf.text(0, 0, 'second');
+
+    expect(buf.strings).toEqual(['first', 'second']);
+    expect(buf.images).toEqual([source]);
+  });
+});
