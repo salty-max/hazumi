@@ -365,3 +365,61 @@ export function sweepCircle(
     normalLength === 0 ? 0 : normalY / normalLength,
   );
 }
+
+interface MutablePoint {
+  x: number;
+  y: number;
+}
+
+const SLIDE_DELTA: MutablePoint = { x: 0, y: 0 };
+const SLIDE_BOX: { minX: number; minY: number; maxX: number; maxY: number } = {
+  minX: 0,
+  minY: 0,
+  maxX: 0,
+  maxY: 0,
+};
+const SLIDE_HIT: SweepHit = createSweepHit();
+
+function earliestAabbImpact(
+  box: Aabb,
+  deltaX: number,
+  deltaY: number,
+  obstacles: readonly (Aabb | null | undefined)[],
+): number {
+  SLIDE_DELTA.x = deltaX;
+  SLIDE_DELTA.y = deltaY;
+  let safe = 1;
+  for (let index = 0; index < obstacles.length; index++) {
+    const wall = obstacles[index];
+    if (wall === null || wall === undefined) continue;
+    const hit = sweepAabb(box, SLIDE_DELTA, wall, SLIDE_HIT);
+    if (hit !== null && hit.time < safe) safe = hit.time;
+  }
+  return safe;
+}
+
+/**
+ * Move an AABB against solid AABBs one axis at a time so a blocked axis does
+ * not cancel the other.
+ *
+ * Null and undefined holes are skipped, matching a sparse tile collider list.
+ * `out` is overwritten and returned; omit it only when the allocation is fine.
+ */
+export function slideAabb(
+  box: Aabb,
+  deltaX: number,
+  deltaY: number,
+  obstacles: readonly (Aabb | null | undefined)[],
+  out?: { x: number; y: number },
+): Vec2 {
+  const result: MutablePoint = out ?? { x: 0, y: 0 };
+  const safeX = earliestAabbImpact(box, deltaX, 0, obstacles);
+  result.x = deltaX * safeX;
+  SLIDE_BOX.minX = box.minX + result.x;
+  SLIDE_BOX.maxX = box.maxX + result.x;
+  SLIDE_BOX.minY = box.minY;
+  SLIDE_BOX.maxY = box.maxY;
+  const safeY = earliestAabbImpact(SLIDE_BOX, 0, deltaY, obstacles);
+  result.y = deltaY * safeY;
+  return result;
+}

@@ -168,6 +168,44 @@ describe("sweepAabb", () => {
   });
 });
 
+describe("slideAabb", () => {
+  const box = collision.aabb(0, 0, 10, 10);
+  const wall = collision.aabb(20, 0, 10, 40);
+
+  test("applies the full delta when nothing is in the way", () => {
+    expect(collision.slideAabb(box, 4, -3, [])).toEqual({ x: 4, y: -3 });
+  });
+
+  test("skips null holes in a sparse collider list", () => {
+    expect(collision.slideAabb(box, 4, 0, [null, undefined, null])).toEqual({ x: 4, y: 0 });
+  });
+
+  test("stops on the blocked axis and keeps the free one", () => {
+    // A wall to the right should not cancel upward movement along it.
+    const moved = collision.slideAabb(box, 20, 5, [wall]);
+    expect(moved.x).toBeCloseTo(10);
+    expect(moved.y).toBe(5);
+  });
+
+  test("slides along a wall after resolving X, using the shifted box for Y", () => {
+    const ledge = collision.aabb(8, 12, 20, 10);
+    // Moving down-right: X is free, Y hits the ledge that only overlaps after X.
+    const moved = collision.slideAabb(collision.aabb(0, 0, 10, 10), 4, 8, [ledge]);
+    expect(moved.x).toBe(4);
+    expect(moved.y).toBeCloseTo(2);
+  });
+
+  test("writes into a reusable output", () => {
+    const out = { x: 1, y: 1 };
+    expect(collision.slideAabb(box, 2, 3, [], out)).toBe(out);
+    expect(out).toEqual({ x: 2, y: 3 });
+  });
+
+  test("a zero delta is a no-op", () => {
+    expect(collision.slideAabb(box, 0, 0, [wall])).toEqual({ x: 0, y: 0 });
+  });
+});
+
 describe("sweepCircle", () => {
   const moving = collision.circle(0, 0, 1);
   const target = collision.circle(10, 0, 2);

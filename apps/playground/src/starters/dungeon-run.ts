@@ -121,8 +121,7 @@ export function createGame(audio, initialCamera, assets) {
     const length = Math.hypot(dx, dy) || 1;
     dx = dx / length * PLAYER.speed * dt;
     dy = dy / length * PLAYER.speed * dt;
-    move(player, PLAYER.bodySize, dx, 0);
-    move(player, PLAYER.bodySize, 0, dy);
+    move(player, PLAYER.bodySize, dx, dy);
   }
 
   function updateEnemies(dt) {
@@ -293,42 +292,14 @@ export function bodyFor(actor, size) {
 }
 
 export function createMover(level) {
-  const sweepHit = collision.createSweepHit();
+  const displacement = { x: 0, y: 0 };
 
   return function move(actor, size, dx, dy) {
     if (dx === 0 && dy === 0) return false;
-    const shape = bodyFor(actor, size);
-    const delta = { x: dx, y: dy };
-    const firstColumn = Math.max(
-      0,
-      Math.floor(Math.min(shape.minX, shape.minX + dx) / level.tileSize),
-    );
-    const lastColumn = Math.min(
-      level.columns - 1,
-      Math.floor(Math.max(shape.maxX, shape.maxX + dx) / level.tileSize),
-    );
-    const firstRow = Math.max(
-      0,
-      Math.floor(Math.min(shape.minY, shape.minY + dy) / level.tileSize),
-    );
-    const lastRow = Math.min(
-      level.rows - 1,
-      Math.floor(Math.max(shape.maxY, shape.maxY + dy) / level.tileSize),
-    );
-    let safe = 1;
-
-    for (let row = firstRow; row <= lastRow; row++) {
-      for (let column = firstColumn; column <= lastColumn; column++) {
-        const wall = level.colliders[row * level.columns + column];
-        if (wall === null) continue;
-        const hit = collision.sweepAabb(shape, delta, wall, sweepHit);
-        if (hit !== null && hit.time < safe) safe = hit.time;
-      }
-    }
-
-    actor.x += dx * safe;
-    actor.y += dy * safe;
-    return safe < 1;
+    collision.slideAabb(bodyFor(actor, size), dx, dy, level.colliders, displacement);
+    actor.x += displacement.x;
+    actor.y += displacement.y;
+    return displacement.x !== dx || displacement.y !== dy;
   };
 }`,
   },
