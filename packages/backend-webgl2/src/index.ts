@@ -28,6 +28,17 @@ export type {
   ProgramDescriptor,
 } from './resource';
 export { SDF_VERTEX_SHADER, SDF_FRAGMENT_SHADER } from './shaders';
+export { PingPongTargets, createRenderTarget, FramebufferIncompleteError } from './framebuffer';
+export type { RenderTarget, TargetGl } from './framebuffer';
+export {
+  PassCache,
+  PassCompileLimitError,
+  passSource,
+  setUniform,
+  setUniformInt,
+  COPY_PASS_FRAGMENT,
+} from './post';
+export type { ShaderPass, CompiledPass } from './post';
 
 import type { BackendFactory } from '@matter/graphics';
 import { Webgl2Renderer, type Webgl2Options } from './renderer';

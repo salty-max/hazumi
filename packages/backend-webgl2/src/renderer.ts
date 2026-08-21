@@ -25,6 +25,14 @@ import {
 import { SdfAtlas } from './text/atlas';
 import { type ResourceId, ResourceRegistry } from './resource';
 import type { ImageSource } from '@matter/graphics';
+import { PingPongTargets } from './framebuffer';
+import {
+  COPY_PASS_FRAGMENT_BODY,
+  PassCache,
+  setUniform,
+  setUniformInt,
+  type ShaderPass,
+} from './post';
 
 /** a, b, c, d | tx, ty, hx, hy | r, g, b, alpha | edge, shape. */
 const INSTANCE_FLOATS = 14;
@@ -139,6 +147,11 @@ export class Webgl2Renderer {
   // Keyed by the source object, so the same image uploads once no matter how
   // many times a sketch draws it. Weak, so unloading an image frees the entry.
   #imageTextures = new WeakMap<ImageSource, ResourceId>();
+
+  #targets: PingPongTargets | null = null;
+  #passes = new PassCache(this.#registry);
+  #chain: readonly ShaderPass[] = [];
+  #elapsed = 0;
   #fontFamily = 'sans-serif';
   #textSize = 16;
   #align: Align = Align.Left;
@@ -243,6 +256,22 @@ export class Webgl2Renderer {
   }
 
   /**
+   * Replace the post-processing chain.
+   *
+   * Passes run in order, each reading the previous one's output. An empty
+   * chain renders straight to the canvas and allocates no targets at all, so
+   * a sketch that never asks for effects pays nothing for them.
+   */
+  setPasses(passes: readonly ShaderPass[]): void {
+    this.#chain = passes;
+  }
+
+  /** Seconds since the sketch started, forwarded to passes as u_time. */
+  setTime(seconds: number): void {
+    this.#elapsed = seconds;
+  }
+
+  /**
    * Orthographic projection mapping (0,0)-(width,height) to clip space with the
    * origin top-left.
    *
@@ -273,6 +302,16 @@ export class Webgl2Renderer {
 
     decode(buffer, this.#visitor);
     const batches = this.#batches.finish();
+
+    // With a chain, the scene renders into a target instead of the canvas.
+    const usePasses = this.#chain.length > 0;
+    if (usePasses) {
+      const targets = this.#ensureTargets(gl);
+      targets.reset();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, targets.write.framebuffer);
+    } else {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
 
     gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
     // Only clear when an opaque background asked for it. A sketch that never
@@ -334,6 +373,84 @@ export class Webgl2Renderer {
       gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, batch.count);
       this.#drawCalls++;
     }
+
+    if (usePasses) this.#runPasses(gl);
+  }
+
+  #ensureTargets(gl: WebGL2RenderingContext): PingPongTargets {
+    const width = this.#canvas.width;
+    const height = this.#canvas.height;
+
+    const existing = this.#targets;
+    if (existing !== null && existing.width === width && existing.height === height) {
+      return existing;
+    }
+
+    existing?.dispose(gl);
+    const created = new PingPongTargets(gl, width, height);
+    this.#targets = created;
+    return created;
+  }
+
+  /**
+   * Run the chain, then present.
+   *
+   * Each pass reads the last output and writes the other target. The final
+   * result is copied to the canvas by an identity pass rather than by making
+   * the last user pass render straight to it — that keeps every user pass
+   * identical in shape, whether or not it happens to be last.
+   */
+  #runPasses(gl: WebGL2RenderingContext): void {
+    const targets = this.#targets;
+    if (targets === null) return;
+
+    const state = this.#state as GlStateCache;
+    // Passes composite whole images; source-over would double-darken.
+    gl.disable(gl.BLEND);
+
+    for (const pass of this.#chain) {
+      targets.swap();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, targets.write.framebuffer);
+      this.#drawPass(gl, pass.fragment, targets.read.texture, pass.uniforms);
+    }
+
+    targets.swap();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.#drawPass(gl, COPY_PASS_FRAGMENT_BODY, targets.read.texture, undefined);
+
+    gl.enable(gl.BLEND);
+    state.invalidate();
+  }
+
+  #drawPass(
+    gl: WebGL2RenderingContext,
+    fragment: string,
+    texture: WebGLTexture,
+    uniforms: Readonly<Record<string, number | readonly number[]>> | undefined,
+  ): void {
+    const compiled = this.#passes.get(gl, fragment);
+    const program = this.#registry.program(compiled.programId);
+    gl.useProgram(program);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    setUniformInt(gl, program, compiled, 'u_texture', 0);
+    setUniform(gl, program, compiled, 'u_resolution', [
+      this.#canvas.width,
+      this.#canvas.height,
+    ]);
+    setUniform(gl, program, compiled, 'u_time', this.#elapsed);
+
+    if (uniforms !== undefined) {
+      for (const [name, value] of Object.entries(uniforms)) {
+        setUniform(gl, program, compiled, name, value);
+      }
+    }
+
+    // No vertex buffer: the full-screen triangle comes from gl_VertexID.
+    gl.bindVertexArray(null);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.#drawCalls++;
   }
 
   dispose(): void {
@@ -344,6 +461,8 @@ export class Webgl2Renderer {
     if (gl !== null) {
       if (this.#vao !== null) gl.deleteVertexArray(this.#vao);
       if (this.#glyphVao !== null) gl.deleteVertexArray(this.#glyphVao);
+      this.#targets?.dispose(gl);
+      this.#targets = null;
       // destroy, not invalidate: the context is still alive here, so the GPU
       // objects have to be deleted explicitly or they leak.
       this.#registry.destroy(gl);
@@ -777,6 +896,8 @@ export class Webgl2Renderer {
     // next draw re-uploads them.
     this.#atlases.clear();
     this.#imageTextures = new WeakMap<ImageSource, ResourceId>();
+    this.#passes.invalidate();
+    this.#targets = null;
   }
 
   #buildVao(gl: WebGL2RenderingContext): void {

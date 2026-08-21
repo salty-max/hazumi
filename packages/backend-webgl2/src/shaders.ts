@@ -193,3 +193,49 @@ void main() {
   fragColor = vec4(texel.rgb * v_color.rgb * a, a);
 }
 `;
+
+/**
+ * Post-processing pass.
+ *
+ * A full-screen triangle rather than a quad: one primitive instead of two, no
+ * seam down the diagonal where derivatives go wrong, and the vertices come from
+ * gl_VertexID so it needs no vertex buffer at all.
+ */
+export const POST_VERTEX_SHADER: string = `#version 300 es
+
+out vec2 v_uv;
+
+void main() {
+  // Three vertices covering the viewport: (-1,-1), (3,-1), (-1,3).
+  vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+  v_uv = p;
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}
+`;
+
+/** Prepended to every user pass, so a pass is only its main(). */
+export const POST_FRAGMENT_PRELUDE: string = `#version 300 es
+precision highp float;
+
+in vec2 v_uv;
+out vec4 fragColor;
+
+/** The previous pass, or the scene for the first pass. */
+uniform sampler2D u_texture;
+/** Viewport size in pixels. */
+uniform vec2 u_resolution;
+/** Seconds since the sketch started. */
+uniform float u_time;
+
+/** One texel, for taps that need neighbours. */
+vec2 texelSize() {
+  return 1.0 / u_resolution;
+}
+`;
+
+/** Straight copy, used to present the final target to the canvas. */
+export const POST_COPY_FRAGMENT: string = `${POST_FRAGMENT_PRELUDE}
+void main() {
+  fragColor = texture(u_texture, v_uv);
+}
+`;
