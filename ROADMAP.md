@@ -4,7 +4,7 @@ What is built, what is built but not reachable, and what is next. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 575 unit tests, 19
+**Where it stands:** 0.1.0, pre-alpha. 10 packages, 577 unit tests, 19
 backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped

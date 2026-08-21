@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import { STARTERS } from "./scenes";
+import { matterSyntaxHighlighting } from "./syntax-theme";
 
 const SIZE = 520;
 
@@ -38,7 +39,13 @@ function CodeEditor({ initialCode, onReady }: CodeEditorProps): JSX.Element {
     const view = new EditorView({
       state: EditorState.create({
         doc: initialCode,
-        extensions: [basicSetup, javascript(), keymap.of([]), EditorView.lineWrapping],
+        extensions: [
+          basicSetup,
+          javascript({ typescript: true }),
+          matterSyntaxHighlighting,
+          keymap.of([]),
+          EditorView.lineWrapping,
+        ],
       }),
       parent: hostRef.current,
     });

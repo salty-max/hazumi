@@ -4,6 +4,7 @@
  * Run with: bun run apps/docs/src/build.ts
  */
 import { extractModule, type DocEntry, type DocModule } from './extract';
+import { highlightCode } from './highlight';
 
 const ROOT = new URL('../../../', import.meta.url).pathname;
 
@@ -49,7 +50,7 @@ function renderEntry(entry: DocEntry, moduleId: string): string {
   const parts: string[] = [
     `<article class="entry" id="${id}">`,
     `<h3><a href="#${id}">${escapeHtml(entry.name)}</a><span class="kind">${entry.kind}</span></h3>`,
-    `<pre class="sig"><code>${escapeHtml(entry.signature)}</code></pre>`,
+    `<pre class="sig"><code>${highlightCode(entry.signature)}</code></pre>`,
   ];
 
   if (entry.deprecated.length > 0) {
@@ -68,7 +69,7 @@ function renderEntry(entry: DocEntry, moduleId: string): string {
     parts.push(`<p class="returns"><span>Returns</span> ${escapeHtml(entry.returns)}</p>`);
   }
   for (const example of entry.examples) {
-    parts.push(`<pre class="example"><code>${escapeHtml(example)}</code></pre>`);
+    parts.push(`<pre class="example"><code>${highlightCode(example)}</code></pre>`);
   }
 
   parts.push('</article>');

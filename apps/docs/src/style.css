@@ -82,6 +82,19 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .kind { border-radius: 999px; background: var(--brand-soft); color: var(--brand); padding: .18rem .48rem; font: 650 .55rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
 pre.sig, pre.example { margin: 0 0 1rem; overflow-x: auto; border-radius: .6rem; background: oklch(0.16 0.016 255); color: oklch(0.88 0.015 255); padding: .85rem 1rem; font: .72rem/1.6 var(--font-mono); }
 pre.example { border-left: 3px solid var(--brand); }
+.tok-comment { color: oklch(0.64 0.035 255); font-style: italic; }
+.tok-keyword { color: oklch(0.78 0.15 340); }
+.tok-string { color: oklch(0.82 0.12 155); }
+.tok-string2 { color: oklch(0.8 0.13 35); }
+.tok-number, .tok-bool, .tok-null, .tok-atom, .tok-literal { color: oklch(0.84 0.13 80); }
+.tok-typeName, .tok-className, .tok-namespace { color: oklch(0.8 0.11 225); }
+.tok-variableName { color: oklch(0.82 0.045 255); }
+.tok-variableName.tok-definition, .tok-propertyName.tok-definition { color: oklch(0.8 0.12 305); }
+.tok-labelName { color: oklch(0.8 0.12 305); }
+.tok-propertyName, .tok-attributeName { color: oklch(0.79 0.08 250); }
+.tok-operator, .tok-punctuation, .tok-bracket { color: oklch(0.7 0.025 255); }
+.tok-meta { color: oklch(0.72 0.1 225); }
+.tok-invalid { color: oklch(0.82 0.16 25); text-decoration: underline wavy; }
 .prose p { max-width: 70ch; margin: 0 0 .75rem; color: var(--ink-soft); font-size: .86rem; line-height: 1.65; }
 code { font-family: var(--font-mono); }
 .prose code, .params code { border-radius: .3rem; background: var(--surface-soft); padding: .12em .35em; font-size: .8em; }

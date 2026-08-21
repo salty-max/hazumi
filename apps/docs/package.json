@@ -10,6 +10,8 @@
     "test": "bun test --pass-with-no-tests"
   },
   "devDependencies": {
+    "@lezer/highlight": "^1.2.3",
+    "@lezer/javascript": "^1.5.4",
     "@tailwindcss/cli": "^4.3.3",
     "@types/bun": "^1.4.0",
     "matter": "workspace:*",

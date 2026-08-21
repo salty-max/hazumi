@@ -128,12 +128,16 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 }
 .cm-activeLine, .cm-activeLineGutter { background: oklch(0.18 0.018 255) !important; }
 .cm-selectionBackground { background: oklch(0.35 0.08 161 / 0.45) !important; }
+.cm-focused .cm-selectionBackground { background: oklch(0.42 0.1 161 / 0.5) !important; }
+.cm-selectionMatch { background: oklch(0.42 0.08 80 / 0.22); }
+.cm-matchingBracket {
+  outline: 1px solid color-mix(in oklab, var(--primary) 55%, transparent);
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+  color: var(--foreground) !important;
+}
 .cm-content { padding: 14px 0; caret-color: var(--primary); }
 .cm-line { padding: 0 18px 0 8px; }
-.ͼb { color: oklch(0.78 0.13 320) !important; }
-.ͼd { color: oklch(0.78 0.13 161) !important; }
-.ͼe { color: oklch(0.82 0.12 80) !important; }
-.ͼc { color: oklch(0.75 0.1 235) !important; }
 
 @media (max-width: 860px) {
   #stage canvas { width: min(520px, calc(100vw - 72px)); }
