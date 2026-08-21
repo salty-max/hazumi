@@ -1,11 +1,11 @@
 /**
  * The plugin system.
  *
- * p5 2.x unified extension behind `registerAddon(p5, fn, lifecycles)`, where
- * `fn` is `p5.prototype` and addons attach to it. That works, but a prototype
- * mutation is invisible to the type system: plugin authors have to hand-write
- * declaration merging to describe what they added, and it is never checked
- * against the implementation.
+ * The usual approach is to let extensions patch a shared prototype: the library
+ * exposes one object, addons attach members to it, and every sketch sees them.
+ * That works, but a prototype mutation is invisible to the type system — plugin
+ * authors have to hand-write declaration merging to describe what they added,
+ * and it is never checked against the implementation.
  *
  * Here a plugin *returns* what it contributes, so `use()` can accumulate the
  * contributions into the sketch type. No declaration merging, no ambient .d.ts,

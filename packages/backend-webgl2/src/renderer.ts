@@ -375,7 +375,7 @@ export class Webgl2Renderer {
 
     gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
     // Only clear when an opaque background asked for it. A sketch that never
-    // calls background() accumulates across frames, as it does in p5.
+    // calls background() accumulates across frames.
     //
     // Read through a local: the field is set from inside the decode callback,
     // which the checker cannot see, so it would otherwise stay narrowed to the

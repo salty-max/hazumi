@@ -14,7 +14,7 @@ export const Op = {
   FillPath: 2,
   /** Stroke the path built since BeginPath. */
   StrokePath: 3,
-  /** Saves style and transform together, like p5's push(). */
+  /** Saves style and transform together. */
   Push: 4,
   Pop: 5,
   SetFill: 6,

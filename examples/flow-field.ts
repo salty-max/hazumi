@@ -1,5 +1,5 @@
 /**
- * Particles advected through a noise field — the archetypal p5 sketch.
+ * Particles advected through a noise field — the archetypal generative sketch.
  * Tests: seeded noise, additive blending, per-particle colour, long trails.
  */
 import { Blend, sketch, type SketchContext, type SketchHandle } from 'matter';

@@ -13,7 +13,7 @@ export type ColorLike = string | Oklch;
  * rgb(55, 55, 55).
  *
  * Physically correct linear-space blending needs an sRGB framebuffer and a
- * matching change in Canvas2D, which cannot follow. Matching the web — and p5 —
+ * matching change in Canvas2D, which cannot follow. Matching what the web does
  * is the right trade here.
  */
 export type Rgba = readonly [number, number, number, number];

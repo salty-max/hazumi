@@ -81,9 +81,9 @@ export function hasExplicitImport(source: string): boolean {
 /**
  * Prepend a destructuring binding for the members a source uses.
  *
- * This is the modern replacement for p5's global mode: the ergonomics happen
- * at build time, where they are inspectable, rather than by writing onto
- * `window` at runtime where nothing can type them.
+ * Global-style ergonomics without a global object: the binding happens at build
+ * time, where it is inspectable, rather than by writing onto `window` at
+ * runtime where nothing can type it.
  */
 export function transform(source: string, options: TransformOptions = {}): string {
   const members = options.members ?? CONTEXT_MEMBERS;

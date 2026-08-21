@@ -139,7 +139,7 @@ export class Canvas2dRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
     // Deliberately no clearRect: a sketch that never calls background()
-    // accumulates across frames, matching p5 and the GPU backend.
+    // accumulates across frames, matching the GPU backend.
     ctx.save();
 
     decode(buffer, this.#visitor);
@@ -191,7 +191,7 @@ export class Canvas2dRenderer {
         this.#style = { ...this.#style, blend: mode };
       },
 
-      // push/pop save style and transform together, like p5's push().
+      // push/pop save style and transform together, so one call restores both.
       push: (): void => {
         this.#styleStack.push(this.#style);
         ctx.save();

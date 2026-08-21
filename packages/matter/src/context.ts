@@ -18,9 +18,9 @@ export interface StyleOverrides {
  * the top of the callback and still read current values — the same object is
  * mutated in place rather than rebuilt, so this costs nothing per frame.
  *
- * This is the replacement for p5's global mode. Destructuring recovers nearly
- * all of the terseness of bare `circle(50, 50, 20)` while staying fully typed
- * and never touching `window`.
+ * This is what stands in for a global object. Destructuring recovers nearly all
+ * of the terseness of bare `circle(50, 50, 20)` while staying fully typed and
+ * never touching `window`.
  */
 export interface SketchContext {
   // --- environment ---
@@ -85,7 +85,7 @@ export interface SketchContext {
   /**
    * Finish the shape and paint it with the current style.
    *
-   * `close` joins the last point back to the first, as p5's CLOSE does.
+   * `close` joins the last point back to the first.
    */
   endShape: (close?: boolean) => void;
 
@@ -103,9 +103,9 @@ export interface SketchContext {
   /**
    * Decode an image.
    *
-   * Async, so setup must await it — there is no preload() phase here. p5 2.x
-   * made the same move for the same reason: a separate preload step is a
-   * second lifecycle to learn, and await already means what it needs to mean.
+   * Async, so setup must await it — there is no separate preload phase. A
+   * preload step would be a second lifecycle to learn, and `await` already
+   * means what it needs to mean.
    */
   loadImage: (url: string) => Promise<ImageSource>;
   /**
@@ -148,7 +148,7 @@ export interface SketchContext {
    *
    * Restores on exit, including when the body throws — which is why this
    * exists alongside push/pop. A forgotten `pop()` leaks state into unrelated
-   * drawing code and is the single most common beginner bug in p5.
+   * drawing code, which is the classic failure of manual save/restore.
    */
   with: (overrides: StyleOverrides, body: () => void) => void;
 
@@ -359,11 +359,13 @@ export function createContext(deps: ContextDeps): ContextBundle {
     textSize: (size: number): void => buffer.setTextSize(size),
     textAlign: (horizontal: Align, vertical: Baseline = Baseline.Alphabetic): void =>
       buffer.setTextAlign(horizontal, vertical),
-    // Argument order follows p5: content first, then position.
+    // Content first, then position — the buffer stores it the other way round,
+    // like every other primitive.
     text: (content: string, x: number, y: number): void => buffer.text(x, y, content),
 
-    // p5 takes a diameter, and so does this — a library in that tradition
-    // silently halving every ported circle would be a nasty way to differ.
+    // A diameter, not a radius: `rect` takes width and height and `square` a
+    // side, so every primitive's size argument is a full extent. The buffer
+    // stores radii, so the halving happens here, once.
     circle: (x: number, y: number, diameter: number): void =>
       buffer.circle(x, y, diameter / 2),
     ellipse: (x: number, y: number, w: number, h: number): void =>
@@ -373,8 +375,8 @@ export function createContext(deps: ContextDeps): ContextBundle {
     line: (x1: number, y1: number, x2: number, y2: number): void =>
       buffer.line(x1, y1, x2, y2),
     point: (x: number, y: number): void => {
-      // A dot of the current stroke weight, painted in the stroke colour —
-      // p5's point() uses stroke, not fill.
+      // A dot of the current stroke weight, painted in the stroke colour: a
+      // point is a degenerate line, so it follows stroke and not fill.
       if (strokeColor === null) return;
       const [r, g, b, a] = colors.resolve(strokeColor);
       buffer.push();

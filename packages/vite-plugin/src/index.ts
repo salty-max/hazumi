@@ -1,7 +1,8 @@
 /**
- * Optional auto-import plugin: the modern replacement for p5's global mode.
+ * Optional auto-import plugin, for sketches written in global style.
  *
- * p5 injects its API onto `window`, which is what makes it impossible to type.
+ * The usual way to get bare `circle` and `fill` is to inject the API onto
+ * `window`, which is precisely what makes such an API impossible to type.
  * This does the same job at build time instead — a sketch file gets a
  * destructuring binding for exactly the names it uses, so the source stays
  * terse and everything downstream still sees ordinary typed identifiers.

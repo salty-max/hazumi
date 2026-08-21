@@ -72,11 +72,11 @@ describe('drawing', () => {
     h.buffer.reset();
   });
 
-  test('circle takes a diameter, matching p5', () => {
+  test('circle takes a diameter, not a radius', () => {
     h.ctx.circle(10, 20, 100);
     const cmd = record(h.buffer).find((c) => c.op === 'circle');
-    // Halved to the radius the buffer stores — a ported p5 sketch keeps its
-    // sizes.
+    // Halved to the radius the buffer stores. Size arguments are full extents
+    // across every primitive, so a circle cannot quietly mean half of one.
     expect(cmd?.args).toEqual([10, 20, 50]);
   });
 
@@ -170,8 +170,8 @@ describe('with()', () => {
       });
     }).toThrow('boom');
 
-    // A forgotten pop is the classic p5 bug; the scoped form makes it
-    // impossible even on the error path.
+    // A forgotten pop is the classic failure of manual save/restore; the
+    // scoped form makes it impossible even on the error path.
     expect(h.ops()).toContain('pop');
   });
 

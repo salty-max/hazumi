@@ -117,7 +117,7 @@ export class CommandBuffer {
     this.#u32[i + 1] = mode;
   }
 
-  /** Saves style and transform together, like p5's push(). */
+  /** Saves style and transform together. */
   push(): void {
     this.#u32[this.#reserve(1)] = Op.Push;
   }
