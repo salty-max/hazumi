@@ -172,7 +172,7 @@ loads it as a typed plugin. It is not a renderer and it is not L5.
 | Path                        | Layer | Role                                                           |
 | --------------------------- | ----- | -------------------------------------------------------------- |
 | `packages/core`             | L0    | Clock, plugin host. Depends on nothing.                        |
-| `packages/math`             | L1    | Vec/Mat4, seeded RNG, noise, easing, collision. Pure.          |
+| `packages/math`             | L1    | Vec/Mat4, RNG, noise, easing, collision, rigid-body physics.   |
 | `packages/color`            | L2    | OKLCH colour type, parsing, interpolation.                     |
 | `packages/graphics`         | L3    | Command buffer, paths, style, transforms.                      |
 | `packages/backend-webgl2`   | L4    | **Primary renderer.** Most of the engineering.                 |

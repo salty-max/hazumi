@@ -6,7 +6,7 @@ Canvas2D, SVG and a headless recorder each consume on their own terms.
 
 > **Status: 0.1.0, pre-alpha.** The drawing API, bezier paths, SDF text,
 > images, sprites, shader passes, SVG/PNG export and pixel access all work,
-> with twelve example scenes running on them. Not published to npm.
+> with thirteen example scenes running on them. Not published to npm.
 
 ## Why
 
@@ -152,6 +152,32 @@ player.x += out.x;
 player.y += out.y;
 ```
 
+## Rigid bodies
+
+`physics` is a separate world, not a replacement for those queries. Platformers
+keep `slideAabb`. When a scene wants gravity, spin, bounce and friction, it
+steps a world from `update`:
+
+```ts
+import { physics } from "matter/math";
+
+const world = physics.world({ gravityY: 1400 });
+world.addBox({ x: 300, y: 580, width: 600, height: 24, isStatic: true });
+const ball = world.addCircle({ x: 300, y: 80, radius: 18, restitution: 0.7 });
+
+return {
+  update(dt) {
+    world.step(dt);
+  },
+  draw() {
+    circle(ball.x, ball.y, ball.radius * 2);
+  },
+};
+```
+
+Circles and oriented boxes. Sequential impulses with restitution and friction.
+An offset `applyImpulse` produces spin.
+
 ## World and screen space
 
 Every context carries a camera. Its position is the world coordinate shown at
@@ -210,7 +236,7 @@ the relationship to scene coordinates explicit. SVG and headless backends throw
 `PixelAccessUnavailableError` because they have no raster surface to read.
 
 Run `bun run dev` and open
-http://localhost:5199/examples to see the twelve scenes in
+http://localhost:5199/examples to see the thirteen scenes in
 `examples/`.
 
 ## Design in one page
@@ -525,9 +551,9 @@ bun run dev
 | Page                    | What it is                                                            |
 | ----------------------- | --------------------------------------------------------------------- |
 | `/`                     | Landing page                                                          |
-| `/playground`           | Live editor, seven starters, SVG export                               |
+| `/playground`           | Live editor, eight starters, SVG export                               |
 | `/reference`            | Generated API reference                                               |
-| `/examples`             | The twelve example scenes                                             |
+| `/examples`             | The thirteen example scenes                                           |
 | `/bench/compare.html`   | Backend agreement across WebGL2, Canvas2D and SVG                     |
 | `/bench/gpu.html`       | 100k-shape GPU benchmark                                              |
 | `/bench/probe.html`     | Stencil-through-a-render-pass regression check                        |

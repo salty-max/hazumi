@@ -53,7 +53,11 @@ const PACKAGES: ReadonlyArray<[string, string, string, boolean?]> = [
     "Audio loading, playback, gain, and pooled voices.",
   ],
   ["@matter/core", "packages/core/dist/index.d.ts", "L0 — lifecycle, clock, plugins."],
-  ["@matter/math", "packages/math/dist/index.d.ts", "L1 — vectors, matrices, randomness, noise."],
+  [
+    "@matter/math",
+    "packages/math/dist/index.d.ts",
+    "L1 — vectors, collision, rigid bodies, randomness, noise.",
+  ],
   ["@matter/color", "packages/color/dist/index.d.ts", "L2 — OKLCH colour."],
   ["@matter/graphics", "packages/graphics/dist/index.d.ts", "L3 — the command buffer."],
   [

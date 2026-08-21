@@ -142,6 +142,74 @@ return {
 };`,
   },
   {
+    name: "Rigid bodies",
+    code: `import { background, circle, fill, pop, push, rect, rotate, translate } from 'matter/draw';
+import { input, pointerJustPressed } from 'matter/input';
+import { physics } from 'matter/math';
+import { random, screen } from 'matter/scene';
+
+const world = physics.world({ gravityY: 1600 });
+world.addBox({
+  x: screen.width / 2,
+  y: screen.height - 12,
+  width: screen.width,
+  height: 24,
+  isStatic: true,
+  friction: 0.7,
+});
+world.addBox({ x: 8, y: screen.height / 2, width: 16, height: screen.height, isStatic: true });
+world.addBox({
+  x: screen.width - 8,
+  y: screen.height / 2,
+  width: 16,
+  height: screen.height,
+  isStatic: true,
+});
+
+for (let i = 0; i < 8; i++) {
+  world.addBox({
+    x: 220 + (i % 3) * 46,
+    y: 80 + Math.floor(i / 3) * 36,
+    width: 40,
+    height: 28,
+    angle: (i - 3) * 0.08,
+    restitution: 0.12,
+    friction: 0.55,
+  });
+}
+
+return {
+  update(dt) {
+    if (pointerJustPressed()) {
+      world.addCircle({
+        x: input.mouseX,
+        y: input.mouseY,
+        radius: random.range(8, 16),
+        restitution: 0.6,
+      });
+    }
+    world.step(dt);
+  },
+  draw() {
+    background('oklch(0.14 0.03 250)');
+    for (const body of world.bodies) {
+      fill(body.isStatic ? 'oklch(0.28 0.03 250)' : body.shape === physics.Shape.Circle
+        ? 'oklch(0.78 0.16 230)'
+        : 'oklch(0.74 0.14 55)');
+      if (body.shape === physics.Shape.Circle) {
+        circle(body.x, body.y, body.radius * 2);
+      } else {
+        push();
+        translate(body.x, body.y);
+        rotate(body.angle);
+        rect(-body.width / 2, -body.height / 2, body.width, body.height);
+        pop();
+      }
+    }
+  },
+};`,
+  },
+  {
     name: "Text",
     code: `import { Align, Baseline, background, fill, text, textAlign, textFont, textSize } from 'matter/draw';
 import { screen, time } from 'matter/scene';

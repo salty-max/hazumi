@@ -5,7 +5,7 @@ are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
 **Where it stands:** 0.1.0, pre-alpha. 11 packages, 658 unit tests, 20
-backend-agreement scenes, 12 example scenes. Not published to npm.
+backend-agreement scenes, 13 example scenes. Not published to npm.
 
 ## Shipped
 

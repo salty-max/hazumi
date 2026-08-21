@@ -28,6 +28,13 @@ describe("matter exports", () => {
     expect(typeof matter.collision.aabb).toBe("function");
     expect(typeof matter.collision.raycastAabb).toBe("function");
     expect(typeof matter.collision.sweepCircle).toBe("function");
+    expect(typeof matter.collision.slideAabb).toBe("function");
+  });
+
+  test("exports rigid-body physics as a runtime namespace", () => {
+    expect(typeof matter.physics.world).toBe("function");
+    expect(typeof matter.physics.PhysicsWorld).toBe("function");
+    expect(typeof matter.physics.Shape).toBe("object");
   });
 
   test("exports tilemaps as runtime values", () => {

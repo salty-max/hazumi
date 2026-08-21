@@ -97,6 +97,7 @@ export {
   mat4,
   easing,
   collision,
+  physics,
   seeded,
   createNoise,
   lerp,
@@ -116,10 +117,14 @@ export type {
   Mat4,
   Noise,
   RayHit,
+  RigidBody,
   Rng,
+  Shape,
   SweepHit,
   Vec2,
   Vec3,
+  World,
+  WorldOptions,
 } from "@matter/math";
 
 // --- L2 color ---

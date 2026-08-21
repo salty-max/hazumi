@@ -11,6 +11,7 @@ import { petals } from "./petals";
 import { tileField } from "./tile-field";
 import { characters } from "./characters";
 import { bloodMage } from "./blood-mage";
+import { rigidBodies } from "./rigid-bodies";
 
 const SCENES: ReadonlyArray<[string, (parent: HTMLElement) => MatterApp]> = [
   ["flow field", flowField],
@@ -25,6 +26,7 @@ const SCENES: ReadonlyArray<[string, (parent: HTMLElement) => MatterApp]> = [
   ["tile field", tileField],
   ["characters", characters],
   ["blood mage", bloodMage],
+  ["rigid bodies", rigidBodies],
 ];
 
 const root = document.getElementById("root") as HTMLElement;
