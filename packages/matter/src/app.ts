@@ -1,4 +1,4 @@
-import { AppClock, type ClockOptions } from "@matter/core";
+import { AppClock, createPluginHost, type ClockOptions, type PluginBuilder } from "@matter/core";
 import { type BackendFactory, CommandBuffer, type Renderer } from "@matter/graphics";
 import { ColorCache } from "./color-cache";
 import {
@@ -10,7 +10,7 @@ import {
   type PointerInput,
 } from "./context";
 
-export interface AppOptions {
+export interface AppOptions<Api extends object = Record<never, never>> {
   readonly backend: BackendFactory;
   readonly width?: number;
   readonly height?: number;
@@ -32,6 +32,8 @@ export interface AppOptions {
    * `maxDelta` also clamps the variable `dt` exposed on the context.
    */
   readonly clock?: ClockOptions;
+  /** Typed extensions installed into the scene context. */
+  readonly plugins?: PluginBuilder<Api>;
   /**
    * Called when scene loading, update, or draw throws.
    *
@@ -44,7 +46,10 @@ export interface AppOptions {
 }
 
 /** Advances the active scene by one fixed interval. */
-export type SceneUpdate = (fixedDt: number, context: MatterContext) => void;
+export type SceneUpdate<Api extends object = Record<never, never>> = (
+  fixedDt: number,
+  context: MatterContext & Api,
+) => void;
 
 /**
  * Draws the active scene once per display frame.
@@ -53,21 +58,26 @@ export type SceneUpdate = (fixedDt: number, context: MatterContext) => void;
  * one. Use it to interpolate render positions without changing simulation
  * state.
  */
-export type SceneDraw = (alpha: number, context: MatterContext) => void;
+export type SceneDraw<Api extends object = Record<never, never>> = (
+  alpha: number,
+  context: MatterContext & Api,
+) => void;
 
 /** One independently switchable state of an application. */
-export interface Scene {
-  readonly update?: SceneUpdate;
-  readonly draw: SceneDraw;
+export interface Scene<Api extends object = Record<never, never>> {
+  readonly update?: SceneUpdate<Api>;
+  readonly draw: SceneDraw<Api>;
   /** Release resources owned by this scene before it is replaced or stopped. */
-  readonly dispose?: (context: MatterContext) => void;
+  readonly dispose?: (context: MatterContext & Api) => void;
 }
 
 /** Builds a scene, optionally loading assets before it becomes active. */
-export type SceneFactory = (context: MatterContext) => Scene | Promise<Scene>;
+export type SceneFactory<Api extends object = Record<never, never>> = (
+  context: MatterContext & Api,
+) => Scene<Api> | Promise<Scene<Api>>;
 
 /** A ready scene or a factory that creates one. */
-export type SceneSource = Scene | SceneFactory;
+export type SceneSource<Api extends object = Record<never, never>> = Scene<Api> | SceneFactory<Api>;
 
 /**
  * A post-processing pass.
@@ -145,13 +155,13 @@ function supportsPasses(renderer: Renderer): renderer is PostCapableRenderer {
   );
 }
 
-export interface MatterApp {
-  readonly context: MatterContext;
+export interface MatterApp<Api extends object = Record<never, never>> {
+  readonly context: MatterContext & Api;
   readonly canvas: HTMLCanvasElement;
   /** Resolves once the initial scene has finished loading. */
   readonly ready: Promise<void>;
   /** The active scene, or null while the initial scene is loading. */
-  readonly scene: Scene | null;
+  readonly scene: Scene<Api> | null;
   /**
    * What the last frame cost, or null on a backend that does not track it.
    *
@@ -169,7 +179,7 @@ export interface MatterApp {
    */
   setPasses: (passes: readonly ShaderPass[]) => void;
   /** Load and activate a scene, disposing the previous one after it is ready. */
-  setScene: (scene: SceneSource) => Promise<void>;
+  setScene: (scene: SceneSource<Api>) => Promise<void>;
   /** Draw exactly one frame. Useful when the loop is stopped. No-op after stop(). */
   redraw: () => void;
   /**
@@ -205,7 +215,10 @@ const MAX_PIXEL_RATIO = 2;
  * });
  * ```
  */
-export function start(options: AppOptions, initialScene: SceneSource): MatterApp {
+export function start<Api extends object = Record<never, never>>(
+  options: AppOptions<Api>,
+  initialScene: SceneSource<Api>,
+): MatterApp<Api> {
   const width = options.width ?? 600;
   const height = options.height ?? 600;
   // Validate timing before acquiring a renderer or attaching a canvas. Invalid
@@ -380,6 +393,35 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     seed: options.seed ?? 1,
     setPasses: applyPasses,
   });
+  const pluginHost = (() => {
+    try {
+      return options.plugins === undefined ? createPluginHost().build() : options.plugins.build();
+    } catch (error) {
+      try {
+        renderer.dispose();
+      } finally {
+        if (ownsCanvas) canvas.remove();
+      }
+      throw error;
+    }
+  })();
+  for (const key of Object.keys(pluginHost.extensions)) {
+    if (key in context) {
+      try {
+        pluginHost.dispose();
+      } finally {
+        try {
+          renderer.dispose();
+        } finally {
+          if (ownsCanvas) canvas.remove();
+        }
+      }
+      throw new TypeError(
+        `Plugin contribution ${JSON.stringify(key)} conflicts with MatterContext`,
+      );
+    }
+  }
+  const sceneContext = Object.assign(context, pluginHost.extensions) as MatterContext & Api;
 
   const pointerPosition = (event: PointerEvent): readonly [number, number] => {
     const rect = canvas.getBoundingClientRect();
@@ -510,7 +552,7 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
   globalThis.addEventListener("keyup", onKeyUp);
   globalThis.addEventListener("blur", onBlur);
 
-  let activeScene: Scene | null = null;
+  let activeScene: Scene<Api> | null = null;
   let sceneRevision = 0;
   let frameHandle = 0;
   let stopped = false;
@@ -580,7 +622,7 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
   const runSceneUpdate = (fixedDt: number): void => {
     beginInputStep();
     try {
-      activeScene?.update?.(fixedDt, context);
+      activeScene?.update?.(fixedDt, sceneContext);
     } finally {
       endInputStep();
     }
@@ -604,7 +646,9 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
       // re-emitted into it before anything is drawn.
       beginFrame();
 
-      activeScene?.draw(clock.alpha(), context);
+      pluginHost.predraw(state.dt);
+      activeScene?.draw(clock.alpha(), sceneContext);
+      pluginHost.postdraw(state.dt);
       if (supportsPasses(renderer)) renderer.setTime(state.t);
       renderer.render(buffer);
     } catch (error) {
@@ -643,26 +687,30 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     globalThis.removeEventListener("keyup", onKeyUp);
     globalThis.removeEventListener("blur", onBlur);
     try {
-      activeScene?.dispose?.(context);
+      activeScene?.dispose?.(sceneContext);
     } finally {
       activeScene = null;
       try {
-        renderer.dispose();
+        pluginHost.dispose();
       } finally {
-        // An application that created its canvas has to take it away again, or
-        // repeatedly starting and stopping one leaves orphaned canvases behind.
-        if (ownsCanvas) canvas.remove();
+        try {
+          renderer.dispose();
+        } finally {
+          // An application that created its canvas has to take it away again, or
+          // repeatedly starting and stopping one leaves orphaned canvases behind.
+          if (ownsCanvas) canvas.remove();
+        }
       }
     }
   };
 
-  const loadScene = async (source: SceneSource): Promise<void> => {
+  const loadScene = async (source: SceneSource<Api>): Promise<void> => {
     const revision = ++sceneRevision;
     if (stopped) return;
 
-    let next: Scene;
+    let next: Scene<Api>;
     try {
-      next = typeof source === "function" ? await source(context) : source;
+      next = typeof source === "function" ? await source(sceneContext) : source;
     } catch (error) {
       // A superseded load no longer controls application state. Its failure is
       // therefore no more relevant than its eventual successful result would
@@ -674,17 +722,20 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
       throw new TypeError("A scene must be an object with a draw() function");
     }
     if (stopped || revision !== sceneRevision) {
-      next.dispose?.(context);
+      next.dispose?.(sceneContext);
       return;
     }
 
     const previous = activeScene;
     activeScene = next;
-    previous?.dispose?.(context);
+    previous?.dispose?.(sceneContext);
     if (!state.looping) renderFrame(performance.now());
   };
 
-  const ready = loadScene(initialScene)
+  const ready = pluginHost
+    .presetup()
+    .then(() => loadScene(initialScene))
+    .then(() => pluginHost.postsetup())
     .then(() => {
       if (!stopped) frameHandle = requestAnimationFrame(tick);
     })
@@ -694,7 +745,7 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
       throw error;
     });
 
-  const setScene = async (scene: SceneSource): Promise<void> => {
+  const setScene = async (scene: SceneSource<Api>): Promise<void> => {
     try {
       await loadScene(scene);
     } catch (error) {
@@ -704,10 +755,10 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
   };
 
   return {
-    context,
+    context: sceneContext,
     canvas,
     ready,
-    get scene(): Scene | null {
+    get scene(): Scene<Api> | null {
       return activeScene;
     },
     get stats(): FrameStats | null {

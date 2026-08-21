@@ -81,9 +81,12 @@ const ENEMY_SIZE = 20;
 const ENEMY_DRAW_SIZE = 32;
 const SPEED = 300;
 
-const [tileImage, spriteImage] = await Promise.all([
+const [tileImage, spriteImage, hitSound, goalSound, ambienceSound] = await Promise.all([
   s.loadImage('/examples/assets/dungeon-tiles.png'),
   s.loadImage('/examples/assets/dungeon-sprites.png'),
+  s.audio.load('/examples/assets/dungeon-hit.wav'),
+  s.audio.load('/examples/assets/dungeon-goal.wav'),
+  s.audio.load('/examples/assets/dungeon-ambience.wav'),
 ]);
 const tiles = spritesheet(tileImage, {
   frame: [16, 16],
@@ -169,6 +172,7 @@ let running = false;
 let animationStartedAt = 0;
 let hits = 0;
 let won = false;
+let ambienceVoice = null;
 
 function reset(camera, time, clearHits) {
   x = spawn.x;
@@ -246,7 +250,7 @@ reset(s.camera, 0, true);
 
 return {
   update(dt, context) {
-    const { camera, keyIsDown, keyJustPressed, t } = context;
+    const { camera, keyIsDown, keyJustPressed, pointerJustPressed, t } = context;
     if (keyJustPressed('r') || keyJustPressed('R')) reset(camera, t, true);
 
     previousX = x;
@@ -257,6 +261,9 @@ return {
       let dy = Number(keyIsDown('ArrowDown') || keyIsDown('s') || keyIsDown('S')) -
         Number(keyIsDown('ArrowUp') || keyIsDown('w') || keyIsDown('W'));
       const nextRunning = dx !== 0 || dy !== 0;
+      if (ambienceVoice === null && (nextRunning || pointerJustPressed())) {
+        ambienceVoice = s.audio.loop(ambienceSound, { gain: 0.32 });
+      }
       if (nextRunning !== running) animationStartedAt = t;
       running = nextRunning;
       if (dx !== 0) facing = dx < 0 ? -1 : 1;
@@ -288,22 +295,28 @@ return {
         );
         if (!collision.overlapsAabb(player, enemyShape)) continue;
         hits++;
+        s.audio.play(hitSound, { gain: 0.7, rate: 0.92 });
         reset(camera, t, false);
         touchedEnemy = true;
         break;
       }
 
       won = !touchedEnemy && collision.overlapsCircleAabb(goalShape, player);
-      if (won && running) {
-        running = false;
-        animationStartedAt = t;
+      if (won) {
+        s.audio.play(goalSound, { gain: 0.85 });
+        ambienceVoice?.stop();
+        ambienceVoice = null;
+        if (running) {
+          running = false;
+          animationStartedAt = t;
+        }
       }
     }
     camera.follow(x, y, 0.22);
   },
 
   draw(alpha, context) {
-    const { background, camera, fill, image, pop, push, rect, scale, text, textSize, t, translate } = context;
+    const { audio, background, camera, fill, image, pop, push, rect, scale, text, textSize, t, translate } = context;
     background('oklch(0.08 0.018 265)');
     dungeon.draw(context);
 
@@ -346,7 +359,9 @@ return {
       fill('white');
       textSize(14);
       text(
-        won ? 'Beacon reached — press R to replay' : 'WASD / arrows · orange beacon · hits ' + hits,
+        won
+          ? 'Beacon reached — press R to replay'
+          : 'WASD / arrows · hits ' + hits + ' · audio ' + audio.activeVoices,
         28,
         49,
       );

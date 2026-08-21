@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { record, type RecordedCommand } from "@matter/backend-headless";
+import { createPluginHost, definePlugin } from "@matter/core";
 import type { CommandBuffer, Renderer } from "@matter/graphics";
 import { start } from "../src/app";
 
@@ -114,6 +115,92 @@ function inputEvent(type: string, properties: Readonly<Record<string, unknown>>)
   );
   return event;
 }
+
+describe("plugins", () => {
+  test("installs typed contributions and dispatches the lifecycle", async () => {
+    const h = harness();
+    const log: string[] = [];
+    const plugin = definePlugin({
+      name: "score",
+      setup: () => {
+        log.push("setup");
+        return { score: 7 };
+      },
+      presetup: () => void log.push("presetup"),
+      postsetup: () => void log.push("postsetup"),
+      predraw: () => void log.push("predraw"),
+      postdraw: () => void log.push("postdraw"),
+      dispose: () => void log.push("dispose"),
+    });
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        plugins: createPluginHost().use(plugin),
+      },
+      (context) => {
+        const score: number = context.score;
+        log.push(`scene:${score}`);
+        return { draw: (): void => void log.push("draw") };
+      },
+    );
+
+    await app.ready;
+    expect(app.context.score).toBe(7);
+    expect(log).toEqual(["setup", "presetup", "scene:7", "postsetup"]);
+
+    h.runFrame(0);
+    expect(log.slice(-3)).toEqual(["predraw", "draw", "postdraw"]);
+
+    app.stop();
+    expect(log.at(-1)).toBe("dispose");
+  });
+
+  test("rejects contributions that overwrite the built-in context", () => {
+    const h = harness();
+    const plugin = definePlugin({
+      name: "conflict",
+      setup: () => ({ circle: "not a drawing function" }),
+    });
+
+    expect(() =>
+      start(
+        {
+          backend: () => h.renderer,
+          canvas: h.canvas,
+          plugins: createPluginHost().use(plugin),
+        },
+        { draw: (): void => {} },
+      ),
+    ).toThrow('Plugin contribution "circle" conflicts with MatterContext');
+  });
+
+  test("releases the renderer and owned canvas when plugin setup fails", () => {
+    const h = harness();
+    let rendererDisposed = false;
+    const renderer: Renderer = {
+      ...h.renderer,
+      dispose: (): void => {
+        rendererDisposed = true;
+      },
+    };
+    const plugin = definePlugin({
+      name: "broken",
+      setup: (): Record<never, never> => {
+        throw new Error("setup failed");
+      },
+    });
+
+    expect(() =>
+      start(
+        { backend: () => renderer, plugins: createPluginHost().use(plugin) },
+        { draw: (): void => {} },
+      ),
+    ).toThrow("setup failed");
+    expect(rendererDisposed).toBe(true);
+    expect((h.canvas as unknown as TestCanvas).removed).toBe(true);
+  });
+});
 
 describe("canvas sizing", () => {
   test("preserves the logical aspect ratio when CSS constrains its width", async () => {

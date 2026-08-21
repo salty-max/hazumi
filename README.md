@@ -191,8 +191,8 @@ Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
 
 ## Build order
 
-All seven phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
-state, what is built but not yet reachable, and what comes next.
+All eight phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
+state, remaining library gaps, and deferred work.
 
 | Phase | Work | Done when |
 | --- | --- | --- |
@@ -203,6 +203,7 @@ state, what is built but not yet reachable, and what comes next.
 | P5 ✅ | Text, then SVG backend | **Met** — 12 scenes export and rasterise to within 0.31/255 |
 | P6 ✅ | Docs + playground | **Met** — landing page, live editor, 184-symbol reference |
 | P7 ✅ | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below |
+| P8 ✅ | Typed runtime plugins + audio | **Met** — load, play, loop, gain, lifecycle, bounded voice pool |
 
 ## P1 measurements
 

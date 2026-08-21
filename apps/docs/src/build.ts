@@ -18,6 +18,7 @@ const FONT_FILES = [
 /** Order matters: the reference reads top-down as the layer stack. */
 const PACKAGES: ReadonlyArray<[string, string, string]> = [
   ['matter', 'packages/matter/dist/index.d.ts', 'The batteries-included entry point.'],
+  ['@matter/audio', 'packages/audio/dist/index.d.ts', 'Audio loading, playback, gain, and pooled voices.'],
   ['@matter/core', 'packages/core/dist/index.d.ts', 'L0 — lifecycle, clock, plugins.'],
   ['@matter/math', 'packages/math/dist/index.d.ts', 'L1 — vectors, matrices, randomness, noise.'],
   ['@matter/color', 'packages/color/dist/index.d.ts', 'L2 — OKLCH colour.'],

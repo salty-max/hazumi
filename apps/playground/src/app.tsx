@@ -10,11 +10,14 @@ import type {
 } from "react";
 import { toSvg } from "@matter/backend-svg";
 import {
+  audio,
   collision,
+  createPluginHost,
   EMPTY_TILE,
   spritesheet,
   start,
   tilemap,
+  type AudioApi,
   type MatterApp,
   type SceneFactory,
 } from "matter";
@@ -96,13 +99,13 @@ function keepGameKeysInPreview(event: ReactKeyboardEvent<HTMLDivElement>): void 
   }
 }
 
-async function compile(view: EditorView): Promise<SceneFactory> {
+async function compile(view: EditorView): Promise<SceneFactory<AudioApi>> {
   const source = view.state.doc.toString();
   const module = `const { collision, EMPTY_TILE, spritesheet, tilemap } = globalThis.__matterPlaygroundSceneApi; export default async (s) => {\n${source}\n};`;
   const url = URL.createObjectURL(new Blob([module], { type: "text/javascript" }));
 
   try {
-    const loaded = (await import(/* @vite-ignore */ url)) as { default: SceneFactory };
+    const loaded = (await import(/* @vite-ignore */ url)) as { default: SceneFactory<AudioApi> };
     return loaded.default;
   } finally {
     URL.revokeObjectURL(url);
@@ -133,7 +136,7 @@ function PanelHeading({ title }: { readonly title: string }): JSX.Element {
 
 export function App(): JSX.Element {
   const stageRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<MatterApp | null>(null);
+  const appRef = useRef<MatterApp<AudioApi> | null>(null);
   const runIdRef = useRef(0);
   const [editor, setEditor] = useState<EditorView | null>(null);
   const [starterIndex, setStarterIndex] = useState("0");
@@ -162,6 +165,7 @@ export function App(): JSX.Element {
           height: SIZE,
           parent: stageRef.current,
           seed: 1,
+          plugins: createPluginHost().use(audio({ gain: 0.8, maxVoices: 12 })),
           onError: (error): void => {
             if (runId === runIdRef.current) {
               setStatus({ text: describeError(error), kind: "error" });
@@ -188,7 +192,7 @@ export function App(): JSX.Element {
   const exportSvg = useCallback(async (): Promise<void> => {
     if (editor === null) return;
     setStatus({ text: "Exporting", kind: "idle" });
-    let exporter: MatterApp | null = null;
+    let exporter: MatterApp<AudioApi> | null = null;
 
     try {
       const scene = await compile(editor);
@@ -206,6 +210,7 @@ export function App(): JSX.Element {
           height: SIZE,
           canvas: document.createElement("canvas"),
           seed: 1,
+          plugins: createPluginHost().use(audio({ gain: 0.8, maxVoices: 12 })),
         },
         scene,
       );

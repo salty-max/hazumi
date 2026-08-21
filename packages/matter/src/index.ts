@@ -56,6 +56,23 @@ export type {
 } from "./spritesheet";
 export type { ColorLike, Rgba } from "./color-cache";
 
+// --- optional plugins ---
+export {
+  audio,
+  AudioDisposedError,
+  AudioPluginInUseError,
+  AudioUnavailableError,
+  UnknownSoundError,
+} from "@matter/audio";
+export type {
+  AudioApi,
+  AudioController,
+  AudioPluginOptions,
+  AudioVoice,
+  PlayOptions,
+  Sound,
+} from "@matter/audio";
+
 // --- L0 core ---
 export { AppClock, createPluginHost, definePlugin, DuplicatePluginError } from "@matter/core";
 export type {

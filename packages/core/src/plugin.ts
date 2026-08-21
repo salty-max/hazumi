@@ -58,8 +58,10 @@ export class DuplicatePluginError extends Error {
 }
 
 /** Lifecycle dispatch plus everything registered plugins add. */
-export interface PluginHost {
+export interface PluginHost<Api extends object = Record<never, never>> {
   readonly plugins: readonly string[];
+  /** Only the values contributed by plugins, without lifecycle methods. */
+  readonly extensions: Api;
   presetup: () => Promise<void>;
   postsetup: () => Promise<void>;
   predraw: (dt: number) => void;
@@ -78,7 +80,7 @@ export interface PluginBuilder<Api extends object> {
   use: <Contributes extends object>(
     plugin: Plugin<Contributes>,
   ) => PluginBuilder<Api & Contributes>;
-  build: () => PluginHost & Api;
+  build: () => PluginHost<Api> & Api;
 }
 
 export function createPluginHost(): PluginBuilder<Record<never, never>> {
@@ -112,7 +114,7 @@ function builder<Api extends object>(plugins: readonly Plugin<never>[]): PluginB
       return builder<Api & Contributes>([...plugins, plugin as unknown as Plugin<never>]);
     },
 
-    build(): PluginHost & Api {
+    build(): PluginHost<Api> & Api {
       const api: Record<string, unknown> = {};
 
       for (const plugin of plugins) {
@@ -123,8 +125,9 @@ function builder<Api extends object>(plugins: readonly Plugin<never>[]): PluginB
         }
       }
 
-      const core: PluginHost = {
+      const core: PluginHost<Api> = {
         plugins: plugins.map((p) => p.name),
+        extensions: api as Api,
         presetup: (): Promise<void> => runInOrder(plugins, (p) => p.presetup),
         postsetup: (): Promise<void> => runInOrder(plugins, (p) => p.postsetup),
         predraw: (dt: number): void => {
@@ -139,7 +142,7 @@ function builder<Api extends object>(plugins: readonly Plugin<never>[]): PluginB
         },
       };
 
-      return Object.assign(api, core) as PluginHost & Api;
+      return Object.assign({}, api, core) as PluginHost<Api> & Api;
     },
   };
 }

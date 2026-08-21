@@ -8,6 +8,7 @@ const scopes = [
   'core',
   'math',
   'color',
+  'audio',
   'graphics',
   'webgl2',
   'canvas2d',

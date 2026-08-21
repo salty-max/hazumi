@@ -21,6 +21,10 @@
       "types": "./dist/color.d.ts",
       "default": "./dist/color.js"
     },
+    "./audio": {
+      "types": "./dist/audio.d.ts",
+      "default": "./dist/audio.js"
+    },
     "./backends/webgl2": {
       "types": "./dist/backends/webgl2.d.ts",
       "default": "./dist/backends/webgl2.js"
@@ -45,6 +49,7 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
+    "@matter/audio": "workspace:^",
     "@matter/backend-canvas2d": "workspace:^",
     "@matter/backend-headless": "workspace:^",
     "@matter/backend-svg": "workspace:^",

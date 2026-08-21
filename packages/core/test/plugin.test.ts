@@ -45,6 +45,8 @@ describe("type accumulation", () => {
     expect(host.gravity).toBe(9.8);
     expect(host.volume).toBe(0.8);
     expect(host.plugins).toEqual(["physics", "audio"]);
+    expect(host.extensions).toMatchObject({ gravity: 9.8, volume: 0.8 });
+    expect("predraw" in host.extensions).toBe(false);
   });
 
   /**

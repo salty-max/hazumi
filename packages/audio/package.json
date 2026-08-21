@@ -1,0 +1,29 @@
+{
+  "name": "@matter/audio",
+  "version": "0.1.0",
+  "description": "Web Audio plugin for Matter with bounded pooled voices.",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --pass-with-no-tests"
+  },
+  "dependencies": {
+    "@matter/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
+  }
+}

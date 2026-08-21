@@ -1,10 +1,10 @@
 # Roadmap
 
-What is built, what is built but not reachable, and what is next. Numbers here
+What is built, what is next, and what is deliberately deferred. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 618 unit tests, 19
+**Where it stands:** 0.1.0, pre-alpha. 11 packages, 633 unit tests, 19
 backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
@@ -18,6 +18,7 @@ backend-agreement scenes, 12 example scenes. Not published to npm.
 | P5 ✅ | Runtime SDF text, then the SVG export backend |
 | P6 ✅ | Landing page, live playground, generated API reference |
 | P7 ✅ | Images, sprites, bezier paths, shader passes, input, build-time auto-import |
+| P8 ✅ | Typed runtime plugins and Web Audio with bounded pooled voices |
 
 The measurements that back these:
 
@@ -56,26 +57,14 @@ Tilemaps now store mutable row-major layers, cull their traversal to the camera,
 and emit each layer as one adjacent spritesheet run. Empty cells cost no command,
 and invalid edits fail instead of silently wrapping to another frame.
 
-## Built but not reachable
+Plugin builders can now be passed to `start()`. Their contributions are inferred
+onto the scene context, their lifecycle hooks run with the application, and a
+plugin cannot silently replace a built-in context member.
 
-One subsystem is implemented and tested but nothing consumes it. This is a
-wiring job, not a design job — which makes it the cheapest real progress
-available.
-
-- **The plugin system.** `definePlugin` and `createPluginHost` accumulate a
-  plugin's contributions into the host type with no declaration merging, and
-  the types are verified at compile time. But `AppOptions` has no `plugins`
-  field and nothing in the repo calls either function. The typed extension
-  story currently cannot be used from `start()`.
-  → [plugin.ts](packages/core/src/plugin.ts), [app.ts](packages/matter/src/app.ts)
-
-## Next: making games viable
-
-Sprites and animation clips landed; these are what still stands between the
-library and a real 2D game, roughly in dependency order.
-
-1. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
-   Likely the first real candidate for the plugin system rather than L5.
+The audio plugin loads and decodes files through Web Audio, exposes one-shot and
+looping playback with master and per-voice gain, unlocks on the first user gesture,
+and caps simultaneous playback with reusable voice slots. Dungeon run exercises
+the full path with ambience, impact, and victory sounds.
 
 ## Library gaps, independent of games
 
