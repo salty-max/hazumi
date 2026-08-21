@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
-  CONTEXT_MEMBERS,
-  NON_IMPORTABLE_MEMBERS,
+  AUTO_IMPORT_MEMBERS,
+  CAPABILITY_MODULES,
   findUsedMembers,
   hasExplicitImport,
+  importedNames,
   matterAutoImport,
   transform,
 } from "../src/index";
@@ -16,15 +17,18 @@ describe("findUsedMembers", () => {
     expect(used).not.toContain("rect");
   });
 
-  test("finds bare value references, not just calls", () => {
-    expect(findUsedMembers("const x = width / 2;")).toContain("width");
-    expect(findUsedMembers("const physical = width * pixelRatio;")).toContain("pixelRatio");
+  test("finds capability objects, not leftover p5 scalars", () => {
+    expect(findUsedMembers("const x = screen.width / 2;")).toContain("screen");
+    expect(findUsedMembers("const x = screen.width / 2;")).not.toContain("width");
+    expect(findUsedMembers("circle(x, y, 10 + time.elapsed);")).toContain("time");
+    expect(findUsedMembers("const x = width / 2;")).not.toContain("width");
+    expect(findUsedMembers("const t = 1;")).not.toContain("t");
   });
 
   test("ignores property access", () => {
     // shape.circle() is someone else's method, not ours.
     expect(findUsedMembers("shape.circle(1, 2, 3);")).not.toContain("circle");
-    expect(findUsedMembers("a.width;")).not.toContain("width");
+    expect(findUsedMembers("a.screen;")).not.toContain("screen");
   });
 
   test("ignores names that merely contain a member", () => {
@@ -61,10 +65,17 @@ describe("findUsedMembers", () => {
 });
 
 describe("transform", () => {
-  test("prepends a binding for exactly what is used", () => {
+  test("prepends capability imports for exactly what is used", () => {
     const out = transform("circle(1, 2, 3);");
-    expect(out.startsWith("const { circle } = __matterContext;")).toBe(true);
+    expect(out.startsWith('import { circle } from "matter/draw";')).toBe(true);
     expect(out).toContain("circle(1, 2, 3);");
+  });
+
+  test("groups names by capability module", () => {
+    const out = transform("circle(screen.width / 2, 0, 10);\nkeyIsDown('a');");
+    expect(out).toContain('import { circle } from "matter/draw";');
+    expect(out).toContain('import { keyIsDown } from "matter/input";');
+    expect(out).toContain('import { screen } from "matter/scene";');
   });
 
   test("leaves a source that uses nothing untouched", () => {
@@ -72,21 +83,21 @@ describe("transform", () => {
     expect(transform(source)).toBe(source);
   });
 
-  test("the context identifier is configurable", () => {
-    expect(transform("rect();", { contextName: "s" })).toContain("} = s;");
+  test("does not re-import a name the file already imported", () => {
+    const source = 'import { circle } from "matter/draw";\ncircle(1, 2, 3);\nfill("red");';
+    const out = transform(source);
+    expect(out.startsWith('import { fill } from "matter/draw";')).toBe(true);
+    expect(out.match(/import \{ circle \}/g)?.length).toBe(1);
   });
 
-  test("binds several members in one statement", () => {
+  test("binds several members of one module in one statement", () => {
     const out = transform('background("x"); circle(1,2,3); fill("y");');
     const first = out.split("\n")[0] as string;
-    expect(first).toContain("background");
-    expect(first).toContain("circle");
-    expect(first).toContain("fill");
+    expect(first).toBe('import { background, fill, circle } from "matter/draw";');
   });
 
-  test("every context member is transformable", () => {
-    // Guards against a member being added to the context but not the list.
-    for (const name of CONTEXT_MEMBERS) {
+  test("every auto-import member is transformable", () => {
+    for (const name of AUTO_IMPORT_MEMBERS) {
       expect(findUsedMembers(`${name};`)).toContain(name);
     }
   });
@@ -101,6 +112,24 @@ describe("hasExplicitImport", () => {
   test("is not fooled by other packages", () => {
     expect(hasExplicitImport("import x from 'matterhorn';")).toBe(false);
     expect(hasExplicitImport("import x from 'other';")).toBe(false);
+  });
+});
+
+describe("importedNames", () => {
+  test("collects named bindings across subpaths", () => {
+    const names = importedNames(
+      `import { circle, fill } from "matter/draw";\nimport { screen as viewport } from "matter/scene";`,
+    );
+    expect(names.has("circle")).toBe(true);
+    expect(names.has("fill")).toBe(true);
+    expect(names.has("screen")).toBe(false);
+    expect(names.has("viewport")).toBe(true);
+  });
+
+  test("counts type-only imports so it does not emit a duplicate", () => {
+    expect(
+      importedNames('import type { SpriteFrame } from "matter/assets";').has("SpriteFrame"),
+    ).toBe(true);
   });
 });
 
@@ -129,7 +158,7 @@ describe("matterAutoImport", () => {
 
   test("produces code the bundler can consume", () => {
     const result = matterAutoImport().transform("circle(1,2,3);", "/s.scene.ts");
-    expect(result?.code).toContain("__matterContext");
+    expect(result?.code).toContain('from "matter/draw"');
     expect(result?.map).toBeNull();
   });
 });
@@ -137,77 +166,80 @@ describe("matterAutoImport", () => {
 /**
  * The member list is maintained here rather than imported, so that a build
  * tool does not depend on the library it serves. That trades a dependency for
- * a drift risk, so the risk is checked directly: the list is compared against
- * the MatterContext declaration in the source. The declaration build may put
- * shared types in a content-hashed chunk when several public subpaths use it.
+ * a drift risk, so the risk is checked directly against the capability module
+ * sources.
  */
-describe("drift against the real context", () => {
+describe("drift against capability modules", () => {
   const ROOT = new URL("../../../", import.meta.url).pathname;
 
-  async function declaredContextMembers(): Promise<string[]> {
-    const source = await Bun.file(`${ROOT}packages/matter/src/context.ts`).text();
-    const start = source.indexOf("interface MatterContext {");
-    expect(start).toBeGreaterThan(-1);
+  const SOURCE_BY_MODULE: Readonly<Record<string, string>> = {
+    "matter/draw": "packages/matter/src/draw.ts",
+    "matter/input": "packages/matter/src/input.ts",
+    "matter/scene": "packages/matter/src/scene.ts",
+    "matter/assets": "packages/matter/src/assets.ts",
+  };
 
-    // Walk to the matching brace so nested object types do not end it early.
-    let depth = 0;
-    let end = start;
-    for (let i = source.indexOf("{", start); i < source.length; i++) {
-      const c = source[i];
-      if (c === "{") depth++;
-      else if (c === "}") {
-        depth--;
-        if (depth === 0) {
-          end = i;
-          break;
+  async function exportedValues(relativePath: string): Promise<Set<string>> {
+    const source = await Bun.file(`${ROOT}${relativePath}`).text();
+    const names = new Set<string>();
+    for (const match of source.matchAll(/^export function ([A-Za-z_$][\w$]*)/gm)) {
+      names.add(match[1] as string);
+    }
+    for (const match of source.matchAll(/^export const ([A-Za-z_$][\w$]*)/gm)) {
+      names.add(match[1] as string);
+    }
+    for (const match of source.matchAll(/^export \{([^}]+)\}/gm)) {
+      const spec = match[1];
+      if (spec === undefined) continue;
+      for (const part of spec.split(",")) {
+        const exported = part
+          .trim()
+          .split(/\s+as\s+/i)[0]
+          ?.trim();
+        if (exported !== undefined && exported.length > 0 && !exported.startsWith("type ")) {
+          names.add(exported);
         }
       }
     }
-
-    const body = source.slice(start, end);
-    const names = new Set<string>();
-    for (const match of body.matchAll(/^ {2}(?:readonly\s+)?([a-zA-Z_$][\w$]*)\s*[?:]/gm)) {
-      names.add(match[1] as string);
-    }
-    return [...names].toSorted();
+    return names;
   }
 
-  test("every context member is in the auto-import list", async () => {
-    const declared = await declaredContextMembers();
-    const missing = declared.filter(
-      (name) => !CONTEXT_MEMBERS.includes(name) && !NON_IMPORTABLE_MEMBERS.includes(name),
+  test("every auto-import name is exported by its module", async () => {
+    const exportedByModule = await Promise.all(
+      CAPABILITY_MODULES.map(async (entry) => {
+        const path = SOURCE_BY_MODULE[entry.module];
+        expect(path).toBeDefined();
+        return { entry, exported: await exportedValues(path as string) };
+      }),
     );
-    // A member added to the context but not here silently fails to auto-import.
-    expect(missing).toEqual([]);
+    for (const { entry, exported } of exportedByModule) {
+      const missing = entry.members.filter((name) => !exported.has(name));
+      expect(missing).toEqual([]);
+    }
   });
 
-  test("the list contains nothing the context does not have", async () => {
-    const declared = new Set(await declaredContextMembers());
-    const stale = CONTEXT_MEMBERS.filter((name) => !declared.has(name));
-    expect(NON_IMPORTABLE_MEMBERS.every((name) => declared.has(name))).toBe(true);
-    // A stale entry would bind an undefined and fail at runtime.
-    expect(stale).toEqual([]);
+  test("the list contains nothing a capability module does not export", async () => {
+    const listed = new Set(AUTO_IMPORT_MEMBERS);
+    expect(listed.size).toBe(AUTO_IMPORT_MEMBERS.length);
   });
 });
 
-describe("reserved words", () => {
-  test("with is never auto-imported", () => {
-    // `const { with } = ctx` does not parse, so binding it would break the file.
-    expect(CONTEXT_MEMBERS).not.toContain("with");
+describe("reserved words and the old context names", () => {
+  test("with is never auto-imported; scoped is", () => {
+    expect(AUTO_IMPORT_MEMBERS).not.toContain("with");
+    expect(AUTO_IMPORT_MEMBERS).toContain("scoped");
     expect(findUsedMembers('with({ fill: "red" }, () => {});')).not.toContain("with");
+    const out = transform("scoped({}, () => {});");
+    expect(out).toContain('import { scoped } from "matter/draw";');
   });
 
-  test("a source referencing no members is left alone", () => {
-    const source = "scoped(options, () => {});";
-    expect(transform(source)).toBe(source);
-  });
-
-  test("an object key that shares a member name costs one unused binding", () => {
+  test("an object key that shares a member name costs one unused import", () => {
     // The scan is not a parser, so `{ fill: "red" }` reads as a use of fill.
-    // Binding it is harmless — the key is unaffected — and the alternative is
+    // Importing it is harmless — the key is unaffected — and the alternative is
     // a parser dependency. Pinned so the behaviour is a decision, not a
     // surprise.
     const out = transform('scoped({ fill: "red" }, () => {});');
-    expect(out.startsWith("const { fill } = __matterContext;")).toBe(true);
+    expect(out).toContain("fill");
+    expect(out).toContain("scoped");
   });
 });

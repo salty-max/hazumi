@@ -3,9 +3,10 @@
  *
  * The usual way to get bare `circle` and `fill` is to inject the API onto
  * `window`, which is precisely what makes such an API impossible to type.
- * This does the same job at build time instead — a scene file gets a
- * destructuring binding for exactly the names it uses, so the source stays
- * terse and everything downstream still sees ordinary typed identifiers.
+ * This does the same job at build time instead — a scene file gets capability
+ * imports for exactly the names it uses, so the source stays terse and
+ * everything downstream still sees ordinary typed identifiers from
+ * `matter/draw`, `matter/input`, `matter/scene`, and `matter/assets`.
  */
 
 import { transform, type TransformOptions } from "./transform";
@@ -47,10 +48,11 @@ export function matterAutoImport(options: MatterPluginOptions = {}): VitePluginL
 }
 
 export {
-  CONTEXT_MEMBERS,
-  NON_IMPORTABLE_MEMBERS,
+  AUTO_IMPORT_MEMBERS,
+  CAPABILITY_MODULES,
   transform,
   findUsedMembers,
   hasExplicitImport,
+  importedNames,
 } from "./transform";
-export type { TransformOptions } from "./transform";
+export type { CapabilityModule, TransformOptions } from "./transform";

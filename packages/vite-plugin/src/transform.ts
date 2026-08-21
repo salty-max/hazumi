@@ -5,101 +5,119 @@
  * and can be tested without a bundler.
  */
 
-/** Everything the Matter context provides, and can therefore be auto-imported. */
-export const CONTEXT_MEMBERS: readonly string[] = [
-  "width",
-  "height",
-  "pixelRatio",
-  "frameCount",
-  "t",
-  "dt",
-  "mouseX",
-  "mouseY",
-  "pmouseX",
-  "pmouseY",
-  "mouseIsPressed",
-  "mouseButton",
-  "keyIsPressed",
-  "key",
-  "keyIsDown",
-  "keyJustPressed",
-  "keyJustReleased",
-  "mouseJustPressed",
-  "mouseJustReleased",
-  "pointers",
-  "pointerJustPressed",
-  "pointerJustReleased",
-  "wheelX",
-  "wheelY",
-  "gamepads",
-  "gamepadButtonIsDown",
-  "gamepadButtonJustPressed",
-  "gamepadButtonJustReleased",
-  "random",
-  "noise",
-  "camera",
-  "background",
-  "fill",
-  "noFill",
-  "stroke",
-  "noStroke",
-  "strokeWeight",
-  "blendMode",
-  "circle",
-  "ellipse",
-  "rect",
-  "square",
-  "line",
-  "point",
-  "beginShape",
-  "vertex",
-  "quadraticVertex",
-  "bezierVertex",
-  "endShape",
-  "image",
-  "loadImage",
-  "text",
-  "textSize",
-  "textAlign",
-  "textFont",
-  "push",
-  "pop",
-  "translate",
-  "rotate",
-  "scale",
-  "noLoop",
-  "loop",
-  "isLooping",
-  "setPasses",
-];
-
-/**
- * Context members that cannot be auto-imported.
- *
- * `with` is a reserved word: `const { with } = ctx` is a syntax error, and a
- * call to `with(...)` would not parse either. It has to be destructured under
- * another name by hand — `const { with: scoped } = ctx` — which is what the
- * examples do.
- *
- * Listed rather than simply omitted so the drift test can tell a deliberate
- * exclusion from a member somebody forgot to add.
- */
-export const NON_IMPORTABLE_MEMBERS: readonly string[] = ["with"];
-
-export interface TransformOptions {
-  /** Names to expose. Defaults to the whole context. */
-  readonly members?: readonly string[];
-  /** Identifier the context is bound to. */
-  readonly contextName?: string;
+export interface CapabilityModule {
+  readonly module: string;
+  readonly members: readonly string[];
 }
 
-const DEFAULT_CONTEXT_NAME = "__matterContext";
+/**
+ * Names each capability subpath exports that a global-style scene may write
+ * without importing. Error classes are omitted: they are for catch sites, not
+ * for drawing.
+ *
+ * Live values are the objects (`screen`, `time`, `input`), not the old p5-style
+ * scalars (`width`, `t`, `pmouseX`). Style scoping is `scoped`.
+ */
+export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
+  {
+    module: "matter/draw",
+    members: [
+      "Align",
+      "Baseline",
+      "Blend",
+      "background",
+      "fill",
+      "noFill",
+      "stroke",
+      "noStroke",
+      "strokeWeight",
+      "blendMode",
+      "beginShape",
+      "vertex",
+      "quadraticVertex",
+      "bezierVertex",
+      "endShape",
+      "image",
+      "textFont",
+      "textSize",
+      "textAlign",
+      "text",
+      "circle",
+      "ellipse",
+      "rect",
+      "square",
+      "line",
+      "point",
+      "push",
+      "pop",
+      "translate",
+      "rotate",
+      "scale",
+      "scoped",
+    ],
+  },
+  {
+    module: "matter/input",
+    members: [
+      "input",
+      "keyIsDown",
+      "keyJustPressed",
+      "keyJustReleased",
+      "mouseJustPressed",
+      "mouseJustReleased",
+      "pointerJustPressed",
+      "pointerJustReleased",
+      "gamepadButtonIsDown",
+      "gamepadButtonJustPressed",
+      "gamepadButtonJustReleased",
+    ],
+  },
+  {
+    module: "matter/scene",
+    members: [
+      "screen",
+      "time",
+      "random",
+      "noise",
+      "camera",
+      "setPasses",
+      "noLoop",
+      "loop",
+      "isLooping",
+    ],
+  },
+  {
+    module: "matter/assets",
+    members: [
+      "loadImage",
+      "spritesheet",
+      "isSpriteFrame",
+      "createClip",
+      "ClipEnd",
+      "tilemap",
+      "EMPTY_TILE",
+    ],
+  },
+];
+
+const AUTO_IMPORT_LIST: string[] = [];
+for (const entry of CAPABILITY_MODULES) {
+  for (const name of entry.members) AUTO_IMPORT_LIST.push(name);
+}
+
+/** Flat list of every auto-imported identifier, in module order. */
+export const AUTO_IMPORT_MEMBERS: readonly string[] = AUTO_IMPORT_LIST;
+
+export interface TransformOptions {
+  /** Names to expose. Defaults to every capability-module member. */
+  readonly members?: readonly string[];
+}
 
 /** Strings, comments and regex literals, so identifiers inside them are ignored. */
 const SKIP = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
 
 /**
- * Which context members a source actually references.
+ * Which capability names a source actually references.
  *
  * Deliberately a scan rather than a parse. A name that is mentioned but not
  * actually a reference — shadowed, or an object key like `{ fill: 'red' }` —
@@ -111,7 +129,7 @@ const SKIP = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\/\/[^\n]*|\
  */
 export function findUsedMembers(
   source: string,
-  members: readonly string[] = CONTEXT_MEMBERS,
+  members: readonly string[] = AUTO_IMPORT_MEMBERS,
 ): string[] {
   const code = source.replace(SKIP, (match) => " ".repeat(match.length));
   const used: string[] = [];
@@ -126,25 +144,56 @@ export function findUsedMembers(
   return used;
 }
 
+const MATTER_NAMED_IMPORT =
+  /^import\s+(?:type\s+)?\{([^}]+)\}\s+from\s*['"]matter(?:\/[^'"]*)?['"]/gm;
+
+/**
+ * Named bindings already imported from a Matter package, including subpaths.
+ *
+ * Type-only imports count: `import type { SpriteFrame }` already bound the
+ * name, so emitting a second value import for it would be a duplicate.
+ */
+export function importedNames(source: string): Set<string> {
+  const names = new Set<string>();
+  for (const match of source.matchAll(MATTER_NAMED_IMPORT)) {
+    const spec = match[1];
+    if (spec === undefined) continue;
+    for (const part of spec.split(",")) {
+      const trimmed = part.trim();
+      if (trimmed.length === 0) continue;
+      const pieces = trimmed.split(/\s+as\s+/i);
+      const local = (pieces[1] ?? pieces[0])?.trim();
+      if (local !== undefined && local.length > 0) names.add(local);
+    }
+  }
+  return names;
+}
+
 /** True when the source already imports from the library itself. */
 export function hasExplicitImport(source: string): boolean {
   return /^\s*import\s[^;]*from\s*['"]matter(?:\/[^'"]*)?['"]/m.test(source);
 }
 
 /**
- * Prepend a destructuring binding for the members a source uses.
+ * Prepend capability-module imports for the names a source uses.
  *
- * Global-style ergonomics without a global object: the binding happens at build
- * time, where it is inspectable, rather than by writing onto `window` at
- * runtime where nothing can type it.
+ * Global-style ergonomics without a global object: the imports happen at build
+ * time, where they are inspectable, rather than by writing onto `window` or by
+ * destructuring a runtime context the type checker cannot see.
  */
 export function transform(source: string, options: TransformOptions = {}): string {
-  const members = options.members ?? CONTEXT_MEMBERS;
-  const contextName = options.contextName ?? DEFAULT_CONTEXT_NAME;
-
-  const used = findUsedMembers(source, members);
+  const members = options.members ?? AUTO_IMPORT_MEMBERS;
+  const already = importedNames(source);
+  const used = findUsedMembers(source, members).filter((name) => !already.has(name));
   if (used.length === 0) return source;
 
-  const binding = `const { ${used.join(", ")} } = ${contextName};`;
-  return `${binding}\n${source}`;
+  const needed = new Set(used);
+  const lines: string[] = [];
+  for (const entry of CAPABILITY_MODULES) {
+    const names = entry.members.filter((name) => needed.has(name));
+    if (names.length === 0) continue;
+    lines.push(`import { ${names.join(", ")} } from ${JSON.stringify(entry.module)};`);
+  }
+  if (lines.length === 0) return source;
+  return `${lines.join("\n")}\n${source}`;
 }
