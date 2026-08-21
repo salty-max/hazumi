@@ -54,6 +54,9 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     scale: (x: number, y: number): void => {
       out.push({ op: 'scale', args: [x, y] });
     },
+    resetTransform: (): void => {
+      out.push({ op: 'resetTransform', args: [] });
+    },
     background: (r: number, g: number, b: number, a: number): void => {
       out.push({ op: 'background', args: [r, g, b, a] });
     },

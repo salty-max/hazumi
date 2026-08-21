@@ -2,6 +2,7 @@ import { Align, Baseline, Blend, CommandBuffer, type ImageSource } from '@matter
 import { isSpriteFrame, type SpriteFrame } from './spritesheet';
 import { createNoise, type Noise, type Rng, seeded } from '@matter/math';
 import { type ColorCache, type ColorLike } from './color-cache';
+import { type Camera2D, createCamera2D } from './camera';
 
 /** Style overrides accepted by `with()`. */
 export interface StyleOverrides {
@@ -55,6 +56,8 @@ export interface SketchContext {
   /** Seeded by default, so a sketch renders identically on every run. */
   readonly random: Rng;
   readonly noise: Noise;
+  /** World-space view, including zoom, following and coordinate conversion. */
+  readonly camera: Camera2D;
 
   // --- style ---
   background: (color: ColorLike) => void;
@@ -219,6 +222,11 @@ export function createContext(deps: ContextDeps): ContextBundle {
   const { buffer, colors, state } = deps;
   const random = seeded(deps.seed);
   const noise = createNoise(seeded(deps.seed));
+  const { camera, beginFrame: beginCameraFrame } = createCamera2D(
+    buffer,
+    state.width,
+    state.height,
+  );
 
   // Mirrors what has been written to the buffer, so `with()` can restore it.
   let fillColor: ColorLike | null = '#ffffff';
@@ -257,6 +265,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
     keyIsDown: (key: string): boolean => state.keysDown.has(key),
     random,
     noise,
+    camera,
 
     background: (color: ColorLike): void => {
       const [r, g, b, a] = colors.resolve(color);
@@ -438,6 +447,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
     applyFill();
     applyStroke();
     buffer.setBlend(blend);
+    beginCameraFrame();
   };
 
   // Establish the defaults the first frame starts from.

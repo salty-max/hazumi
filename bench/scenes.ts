@@ -201,6 +201,29 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
+    name: 'camera world and screen space',
+    // The world view is a pan/zoom affine. resetTransform is the HUD boundary;
+    // the final world shape proves the view can be restored afterwards.
+    draw: (b) => {
+      b.background(0.04, 0.05, 0.09, 1);
+      b.translate(200, 200);
+      b.scale(2, 2);
+      b.translate(-100, -80);
+      b.setFill(0.2, 0.65, 0.95, 1);
+      b.circle(100, 80, 45);
+
+      b.resetTransform();
+      b.setFill(0.95, 0.75, 0.2, 1);
+      b.rect(16, 16, 120, 32);
+
+      b.translate(200, 200);
+      b.scale(2, 2);
+      b.translate(-100, -80);
+      b.setFill(0.95, 0.3, 0.45, 1);
+      b.circle(165, 110, 22);
+    },
+  },
+  {
     name: 'uniform scale with stroke',
     // Stroke width is in user units, so it scales with the transform in both
     // backends. Anisotropic scale is a documented divergence and not tested.

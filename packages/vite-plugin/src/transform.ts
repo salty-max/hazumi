@@ -11,6 +11,7 @@ export const CONTEXT_MEMBERS: readonly string[] = [
   'mouseX', 'mouseY', 'pmouseX', 'pmouseY', 'mouseIsPressed', 'mouseButton',
   'keyIsPressed', 'key', 'keyIsDown',
   'random', 'noise',
+  'camera',
   'background', 'fill', 'noFill', 'stroke', 'noStroke', 'strokeWeight', 'blendMode',
   'circle', 'ellipse', 'rect', 'square', 'line', 'point',
   'beginShape', 'vertex', 'quadraticVertex', 'bezierVertex', 'endShape',

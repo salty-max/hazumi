@@ -31,6 +31,16 @@ export function copyAffine(out: Affine, src: Affine): void {
   out.ty = src.ty;
 }
 
+/** Reset an existing affine in place, without allocating a replacement. */
+export function resetAffine(out: Affine): void {
+  out.a = 1;
+  out.b = 0;
+  out.c = 0;
+  out.d = 1;
+  out.tx = 0;
+  out.ty = 0;
+}
+
 /** In-place `m = m * translate(x, y)`. */
 export function translateAffine(m: Affine, x: number, y: number): void {
   m.tx += m.a * x + m.c * y;

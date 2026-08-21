@@ -71,6 +71,7 @@ describe('recorder coverage', () => {
       ['translate', () => buf.translate(1, 2)],
       ['rotate', () => buf.rotate(1)],
       ['scale', () => buf.scale(1, 2)],
+      ['resetTransform', () => buf.resetTransform()],
       ['background', () => buf.background(1, 1, 1, 1)],
       ['circle', () => buf.circle(1, 2, 3)],
       ['ellipse', () => buf.ellipse(1, 2, 3, 4)],

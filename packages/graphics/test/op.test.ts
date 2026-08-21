@@ -36,6 +36,7 @@ describe('Op', () => {
     expect(Op.CubicTo).toBe(25);
     expect(Op.ClosePath).toBe(26);
     expect(Op.ImageRegion).toBe(27);
+    expect(Op.ResetTransform).toBe(28);
   });
 
   test('no duplicate opcode values', () => {
@@ -94,6 +95,7 @@ describe('encoder width matches OP_SIZE', () => {
     ['translate', Op.Translate, (b) => b.translate(1, 2)],
     ['rotate', Op.Rotate, (b) => b.rotate(1)],
     ['scale', Op.Scale, (b) => b.scale(2, 3)],
+    ['resetTransform', Op.ResetTransform, (b) => b.resetTransform()],
   ];
 
   for (const [name, op, encode] of cases) {

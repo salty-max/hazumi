@@ -8,6 +8,7 @@ import {
   copyAffine,
   decode,
   identityAffine,
+  resetAffine,
   rotateAffine,
   scaleAffine,
   translateAffine,
@@ -638,6 +639,7 @@ export class Webgl2Renderer {
       translate: (x: number, y: number): void => translateAffine(this.#xform, x, y),
       rotate: (radians: number): void => rotateAffine(this.#xform, radians),
       scale: (x: number, y: number): void => scaleAffine(this.#xform, x, y),
+      resetTransform: (): void => resetAffine(this.#xform),
 
       background: (r: number, g: number, b: number, a: number): void => {
         if (a >= 1) {

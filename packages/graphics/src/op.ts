@@ -46,6 +46,8 @@ export const Op = {
    * whole-image case stays four words cheaper.
    */
   ImageRegion: 27,
+  /** Replace the current transform with identity without touching style. */
+  ResetTransform: 28,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -84,6 +86,7 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.CubicTo]: 7, // op, c1x, c1y, c2x, c2y, x, y
   [Op.ClosePath]: 1,
   [Op.ImageRegion]: 10, // op, imageId, dx, dy, dw, dh, sx, sy, sw, sh
+  [Op.ResetTransform]: 1,
 };
 
 /** Horizontal text anchor. */

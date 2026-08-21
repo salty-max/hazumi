@@ -84,6 +84,34 @@ Catch-up is capped by default, so returning to a backgrounded tab cannot trap
 the simulation in an ever-growing backlog. `maxDelta` and `maxFixedSteps` are
 available under `clock` when a game needs different limits.
 
+## World and screen space
+
+Every context carries a camera. Its position is the world coordinate shown at
+the centre of the canvas; the default preserves the original canvas coordinate
+system exactly:
+
+```ts
+return {
+  update(dt, { camera }) {
+    movePlayer(dt);
+    camera.follow(player.x, player.y, 0.12);
+    camera.setZoom(2);
+  },
+  draw(alpha, { background, camera, circle, text }) {
+    background('#111827'); // always covers the screen
+    circle(player.x, player.y, 32); // world space
+
+    camera.screen(() => {
+      text('HP 100', 16, 24); // HUD, unaffected by pan or zoom
+    });
+  },
+};
+```
+
+`screenToWorld()` maps pointer coordinates into the world, and
+`worldToScreen()` does the reverse. Both accept an optional reusable output
+point for allocation-free use in a hot loop.
+
 Run `bun run bench/serve.ts` and open
 http://localhost:5199/examples/gallery.html to see the twelve sketches in
 `examples/`.
@@ -162,7 +190,7 @@ recover roughly a fifth of that upload bandwidth and is the obvious next step.
 
 ## Backend agreement
 
-Canvas2D is the reference renderer. Eighteen scenes render through both backends
+Canvas2D is the reference renderer. Nineteen scenes render through both backends
 and are compared pixel by pixel — mean per-channel difference over the frame,
 out of 255. The worst is 1.81; the image scenes are exact:
 
@@ -176,6 +204,7 @@ out of 255. The worst is 1.81; the image scenes are exact:
 | overlapping transparency | 0.34 | 1 |
 | interleaved blend modes | 0.56 | 10 |
 | transform stack | 0.61 | 1 |
+| camera world and screen space | 0.42 | 1 |
 | uniform scale with stroke | 0.62 | 1 |
 | ellipses | 1.69 | 1 |
 | translucent background over content | 0.42 | 1 |
@@ -193,10 +222,10 @@ scene takes ten draw calls by design: merging non-adjacent instances would
 reorder overlapping transparent shapes.
 
 Run it with `bun run bench/serve.ts` and open
-http://localhost:5199/compare.html.
+http://localhost:5199/bench/compare.html.
 
 SVG is rasterised through the browser and diffed against Canvas2D as well.
-Several scenes come out pixel-identical and the worst is 0.31, because both go
+Several scenes come out pixel-identical and the worst is 1.22, because both go
 through the same engine — so that tolerance is set *tighter* than the GPU one.
 
 ## WebGPU

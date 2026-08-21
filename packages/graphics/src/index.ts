@@ -15,6 +15,7 @@ export type { CommandVisitor } from './decode';
 export {
   identityAffine,
   copyAffine,
+  resetAffine,
   translateAffine,
   rotateAffine,
   scaleAffine,

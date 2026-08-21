@@ -4,7 +4,7 @@ What is built, what is built but not reachable, and what is next. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 555 unit tests, 18
+**Where it stands:** 0.1.0, pre-alpha. 10 packages, 566 unit tests, 19
 backend-agreement scenes, 12 example sketches. Not published to npm.
 
 ## Shipped
@@ -26,8 +26,8 @@ The measurements that back these:
 | 100k shapes per frame | 10.00 ms median, **1 draw call**, p95 11.50 ms |
 | Encode cost | 0.97 ms/frame flat fill, 1.84 ms with a fill per shape |
 | Steady-state allocation | 0 buffer growths, 0.0 kB heap delta over 200 frames |
-| Backend agreement | 18 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
-| SVG vs Canvas2D | worst 0.31/255 — tighter, since both go through the same engine |
+| Backend agreement | 19 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
+| SVG vs Canvas2D | worst 1.22/255 — tighter, since both go through the same engine |
 | Sprite batching | 400 sprites across 16 frames of one sheet → **1 draw call** |
 | Several sheets | 3 sheets grouped → 3 calls; interleaved → 300 |
 | Context loss | Recovered without reload, back to 1 draw call |
@@ -35,6 +35,10 @@ The measurements that back these:
 The game loop now also exposes the fixed-step clock through `sketch()`: setup
 may return `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a
 stalled frame can create an unbounded simulation debt.
+
+The sketch context also carries a 2D camera with pan, zoom, deterministic
+following, screen↔world conversion, and an explicit screen-space block for HUD
+drawing. Its identity default keeps existing sketches byte-for-byte unchanged.
 
 ## Built but not reachable
 
@@ -54,21 +58,17 @@ available.
 Sprites and animation clips landed; these are what still stands between the
 library and a real 2D game, roughly in dependency order.
 
-1. **A camera.** No world-vs-screen distinction exists today — a sketch draws
-   in canvas coordinates and that is all. Needs a view transform, follow, zoom,
-   and screen↔world conversion. `Mat4` and the transform stack already carry it;
-   this is an API, not new math.
-2. **Input edge detection.** `keyIsDown`, `mouseX/Y`, `mouseIsPressed` and
+1. **Input edge detection.** `keyIsDown`, `mouseX/Y`, `mouseIsPressed` and
    friends report *state*. A game needs *transitions* — `justPressed`,
    `justReleased` — which cannot be derived correctly by a sketch polling once
    per frame. Also missing: pointer/touch events, wheel, and gamepad.
    → [sketch.ts:242](packages/matter/src/sketch.ts:242)
-3. **Collision math** in `@matter/math`: AABB and circle overlap, point
+2. **Collision math** in `@matter/math`: AABB and circle overlap, point
    containment, ray casts, and swept tests for tunnelling at speed. Pure
    functions, `bun test`-able, no renderer involved.
-4. **Tilemaps.** Spritesheets give the frames; a tilemap gives the layout,
+3. **Tilemaps.** Spritesheets give the frames; a tilemap gives the layout,
    culling to the camera, and one draw call per layer.
-5. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
+4. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
    Likely the first real candidate for the plugin system rather than L5.
 
 ## Library gaps, independent of games

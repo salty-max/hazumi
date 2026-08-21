@@ -148,6 +148,11 @@ export class CommandBuffer {
     this.#f32[i + 2] = y;
   }
 
+  /** Replace the current transform with identity without changing style. */
+  resetTransform(): void {
+    this.#u32[this.#reserve(1)] = Op.ResetTransform;
+  }
+
   // --- primitives ---
 
   /**

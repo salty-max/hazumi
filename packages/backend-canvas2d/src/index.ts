@@ -205,6 +205,7 @@ export class Canvas2dRenderer {
       translate: (x: number, y: number): void => void ctx.translate(x, y),
       rotate: (radians: number): void => void ctx.rotate(radians),
       scale: (x: number, y: number): void => void ctx.scale(x, y),
+      resetTransform: (): void => void ctx.setTransform(1, 0, 0, 1, 0, 0),
 
       background: (r: number, g: number, b: number, a: number): void => {
         // Painted under identity transform, ignoring whatever the sketch has

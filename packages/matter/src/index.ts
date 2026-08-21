@@ -28,6 +28,7 @@ export type {
   FrameStats,
 } from './sketch';
 export type { SketchContext, StyleOverrides } from './context';
+export type { Camera2D, CameraPoint } from './camera';
 export { ColorCache } from './color-cache';
 export {
   spritesheet,

@@ -83,7 +83,7 @@ sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
       <tr><td>100k shapes</td><td>10.0 ms per frame, one draw call — 60% of the 60fps budget</td></tr>
       <tr><td>Allocation</td><td>Zero in steady state: 0.0 kB heap delta over 200 frames</td></tr>
       <tr><td>Backends</td><td>WebGL2, Canvas2D, SVG and a headless recorder, from one command stream</td></tr>
-      <tr><td>Agreement</td><td>18 scenes verified pixel-by-pixel across backends</td></tr>
+      <tr><td>Agreement</td><td>19 scenes verified pixel-by-pixel across backends</td></tr>
       <tr><td>Colour</td><td>OKLCH throughout, so blends stay perceptually even</td></tr>
       <tr><td>Randomness</td><td>Seeded by default — a sketch renders identically every run</td></tr>
     </table>
@@ -91,7 +91,7 @@ sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
 
   <section>
     <h2 class="head">Not there yet</h2>
-    <p class="body">Pixel access, a camera, and a WebGPU
+    <p class="body">Pixel access, input edge detection, and a WebGPU
     backend. Text renders from a runtime SDF rather than MSDF, so corners
     soften well above the atlas resolution. Not published to npm.</p>
   </section>

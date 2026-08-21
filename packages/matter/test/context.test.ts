@@ -63,6 +63,13 @@ describe('environment', () => {
     expect(a.random.next()).toBe(b.random.next());
     expect(a.noise.noise2(1.3, 2.7)).toBe(b.noise.noise2(1.3, 2.7));
   });
+
+  test('exposes a camera centred on the canvas by default', () => {
+    const { ctx } = makeContext();
+    expect(ctx.camera.x).toBe(200);
+    expect(ctx.camera.y).toBe(150);
+    expect(ctx.camera.zoom).toBe(1);
+  });
 });
 
 describe('drawing', () => {

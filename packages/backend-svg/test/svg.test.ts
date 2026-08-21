@@ -153,6 +153,17 @@ describe('transforms', () => {
     expect(svg).toContain('matrix(2 0 0 2 10 0)');
   });
 
+  test('resetTransform returns to screen space without changing style', () => {
+    const svg = render((b) => {
+      b.setFill(1, 0, 0, 1);
+      b.translate(50, 50);
+      b.resetTransform();
+      b.circle(1, 1, 5);
+    });
+    expect(svg).toContain('fill="#ff0000"');
+    expect(svg).not.toContain('transform=');
+  });
+
   test('pop restores the previous transform', () => {
     const svg = render((b) => {
       b.push();

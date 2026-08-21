@@ -8,6 +8,7 @@ import {
   copyAffine,
   decode,
   identityAffine,
+  resetAffine,
   rotateAffine,
   scaleAffine,
   translateAffine,
@@ -230,6 +231,7 @@ export class SvgRenderer {
       translate: (x, y): void => translateAffine(this.#xform, x, y),
       rotate: (radians): void => rotateAffine(this.#xform, radians),
       scale: (x, y): void => scaleAffine(this.#xform, x, y),
+      resetTransform: (): void => resetAffine(this.#xform),
 
       background: (r, g, b, a): void => {
         if (a >= 1) {

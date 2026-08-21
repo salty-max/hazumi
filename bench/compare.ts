@@ -19,7 +19,7 @@ const DEFAULT_TOLERANCE = 3.0;
 /**
  * Tighter than the GPU tolerance, not looser: SVG and Canvas2D are rasterised
  * by the same engine, so they agree to a fraction of a level — several scenes
- * come out pixel-identical. Worst observed is 0.31, so this leaves headroom
+ * come out pixel-identical. Worst observed is 1.22, so this leaves headroom
  * without letting a real regression through.
  */
 const SVG_TOLERANCE = 2.0;
