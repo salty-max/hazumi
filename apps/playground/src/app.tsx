@@ -227,7 +227,7 @@ export function App(): JSX.Element {
           <span className="matter-mark">
             <span />
           </span>
-          <span className="hidden text-sm font-semibold tracking-tight sm:block">Matter</span>
+          <span className="hidden font-display text-base font-semibold tracking-tight sm:block">Matter</span>
         </a>
 
         <div className="mx-1 h-5 w-px bg-border" />

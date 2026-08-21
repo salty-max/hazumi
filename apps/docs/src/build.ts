@@ -3,10 +3,17 @@
  *
  * Run with: bun run apps/docs/src/build.ts
  */
+import { mkdir } from 'node:fs/promises';
+
 import { extractModule, type DocEntry, type DocModule } from './extract';
 import { highlightCode } from './highlight';
 
 const ROOT = new URL('../../../', import.meta.url).pathname;
+const FONT_FILES = [
+  'fraunces-vietnamese-wght-normal.woff2',
+  'fraunces-latin-ext-wght-normal.woff2',
+  'fraunces-latin-wght-normal.woff2',
+] as const;
 
 /** Order matters: the reference reads top-down as the layer stack. */
 const PACKAGES: ReadonlyArray<[string, string, string]> = [
@@ -155,5 +162,12 @@ await Bun.write(
   JSON.stringify(modules.map(([mod]) => mod), null, 2),
 );
 await Bun.write(`${ROOT}apps/docs/dist/filter.js`, Bun.file(`${ROOT}apps/docs/src/filter.js`));
+
+const fontSource = new URL('./files/', import.meta.resolve('@fontsource-variable/fraunces'));
+const fontOutput = `${ROOT}apps/docs/dist/files/`;
+await mkdir(fontOutput, { recursive: true });
+await Promise.all(
+  FONT_FILES.map((file) => Bun.write(`${fontOutput}${file}`, Bun.file(new URL(file, fontSource)))),
+);
 
 console.log(`reference: ${modules.length} modules, ${total} symbols`);

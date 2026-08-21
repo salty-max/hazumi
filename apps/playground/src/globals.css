@@ -1,3 +1,4 @@
+@import "@fontsource-variable/fraunces";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -25,6 +26,7 @@
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-ring: var(--ring);
+  --font-display: "Fraunces Variable", Iowan Old Style, Baskerville, serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius-sm: calc(var(--radius) - 4px);
@@ -43,17 +45,17 @@
   --card-foreground: oklch(0.94 0.01 255);
   --popover: oklch(0.2 0.018 255);
   --popover-foreground: oklch(0.96 0.008 255);
-  --primary: oklch(0.78 0.15 161);
-  --primary-foreground: oklch(0.17 0.03 165);
+  --primary: oklch(0.8 0.12 305);
+  --primary-foreground: oklch(0.18 0.035 305);
   --secondary: oklch(0.22 0.016 255);
   --secondary-foreground: oklch(0.92 0.01 255);
   --muted: oklch(0.23 0.015 255);
   --muted-foreground: oklch(0.66 0.018 255);
-  --accent: oklch(0.26 0.035 161);
-  --accent-foreground: oklch(0.9 0.06 161);
+  --accent: oklch(0.27 0.045 305);
+  --accent-foreground: oklch(0.9 0.06 305);
   --destructive: oklch(0.72 0.17 25);
   --border: oklch(0.28 0.016 255);
-  --ring: oklch(0.78 0.15 161);
+  --ring: oklch(0.8 0.12 305);
   --radius: 0.625rem;
 }
 
@@ -127,8 +129,8 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
   color: oklch(0.48 0.018 255) !important;
 }
 .cm-activeLine, .cm-activeLineGutter { background: oklch(0.18 0.018 255) !important; }
-.cm-selectionBackground { background: oklch(0.35 0.08 161 / 0.45) !important; }
-.cm-focused .cm-selectionBackground { background: oklch(0.42 0.1 161 / 0.5) !important; }
+.cm-selectionBackground { background: oklch(0.35 0.08 305 / 0.45) !important; }
+.cm-focused .cm-selectionBackground { background: oklch(0.42 0.1 305 / 0.5) !important; }
 .cm-selectionMatch { background: oklch(0.42 0.08 80 / 0.22); }
 .cm-matchingBracket {
   outline: 1px solid color-mix(in oklab, var(--primary) 55%, transparent);
