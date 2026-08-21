@@ -187,6 +187,44 @@ calls**; 400 sprites across 16 frames of one sheet cost **one**.
 Frames are precomputed and returned by reference, so a draw loop asking for the
 same frame every frame allocates nothing. Indices wrap, so `frame(t)` loops.
 
+### Animations
+
+A sheet can declare its own clips, so a sketch asks for an animation rather than
+tracking frame indices:
+
+```ts
+const hero = spritesheet(await loadImage('hero.png'), {
+  frame: [16, 24],
+  clips: {
+    idle: { frames: [0, 1, 2, 3], fps: 6 },
+    run:  { frames: [8, 9, 10, 11, 12, 13], fps: 14 },
+    jump: { frames: [16], end: ClipEnd.Hold },
+  },
+});
+
+image(hero.clip('run').at(t), x, y);
+```
+
+Sampling is stateless — `at(seconds)` is a pure function of time — so any
+number of entities can share one clip without advancing each other, and the
+same elapsed time always gives the same frame. Clips end by looping, holding
+(what a one-shot needs) or ping-ponging, and a frame held longer is expressed
+by repeating it: `[0, 0, 1]` gives frame 0 twice the screen time.
+
+### Several sheets
+
+Loading more than one is normal — tiles, a character, effects. They cannot
+share a texture, so **draw order decides the cost**. Measured with three sheets
+and 300 sprites:
+
+| Draw order | Draw calls |
+| --- | --- |
+| Grouped by sheet | 3 |
+| Interleaved | 300 |
+
+Group draws by sheet where you can. `handle.stats.drawCalls` reports the number
+for the last frame.
+
 ## Paths
 
 Shapes are built from bezier segments, and the buffer stores the control
