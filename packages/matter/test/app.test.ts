@@ -35,6 +35,7 @@ interface RuntimeHarness {
 const originalDocument = globalThis.document;
 const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
 const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+const originalGetGamepads = globalThis.navigator.getGamepads;
 
 let callbacks: FrameRequestCallback[];
 
@@ -65,6 +66,10 @@ afterEach(() => {
   Object.defineProperty(globalThis, "cancelAnimationFrame", {
     configurable: true,
     value: originalCancelAnimationFrame,
+  });
+  Object.defineProperty(globalThis.navigator, "getGamepads", {
+    configurable: true,
+    value: originalGetGamepads,
   });
 });
 
@@ -566,6 +571,85 @@ describe("input transitions", () => {
     expect(snapshots).toEqual([
       [-14, 35],
       [0, 0],
+    ]);
+    app.stop();
+  });
+
+  test("gamepad buttons expose fixed-update edges and release on disconnect", async () => {
+    const h = harness();
+    const button = { value: 1, pressed: true, touched: true };
+    const axes = [0.25];
+    const native = {
+      index: 1,
+      id: "test pad",
+      mapping: "standard",
+      connected: true,
+      axes,
+      buttons: [button],
+    } as unknown as Gamepad;
+    let nativeGamepads: Array<Gamepad | null> = [];
+    Object.defineProperty(globalThis.navigator, "getGamepads", {
+      configurable: true,
+      value: (): Array<Gamepad | null> => nativeGamepads,
+    });
+
+    const snapshots: Array<
+      readonly [
+        number,
+        boolean | undefined,
+        number | undefined,
+        number | undefined,
+        boolean,
+        boolean,
+        boolean,
+      ]
+    > = [];
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        clock: { fixedStep: 0.1, maxDelta: 1 },
+      },
+      {
+        update: (
+          _dt,
+          {
+            gamepads,
+            gamepadButtonIsDown,
+            gamepadButtonJustPressed,
+            gamepadButtonJustReleased,
+          },
+        ): void => {
+          snapshots.push([
+            gamepads.length,
+            gamepads[0]?.connected,
+            gamepads[0]?.axes[0],
+            gamepads[0]?.buttons[0]?.value,
+            gamepadButtonIsDown(0, 1),
+            gamepadButtonJustPressed(0, 1),
+            gamepadButtonJustReleased(0, 1),
+          ]);
+        },
+        draw: (): void => {},
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    nativeGamepads = [native];
+    h.runFrame(120);
+    axes[0] = -0.5;
+    button.value = 0.7;
+    h.runFrame(240);
+    nativeGamepads = [null];
+    h.runFrame(360);
+    h.runFrame(480);
+
+    expect(snapshots).toEqual([
+      [1, true, 0.25, 1, true, true, false],
+      [1, true, -0.5, 0.7, true, false, false],
+      [1, false, -0.5, 0, false, false, true],
+      [0, undefined, undefined, undefined, false, false, false],
     ]);
     app.stop();
   });

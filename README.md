@@ -99,6 +99,13 @@ The existing `mouseX`, `mouseY`, `mouseIsPressed`, `mouseJustPressed`, and
 `mouseJustReleased` fields remain as convenient aliases for the primary
 pointer.
 
+Gamepads are polled at the start of each fixed update. `gamepads` exposes axes
+and analog button values, while `gamepadButtonIsDown`,
+`gamepadButtonJustPressed`, and `gamepadButtonJustReleased` provide the usual
+button state. Disconnecting a held controller reports release edges before it
+leaves the list. Unlike DOM events, polling cannot observe a complete press and
+release that happens between two updates.
+
 ## World and screen space
 
 Every context carries a camera. Its position is the world coordinate shown at

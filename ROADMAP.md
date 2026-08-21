@@ -4,7 +4,7 @@ What is built, what is built but not reachable, and what is next. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 10 packages, 584 unit tests, 19
+**Where it stands:** 0.1.0, pre-alpha. 10 packages, 585 unit tests, 19
 backend-agreement scenes, 12 example scenes. Not published to npm.
 
 ## Shipped
@@ -44,7 +44,9 @@ Keyboard and pointer transitions are buffered into fixed-update snapshots.
 Mouse, pen, and simultaneous touches share the Pointer Events path; complete
 taps between ticks are retained, key repeat is ignored, and blur or pointer
 cancellation synthesises missing release edges. Wheel deltas are normalized to
-CSS pixels and consumed by one simulation tick.
+CSS pixels and consumed by one simulation tick. Gamepads are polled on that
+same tick; axes, analog buttons, button edges, and disconnect releases are
+available through the context.
 
 ## Built but not reachable
 
@@ -64,15 +66,12 @@ available.
 Sprites and animation clips landed; these are what still stands between the
 library and a real 2D game, roughly in dependency order.
 
-1. **Input breadth.** Keyboard, mouse, pen, multi-touch, wheel, and fixed-tick
-   edge detection work. Gamepad is the remaining input source.
-   → [app.ts](packages/matter/src/app.ts)
-2. **Collision math** in `@matter/math`: AABB and circle overlap, point
+1. **Collision math** in `@matter/math`: AABB and circle overlap, point
    containment, ray casts, and swept tests for tunnelling at speed. Pure
    functions, `bun test`-able, no renderer involved.
-3. **Tilemaps.** Spritesheets give the frames; a tilemap gives the layout,
+2. **Tilemaps.** Spritesheets give the frames; a tilemap gives the layout,
    culling to the camera, and one draw call per layer.
-4. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
+3. **Audio.** Nothing exists. Needs load, play, loop, gain, and pooled voices.
    Likely the first real candidate for the plugin system rather than L5.
 
 ## Library gaps, independent of games

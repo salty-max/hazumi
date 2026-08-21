@@ -29,6 +29,24 @@ export interface PointerInput {
   readonly isPressed: boolean;
 }
 
+/** One analog or digital button reported by a gamepad. */
+export interface GamepadButtonInput {
+  readonly value: number;
+  readonly pressed: boolean;
+  readonly touched: boolean;
+}
+
+/** A gamepad snapshot updated at the start of every fixed update. */
+export interface GamepadInput {
+  /** Browser-assigned slot, stable while the controller remains connected. */
+  readonly index: number;
+  readonly id: string;
+  readonly mapping: string;
+  readonly connected: boolean;
+  readonly axes: readonly number[];
+  readonly buttons: readonly GamepadButtonInput[];
+}
+
 /**
  * Everything a scene can reach.
  *
@@ -69,6 +87,12 @@ export interface MatterContext {
   readonly wheelX: number;
   /** Vertical wheel delta accumulated since the previous fixed update, in CSS pixels. */
   readonly wheelY: number;
+
+  /** Connected gamepads, plus controllers disconnected during the current update. */
+  readonly gamepads: readonly GamepadInput[];
+  gamepadButtonIsDown: (button: number, gamepadIndex?: number) => boolean;
+  gamepadButtonJustPressed: (button: number, gamepadIndex?: number) => boolean;
+  gamepadButtonJustReleased: (button: number, gamepadIndex?: number) => boolean;
 
   readonly keyIsPressed: boolean;
   /** The most recent key, as `KeyboardEvent.key`. */
@@ -218,6 +242,9 @@ export interface ContextState {
   pointersReleased: Set<number>;
   wheelX: number;
   wheelY: number;
+  gamepads: GamepadInput[];
+  readonly gamepadButtonsPressed: Map<number, Set<number>>;
+  readonly gamepadButtonsReleased: Map<number, Set<number>>;
   looping: boolean;
 }
 
@@ -259,6 +286,14 @@ export interface ContextBundle {
   readonly beginFrame: () => void;
 }
 
+function hasGamepadEdge(
+  edges: ReadonlyMap<number, ReadonlySet<number>>,
+  gamepadIndex: number,
+  button: number,
+): boolean {
+  return edges.get(gamepadIndex)?.has(button) ?? false;
+}
+
 export function createContext(deps: ContextDeps): ContextBundle {
   const { buffer, colors, state } = deps;
   const random = seeded(deps.seed);
@@ -268,6 +303,13 @@ export function createContext(deps: ContextDeps): ContextBundle {
     state.width,
     state.height,
   );
+  const findGamepad = (index: number): GamepadInput | undefined => {
+    for (let gamepadIndex = 0; gamepadIndex < state.gamepads.length; gamepadIndex++) {
+      const gamepad = state.gamepads[gamepadIndex]!;
+      if (gamepad.index === index) return gamepad;
+    }
+    return undefined;
+  };
 
   // Mirrors what has been written to the buffer, so `with()` can restore it.
   let fillColor: ColorLike | null = "#ffffff";
@@ -340,6 +382,15 @@ export function createContext(deps: ContextDeps): ContextBundle {
     get wheelY() {
       return state.wheelY;
     },
+    get gamepads() {
+      return state.gamepads;
+    },
+    gamepadButtonIsDown: (button: number, gamepadIndex = 0): boolean =>
+      findGamepad(gamepadIndex)?.buttons[button]?.pressed ?? false,
+    gamepadButtonJustPressed: (button: number, gamepadIndex = 0): boolean =>
+      hasGamepadEdge(state.gamepadButtonsPressed, gamepadIndex, button),
+    gamepadButtonJustReleased: (button: number, gamepadIndex = 0): boolean =>
+      hasGamepadEdge(state.gamepadButtonsReleased, gamepadIndex, button),
     get keyIsPressed() {
       return state.keyIsPressed;
     },

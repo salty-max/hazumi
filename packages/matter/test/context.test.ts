@@ -29,6 +29,9 @@ function makeState(width: number, height: number): ContextState {
     pointersReleased: new Set<number>(),
     wheelX: 0,
     wheelY: 0,
+    gamepads: [],
+    gamepadButtonsPressed: new Map<number, Set<number>>(),
+    gamepadButtonsReleased: new Map<number, Set<number>>(),
     looping: true,
   };
 }
@@ -326,6 +329,16 @@ describe("input", () => {
     h.state.pointersReleased.add(9);
     h.state.wheelX = -4;
     h.state.wheelY = 24;
+    h.state.gamepads.push({
+      index: 1,
+      id: "test pad",
+      mapping: "standard",
+      connected: true,
+      axes: [0.25],
+      buttons: [{ value: 1, pressed: true, touched: true }],
+    });
+    h.state.gamepadButtonsPressed.set(1, new Set([0]));
+    h.state.gamepadButtonsReleased.set(1, new Set([2]));
 
     expect(h.ctx.keyJustPressed("Enter")).toBe(true);
     expect(h.ctx.keyJustPressed("Escape")).toBe(false);
@@ -338,6 +351,11 @@ describe("input", () => {
     expect(h.ctx.pointerJustReleased(9)).toBe(true);
     expect(h.ctx.wheelX).toBe(-4);
     expect(h.ctx.wheelY).toBe(24);
+    expect(h.ctx.gamepads[0]?.axes[0]).toBe(0.25);
+    expect(h.ctx.gamepadButtonIsDown(0, 1)).toBe(true);
+    expect(h.ctx.gamepadButtonIsDown(0)).toBe(false);
+    expect(h.ctx.gamepadButtonJustPressed(0, 1)).toBe(true);
+    expect(h.ctx.gamepadButtonJustReleased(2, 1)).toBe(true);
   });
 });
 

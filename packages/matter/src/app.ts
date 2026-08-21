@@ -1,7 +1,14 @@
 import { AppClock, type ClockOptions } from "@matter/core";
 import { type BackendFactory, CommandBuffer, type Renderer } from "@matter/graphics";
 import { ColorCache } from "./color-cache";
-import { type ContextState, createContext, type MatterContext, type PointerInput } from "./context";
+import {
+  type ContextState,
+  createContext,
+  type GamepadButtonInput,
+  type GamepadInput,
+  type MatterContext,
+  type PointerInput,
+} from "./context";
 
 export interface AppOptions {
   readonly backend: BackendFactory;
@@ -101,6 +108,30 @@ interface MutablePointerInput extends PointerInput {
   pressure: number;
   isPrimary: boolean;
   isPressed: boolean;
+}
+
+interface MutableGamepadButtonInput extends GamepadButtonInput {
+  value: number;
+  pressed: boolean;
+  touched: boolean;
+}
+
+interface MutableGamepadInput extends GamepadInput {
+  id: string;
+  mapping: string;
+  connected: boolean;
+  axes: number[];
+  buttons: MutableGamepadButtonInput[];
+  seen: boolean;
+}
+
+function addGamepadEdge(edges: Map<number, Set<number>>, index: number, button: number): void {
+  let buttons = edges.get(index);
+  if (buttons === undefined) {
+    buttons = new Set<number>();
+    edges.set(index, buttons);
+  }
+  buttons.add(button);
 }
 
 function reportsStats(renderer: Renderer): renderer is StatsCapableRenderer {
@@ -233,6 +264,9 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     pointersReleased: new Set<number>(),
     wheelX: 0,
     wheelY: 0,
+    gamepads: [],
+    gamepadButtonsPressed: new Map<number, Set<number>>(),
+    gamepadButtonsReleased: new Map<number, Set<number>>(),
     looping: true,
   };
 
@@ -246,6 +280,88 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
   let pendingWheelY = 0;
   const mouseButtonsDown = new Set<number>();
   const pointersById = new Map<number, MutablePointerInput>();
+  const gamepadsByIndex = new Map<number, MutableGamepadInput>();
+  const getGamepads = globalThis.navigator?.getGamepads?.bind(globalThis.navigator);
+
+  const clearGamepadEdges = (edges: Map<number, Set<number>>): void => {
+    for (let index = 0; index < state.gamepads.length; index++) {
+      edges.get(state.gamepads[index]!.index)?.clear();
+    }
+  };
+  const pollGamepads = (): void => {
+    if (getGamepads === undefined) return;
+    for (let index = 0; index < state.gamepads.length; index++) {
+      (state.gamepads[index] as MutableGamepadInput).seen = false;
+    }
+
+    const nativeGamepads = getGamepads();
+    for (let nativeIndex = 0; nativeIndex < nativeGamepads.length; nativeIndex++) {
+      const native = nativeGamepads[nativeIndex];
+      if (native === undefined || native === null || !native.connected) continue;
+
+      let input = gamepadsByIndex.get(native.index);
+      if (input === undefined) {
+        input = {
+          index: native.index,
+          id: native.id,
+          mapping: native.mapping,
+          connected: true,
+          axes: [],
+          buttons: [],
+          seen: true,
+        };
+        gamepadsByIndex.set(native.index, input);
+        let insertion = state.gamepads.length;
+        while (insertion > 0 && state.gamepads[insertion - 1]!.index > native.index) insertion--;
+        state.gamepads.splice(insertion, 0, input);
+      }
+
+      input.seen = true;
+      input.connected = true;
+      input.id = native.id;
+      input.mapping = native.mapping;
+      input.axes.length = native.axes.length;
+      for (let axis = 0; axis < native.axes.length; axis++) input.axes[axis] = native.axes[axis]!;
+
+      for (let button = 0; button < native.buttons.length; button++) {
+        const source = native.buttons[button]!;
+        let target = input.buttons[button];
+        if (target === undefined) {
+          target = { value: 0, pressed: false, touched: false };
+          input.buttons[button] = target;
+        }
+        if (source.pressed !== target.pressed) {
+          addGamepadEdge(
+            source.pressed ? state.gamepadButtonsPressed : state.gamepadButtonsReleased,
+            native.index,
+            button,
+          );
+        }
+        target.value = source.value;
+        target.pressed = source.pressed;
+        target.touched = source.touched;
+      }
+      for (let button = native.buttons.length; button < input.buttons.length; button++) {
+        if (input.buttons[button]!.pressed) {
+          addGamepadEdge(state.gamepadButtonsReleased, native.index, button);
+        }
+      }
+      input.buttons.length = native.buttons.length;
+    }
+
+    for (let index = 0; index < state.gamepads.length; index++) {
+      const input = state.gamepads[index] as MutableGamepadInput;
+      if (input.seen || !input.connected) continue;
+      input.connected = false;
+      for (let button = 0; button < input.buttons.length; button++) {
+        const target = input.buttons[button]!;
+        if (target.pressed) addGamepadEdge(state.gamepadButtonsReleased, input.index, button);
+        target.value = 0;
+        target.pressed = false;
+        target.touched = false;
+      }
+    }
+  };
 
   const applyPasses = (passes: readonly ShaderPass[]): void => {
     if (!supportsPasses(renderer)) {
@@ -427,6 +543,7 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     state.wheelY = pendingWheelY;
     pendingWheelX = 0;
     pendingWheelY = 0;
+    pollGamepads();
   };
   const endInputStep = (): void => {
     state.keysPressed.clear();
@@ -447,6 +564,16 @@ export function start(options: AppOptions, initialScene: SceneSource): MatterApp
     }
     state.pointersPressed.clear();
     state.pointersReleased.clear();
+    clearGamepadEdges(state.gamepadButtonsPressed);
+    clearGamepadEdges(state.gamepadButtonsReleased);
+    for (let index = state.gamepads.length - 1; index >= 0; index--) {
+      const gamepad = state.gamepads[index]!;
+      if (gamepad.connected) continue;
+      gamepadsByIndex.delete(gamepad.index);
+      state.gamepadButtonsPressed.delete(gamepad.index);
+      state.gamepadButtonsReleased.delete(gamepad.index);
+      state.gamepads.splice(index, 1);
+    }
   };
   // Stable callback: stepFixed may call it several times per frame, so do not
   // allocate a closure in the per-frame path.
