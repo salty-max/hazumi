@@ -2,11 +2,11 @@
  * Nested rotating frames.
  * Tests: the transform stack, push/pop nesting, scoped `with`.
  */
-import { sketch, type SketchContext } from 'matter';
+import { sketch, type SketchContext, type SketchHandle } from 'matter';
 import { webgl2 } from 'matter/backends/webgl2';
 
-export function orbits(parent: HTMLElement): void {
-  sketch({ backend: webgl2(), width: 600, height: 600, parent }, () => {
+export function orbits(parent: HTMLElement): SketchHandle {
+  return sketch({ backend: webgl2(), width: 600, height: 600, parent }, () => {
     return ({ background, push, pop, translate, rotate, circle, fill, stroke,
               strokeWeight, width, height, t }: SketchContext) => {
       background('oklch(0.16 0.02 250)');

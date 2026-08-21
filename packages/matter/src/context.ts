@@ -1,4 +1,4 @@
-import { Align, Baseline, Blend, CommandBuffer } from '@matter/graphics';
+import { Align, Baseline, Blend, CommandBuffer, type ImageSource } from '@matter/graphics';
 import { createNoise, type Noise, type Rng, seeded } from '@matter/math';
 import { type ColorCache, type ColorLike } from './color-cache';
 
@@ -33,7 +33,23 @@ export interface SketchContext {
   readonly dt: number;
   readonly mouseX: number;
   readonly mouseY: number;
+  /** Cursor position on the previous frame, for velocity and trails. */
+  readonly pmouseX: number;
+  readonly pmouseY: number;
   readonly mouseIsPressed: boolean;
+  /** Which button is down: 0 left, 1 middle, 2 right. */
+  readonly mouseButton: number;
+
+  readonly keyIsPressed: boolean;
+  /** The most recent key, as `KeyboardEvent.key`. */
+  readonly key: string;
+  /**
+   * Whether a key is currently held.
+   *
+   * Takes a `KeyboardEvent.key` value — `'a'`, `'ArrowLeft'`, `' '` — rather
+   * than a numeric code, so it reads the same as what the event reports.
+   */
+  keyIsDown: (key: string) => boolean;
 
   /** Seeded by default, so a sketch renders identically on every run. */
   readonly random: Rng;
@@ -47,6 +63,24 @@ export interface SketchContext {
   noStroke: () => void;
   strokeWeight: (weight: number) => void;
   blendMode: (mode: Blend) => void;
+
+  // --- images ---
+  /**
+   * Decode an image.
+   *
+   * Async, so setup must await it — there is no preload() phase here. p5 2.x
+   * made the same move for the same reason: a separate preload step is a
+   * second lifecycle to learn, and await already means what it needs to mean.
+   */
+  loadImage: (url: string) => Promise<ImageSource>;
+  /** Draw an image. Defaults to its natural size when width and height are omitted. */
+  image: (
+    source: ImageSource,
+    x: number,
+    y: number,
+    width?: number,
+    height?: number,
+  ) => void;
 
   // --- text ---
   /** Font family, as in CSS. Defaults to sans-serif. */
@@ -93,7 +127,13 @@ export interface ContextState {
   dt: number;
   mouseX: number;
   mouseY: number;
+  pmouseX: number;
+  pmouseY: number;
   mouseIsPressed: boolean;
+  mouseButton: number;
+  keyIsPressed: boolean;
+  key: string;
+  readonly keysDown: Set<string>;
   looping: boolean;
 }
 
@@ -151,7 +191,13 @@ export function createContext(deps: ContextDeps): ContextBundle {
     get dt() { return state.dt; },
     get mouseX() { return state.mouseX; },
     get mouseY() { return state.mouseY; },
+    get pmouseX() { return state.pmouseX; },
+    get pmouseY() { return state.pmouseY; },
     get mouseIsPressed() { return state.mouseIsPressed; },
+    get mouseButton() { return state.mouseButton; },
+    get keyIsPressed() { return state.keyIsPressed; },
+    get key() { return state.key; },
+    keyIsDown: (key: string): boolean => state.keysDown.has(key),
     random,
     noise,
 
@@ -182,6 +228,25 @@ export function createContext(deps: ContextDeps): ContextBundle {
     blendMode: (mode: Blend): void => {
       blend = mode;
       buffer.setBlend(mode);
+    },
+
+    loadImage: async (url: string): Promise<ImageSource> => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Could not load image ${JSON.stringify(url)}: ${response.status}`);
+      }
+      // createImageBitmap decodes off the main thread, so a large image does
+      // not stall the first frame.
+      return createImageBitmap(await response.blob());
+    },
+    image: (
+      source: ImageSource,
+      x: number,
+      y: number,
+      width?: number,
+      height?: number,
+    ): void => {
+      buffer.image(source, x, y, width ?? source.width, height ?? source.height);
     },
 
     textFont: (family: string): void => buffer.setFont(family),

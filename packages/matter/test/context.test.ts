@@ -4,6 +4,16 @@ import { record } from '@matter/backend-headless';
 import { ColorCache } from '../src/color-cache';
 import { type ContextState, createContext, type SketchContext } from '../src/context';
 
+function makeState(width: number, height: number): ContextState {
+  return {
+    width, height, frameCount: 0, t: 0, dt: 0,
+    mouseX: 0, mouseY: 0, pmouseX: 0, pmouseY: 0,
+    mouseIsPressed: false, mouseButton: 0,
+    keyIsPressed: false, key: '', keysDown: new Set<string>(),
+    looping: true,
+  };
+}
+
 /**
  * The context is pure — buffer in, commands out — so the whole public drawing
  * API is testable in Node without a canvas. Assertions are on the recorded
@@ -17,10 +27,7 @@ function makeContext(): {
   ops: () => string[];
 } {
   const buffer = new CommandBuffer();
-  const state: ContextState = {
-    width: 400, height: 300, frameCount: 0, t: 0, dt: 0,
-    mouseX: 0, mouseY: 0, mouseIsPressed: false, looping: true,
-  };
+  const state: ContextState = makeState(400, 300);
   const { context, beginFrame } = createContext({
     buffer,
     colors: new ColorCache(),
@@ -119,10 +126,7 @@ describe('style', () => {
   test('colour strings are parsed and cached', () => {
     const colors = new ColorCache();
     const buffer = new CommandBuffer();
-    const state: ContextState = {
-      width: 1, height: 1, frameCount: 0, t: 0, dt: 0,
-      mouseX: 0, mouseY: 0, mouseIsPressed: false, looping: true,
-    };
+    const state: ContextState = makeState(1, 1);
     const { context } = createContext({ buffer, colors, state, seed: 1 });
 
     // createContext already resolved the default fill, so measure the delta.
@@ -236,5 +240,46 @@ describe('draw errors', () => {
     expect(h.state.looping).toBe(true);
     h.state.looping = false;
     expect(h.ctx.isLooping()).toBe(false);
+  });
+});
+
+describe('input', () => {
+  test('reports live cursor and key state', () => {
+    const h = makeContext();
+    h.state.mouseX = 12;
+    h.state.mouseY = 34;
+    h.state.pmouseX = 10;
+    h.state.pmouseY = 30;
+    h.state.mouseIsPressed = true;
+    h.state.mouseButton = 2;
+
+    expect(h.ctx.mouseX).toBe(12);
+    expect(h.ctx.pmouseX).toBe(10);
+    // The delta a sketch actually wants: movement since it last drew.
+    expect(h.ctx.mouseX - h.ctx.pmouseX).toBe(2);
+    expect(h.ctx.mouseIsPressed).toBe(true);
+    expect(h.ctx.mouseButton).toBe(2);
+  });
+
+  test('keyIsDown reads the held set', () => {
+    const h = makeContext();
+    expect(h.ctx.keyIsDown('a')).toBe(false);
+
+    h.state.keysDown.add('a');
+    h.state.keysDown.add('ArrowLeft');
+    h.state.keyIsPressed = true;
+    h.state.key = 'ArrowLeft';
+
+    expect(h.ctx.keyIsDown('a')).toBe(true);
+    expect(h.ctx.keyIsDown('ArrowLeft')).toBe(true);
+    expect(h.ctx.keyIsDown('b')).toBe(false);
+    expect(h.ctx.key).toBe('ArrowLeft');
+    expect(h.ctx.keyIsPressed).toBe(true);
+  });
+
+  test('several keys can be held at once', () => {
+    const h = makeContext();
+    for (const k of ['w', 'a', 's', 'd']) h.state.keysDown.add(k);
+    expect(['w', 'a', 's', 'd'].every((k) => h.ctx.keyIsDown(k))).toBe(true);
   });
 });

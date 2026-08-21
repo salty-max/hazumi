@@ -38,12 +38,18 @@ export type DrawFunction = (context: SketchContext) => void;
 /**
  * Runs once. Whatever it returns becomes the draw loop; return nothing for a
  * sketch that renders a single frame.
+ *
+ * May be async, which is how assets load — there is no separate preload phase.
  */
-export type SetupFunction = (context: SketchContext) => DrawFunction | void;
+export type SetupFunction = (
+  context: SketchContext,
+) => DrawFunction | void | Promise<DrawFunction | void>;
 
 export interface SketchHandle {
   readonly context: SketchContext;
   readonly canvas: HTMLCanvasElement;
+  /** Resolves once setup has finished and the loop has started. */
+  readonly ready: Promise<void>;
   /** Draw exactly one frame. Useful when the loop is stopped. No-op after stop(). */
   redraw: () => void;
   /**
@@ -109,7 +115,13 @@ export function sketch(
     dt: 0,
     mouseX: 0,
     mouseY: 0,
+    pmouseX: 0,
+    pmouseY: 0,
     mouseIsPressed: false,
+    mouseButton: 0,
+    keyIsPressed: false,
+    key: '',
+    keysDown: new Set<string>(),
     looping: true,
   };
 
@@ -125,18 +137,38 @@ export function sketch(
     state.mouseX = event.clientX - rect.left;
     state.mouseY = event.clientY - rect.top;
   };
-  const onDown = (): void => {
+  const onDown = (event: MouseEvent): void => {
     state.mouseIsPressed = true;
+    state.mouseButton = event.button;
   };
   const onUp = (): void => {
+    state.mouseIsPressed = false;
+  };
+  const onKeyDown = (event: KeyboardEvent): void => {
+    state.keyIsPressed = true;
+    state.key = event.key;
+    state.keysDown.add(event.key);
+  };
+  const onKeyUp = (event: KeyboardEvent): void => {
+    state.keysDown.delete(event.key);
+    state.keyIsPressed = state.keysDown.size > 0;
+  };
+  const onBlur = (): void => {
+    // A key released while the window is unfocused never fires keyup, so it
+    // would stay held forever. Clearing on blur is the only way to notice.
+    state.keysDown.clear();
+    state.keyIsPressed = false;
     state.mouseIsPressed = false;
   };
 
   canvas.addEventListener('mousemove', onMove);
   canvas.addEventListener('mousedown', onDown);
   globalThis.addEventListener('mouseup', onUp);
+  globalThis.addEventListener('keydown', onKeyDown);
+  globalThis.addEventListener('keyup', onKeyUp);
+  globalThis.addEventListener('blur', onBlur);
 
-  const draw = setup(context) ?? null;
+  let draw: DrawFunction | null = null;
   let frameHandle = 0;
   let stopped = false;
   // Only reclaim the canvas if we put it in the document.
@@ -162,6 +194,12 @@ export function sketch(
       state.looping = false;
       if (options.onError === undefined) throw error;
       options.onError(error);
+    } finally {
+      // Updated after the frame, not on the move event: a sketch reads
+      // pmouse to get the delta since it last drew, and the cursor can move
+      // several times between frames.
+      state.pmouseX = state.mouseX;
+      state.pmouseY = state.mouseY;
     }
   };
 
@@ -171,17 +209,31 @@ export function sketch(
     frameHandle = requestAnimationFrame(tick);
   };
 
-  // A sketch with no draw function renders exactly one frame — whatever setup
-  // already wrote into the buffer. Resetting here would erase it.
-  if (draw === null) {
-    renderer.render(buffer);
-  } else {
-    frameHandle = requestAnimationFrame(tick);
-  }
+  /**
+   * Setup may be async, so starting the loop has to wait for it. A synchronous
+   * setup still starts on the same frame — Promise.resolve on a non-promise
+   * settles in the current microtask.
+   */
+  const started = Promise.resolve(setup(context)).then((result) => {
+    if (stopped) return;
+    draw = result ?? null;
+
+    // A sketch with no draw function renders exactly one frame — whatever
+    // setup already wrote into the buffer. Resetting here would erase it.
+    if (draw === null) renderer.render(buffer);
+    else frameHandle = requestAnimationFrame(tick);
+  });
+
+  started.catch((error: unknown) => {
+    stopped = true;
+    if (options.onError === undefined) throw error;
+    options.onError(error);
+  });
 
   return {
     context,
     canvas,
+    ready: started,
     get stopped(): boolean {
       return stopped;
     },
@@ -198,6 +250,9 @@ export function sketch(
       canvas.removeEventListener('mousemove', onMove);
       canvas.removeEventListener('mousedown', onDown);
       globalThis.removeEventListener('mouseup', onUp);
+      globalThis.removeEventListener('keydown', onKeyDown);
+      globalThis.removeEventListener('keyup', onKeyUp);
+      globalThis.removeEventListener('blur', onBlur);
       renderer.dispose();
       // A sketch that created its canvas has to take it away again, or
       // repeatedly starting and stopping one leaves orphaned canvases behind.

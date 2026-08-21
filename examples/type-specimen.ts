@@ -3,11 +3,11 @@
  * Tests: glyph layout, alignment, the second render pipeline, and whether the
  * distance field actually stays crisp as the size climbs.
  */
-import { Align, Baseline, sketch, type SketchContext } from 'matter';
+import { Align, Baseline, sketch, type SketchContext, type SketchHandle } from 'matter';
 import { webgl2 } from 'matter/backends/webgl2';
 
-export function typeSpecimen(parent: HTMLElement): void {
-  sketch({ backend: webgl2(), width: 600, height: 600, parent }, () => {
+export function typeSpecimen(parent: HTMLElement): SketchHandle {
+  return sketch({ backend: webgl2(), width: 600, height: 600, parent }, () => {
     return ({ background, fill, text, textSize, textAlign, textFont,
               circle, width, t }: SketchContext) => {
       background('oklch(0.96 0.01 90)');

@@ -2,14 +2,14 @@
  * A grid modulated by layered noise.
  * Tests: dense per-frame drawing, rect, easing, colour interpolation.
  */
-import { easing, mix, oklch, sketch, toCss, type SketchContext } from 'matter';
+import { easing, mix, oklch, sketch, toCss, type SketchContext, type SketchHandle } from 'matter';
 import { webgl2 } from 'matter/backends/webgl2';
 
 const COLS = 34;
 const ROWS = 34;
 
-export function gridWaves(parent: HTMLElement): void {
-  sketch({ backend: webgl2(), width: 600, height: 600, parent, seed: 3 }, () => {
+export function gridWaves(parent: HTMLElement): SketchHandle {
+  return sketch({ backend: webgl2(), width: 600, height: 600, parent, seed: 3 }, () => {
     const cool = oklch(0.55, 0.17, 250);
     const warm = oklch(0.78, 0.16, 60);
     // Precompute the ramp: mixing in OKLCH per cell per frame would be wasted

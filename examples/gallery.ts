@@ -1,20 +1,24 @@
+import type { SketchHandle } from 'matter';
 import { flowField } from './flow-field';
 import { gridWaves } from './grid-waves';
 import { mouseTrail } from './mouse-trail';
 import { orbits } from './orbits';
 import { staticPoster } from './static-poster';
 import { typeSpecimen } from './type-specimen';
+import { imageGrid } from './image-grid';
 
-const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => void]> = [
+const SKETCHES: ReadonlyArray<[string, (parent: HTMLElement) => SketchHandle | void]> = [
   ['flow field', flowField],
   ['orbits', orbits],
   ['mouse trail', mouseTrail],
   ['grid waves', gridWaves],
   ['static poster', staticPoster],
   ['type specimen', typeSpecimen],
+  ['image grid', imageGrid],
 ];
 
 const root = document.getElementById('root') as HTMLElement;
+const handles = new Map<string, SketchHandle>();
 
 for (const [name, run] of SKETCHES) {
   const cell = document.createElement('div');
@@ -30,7 +34,10 @@ for (const [name, run] of SKETCHES) {
   root.append(cell);
 
   try {
-    run(host);
+    const handle = run(host);
+    // Exposed so the gallery can be driven frame-by-frame in environments
+    // where requestAnimationFrame is throttled, such as a hidden tab.
+    if (handle !== undefined) handles.set(name, handle);
   } catch (error) {
     label.textContent = `${name} — FAILED: ${String(error)}`;
     label.style.color = '#f2739f';
@@ -38,4 +45,6 @@ for (const [name, run] of SKETCHES) {
   }
 }
 
-(window as unknown as { galleryReady: boolean }).galleryReady = true;
+(window as unknown as { galleryReady: boolean; sketches: Map<string, SketchHandle> }).galleryReady =
+  true;
+(window as unknown as { sketches: Map<string, SketchHandle> }).sketches = handles;

@@ -2,13 +2,13 @@
  * Particles advected through a noise field — the archetypal p5 sketch.
  * Tests: seeded noise, additive blending, per-particle colour, long trails.
  */
-import { Blend, sketch, type SketchContext } from 'matter';
+import { Blend, sketch, type SketchContext, type SketchHandle } from 'matter';
 import { webgl2 } from 'matter/backends/webgl2';
 
 const COUNT = 4000;
 
-export function flowField(parent: HTMLElement): void {
-  sketch({ backend: webgl2(), width: 600, height: 600, parent, seed: 7 }, (s) => {
+export function flowField(parent: HTMLElement): SketchHandle {
+  return sketch({ backend: webgl2(), width: 600, height: 600, parent, seed: 7 }, (s) => {
     const xs = new Float32Array(COUNT);
     const ys = new Float32Array(COUNT);
     for (let i = 0; i < COUNT; i++) {

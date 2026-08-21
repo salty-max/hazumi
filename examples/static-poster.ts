@@ -2,11 +2,11 @@
  * A single frame, drawn entirely in setup with no draw loop.
  * Tests: the draw-less path, lines, strokes, seeded reproducibility.
  */
-import { sketch, type SketchContext } from 'matter';
+import { sketch, type SketchContext, type SketchHandle } from 'matter';
 import { webgl2 } from 'matter/backends/webgl2';
 
-export function staticPoster(parent: HTMLElement): void {
-  sketch({ backend: webgl2(), width: 600, height: 600, parent, seed: 11 }, (s: SketchContext) => {
+export function staticPoster(parent: HTMLElement): SketchHandle {
+  return sketch({ backend: webgl2(), width: 600, height: 600, parent, seed: 11 }, (s: SketchContext) => {
     s.background('oklch(0.95 0.01 90)');
 
     // Ruled lines.

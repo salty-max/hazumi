@@ -2,13 +2,13 @@
  * A trail that follows the cursor.
  * Tests: mouse input, per-frame state, ellipse, alpha fade.
  */
-import { sketch, type SketchContext } from 'matter';
+import { sketch, type SketchContext, type SketchHandle } from 'matter';
 import { webgl2 } from 'matter/backends/webgl2';
 
 const TRAIL = 60;
 
-export function mouseTrail(parent: HTMLElement): void {
-  sketch({ backend: webgl2(), width: 600, height: 600, parent }, (s) => {
+export function mouseTrail(parent: HTMLElement): SketchHandle {
+  return sketch({ backend: webgl2(), width: 600, height: 600, parent }, (s) => {
     const px = new Float32Array(TRAIL).fill(s.width / 2);
     const py = new Float32Array(TRAIL).fill(s.height / 2);
     let head = 0;
