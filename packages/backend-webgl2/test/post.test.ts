@@ -11,19 +11,35 @@ import {
 } from '../src/post';
 
 function fakeTargetGl(options: { incomplete?: boolean } = {}): TargetGl & {
-  created: { textures: number; framebuffers: number };
-  deleted: { textures: number; framebuffers: number };
+  created: { textures: number; framebuffers: number; renderbuffers: number };
+  deleted: { textures: number; framebuffers: number; renderbuffers: number };
   wraps: number[];
+  attachments: number[];
 } {
   let next = 1;
-  const created = { textures: 0, framebuffers: 0 };
-  const deleted = { textures: 0, framebuffers: 0 };
+  const created = { textures: 0, framebuffers: 0, renderbuffers: 0 };
+  const deleted = { textures: 0, framebuffers: 0, renderbuffers: 0 };
   const wraps: number[] = [];
+  const attachments: number[] = [];
 
   return {
     created,
     deleted,
     wraps,
+    attachments,
+    STENCIL_ATTACHMENT: 36128,
+    RENDERBUFFER: 36161,
+    STENCIL_INDEX8: 36168,
+    createRenderbuffer: () => {
+      created.renderbuffers++;
+      return { id: next++ } as unknown as WebGLRenderbuffer;
+    },
+    bindRenderbuffer: () => {},
+    renderbufferStorage: () => {},
+    framebufferRenderbuffer: (_t: number, attachment: number) => {
+      attachments.push(attachment);
+    },
+    deleteRenderbuffer: () => void deleted.renderbuffers++,
     FRAMEBUFFER: 36160,
     FRAMEBUFFER_COMPLETE: 36053,
     COLOR_ATTACHMENT0: 36064,
@@ -51,7 +67,9 @@ function fakeTargetGl(options: { incomplete?: boolean } = {}): TargetGl & {
       return { id: next++ } as unknown as WebGLFramebuffer;
     },
     bindFramebuffer: () => {},
-    framebufferTexture2D: () => {},
+    framebufferTexture2D: (_t: number, attachment: number) => {
+      attachments.push(attachment);
+    },
     checkFramebufferStatus: () => (options.incomplete === true ? 36054 : 36053),
     deleteFramebuffer: () => void deleted.framebuffers++,
   };
@@ -78,9 +96,20 @@ describe('createRenderTarget', () => {
   test('an incomplete framebuffer throws and leaks nothing', () => {
     const gl = fakeTargetGl({ incomplete: true });
     expect(() => createRenderTarget(gl, 8, 8)).toThrow(FramebufferIncompleteError);
-    // Both objects were created, so both must be released on the failure path.
+    // Every object created must be released on the failure path.
     expect(gl.deleted.textures).toBe(1);
     expect(gl.deleted.framebuffers).toBe(1);
+    expect(gl.deleted.renderbuffers).toBe(1);
+  });
+
+  test('attaches a stencil buffer as well as colour', () => {
+    // Without it, a path fill inside a shader chain silently becomes its own
+    // bounding box: correct on the canvas, wrong through a pass.
+    const gl = fakeTargetGl();
+    createRenderTarget(gl, 64, 64);
+    expect(gl.created.renderbuffers).toBe(1);
+    expect(gl.attachments).toContain(36064); // COLOR_ATTACHMENT0
+    expect(gl.attachments).toContain(36128); // STENCIL_ATTACHMENT
   });
 
   test('the error carries the driver status', () => {
@@ -129,12 +158,13 @@ describe('PingPongTargets', () => {
     expect(targets.read).toBe(start);
   });
 
-  test('dispose releases both', () => {
+  test('dispose releases every attachment of both', () => {
     const gl = fakeTargetGl();
     const targets = new PingPongTargets(gl, 64, 64);
     targets.dispose(gl);
     expect(gl.deleted.textures).toBe(2);
     expect(gl.deleted.framebuffers).toBe(2);
+    expect(gl.deleted.renderbuffers).toBe(2);
   });
 });
 

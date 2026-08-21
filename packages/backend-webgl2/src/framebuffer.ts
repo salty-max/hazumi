@@ -10,10 +10,17 @@
  * hatch: a pass is a fragment shader plus uniforms, and the plumbing is here.
  */
 
-/** A colour texture with a framebuffer pointing at it. */
+/**
+ * A colour texture with a framebuffer pointing at it, plus a stencil buffer.
+ *
+ * The stencil is not optional. Path fills count winding in it, and a target
+ * without one silently turns every filled path into its own bounding box —
+ * correct on the canvas, wrong the moment a shader pass is added.
+ */
 export interface RenderTarget {
   readonly framebuffer: WebGLFramebuffer;
   readonly texture: WebGLTexture;
+  readonly stencil: WebGLRenderbuffer;
   readonly width: number;
   readonly height: number;
 }
@@ -27,6 +34,16 @@ export interface TargetGl {
   ): void;
   checkFramebufferStatus(target: number): number;
   deleteFramebuffer(framebuffer: WebGLFramebuffer | null): void;
+  createRenderbuffer(): WebGLRenderbuffer | null;
+  bindRenderbuffer(target: number, renderbuffer: WebGLRenderbuffer | null): void;
+  renderbufferStorage(
+    target: number, internalformat: number, width: number, height: number,
+  ): void;
+  framebufferRenderbuffer(
+    target: number, attachment: number,
+    renderbuffertarget: number, renderbuffer: WebGLRenderbuffer | null,
+  ): void;
+  deleteRenderbuffer(renderbuffer: WebGLRenderbuffer | null): void;
   createTexture(): WebGLTexture | null;
   bindTexture(target: number, texture: WebGLTexture | null): void;
   texImage2D(
@@ -39,6 +56,9 @@ export interface TargetGl {
   readonly FRAMEBUFFER: number;
   readonly FRAMEBUFFER_COMPLETE: number;
   readonly COLOR_ATTACHMENT0: number;
+  readonly STENCIL_ATTACHMENT: number;
+  readonly RENDERBUFFER: number;
+  readonly STENCIL_INDEX8: number;
   readonly TEXTURE_2D: number;
   readonly RGBA: number;
   readonly UNSIGNED_BYTE: number;
@@ -76,28 +96,45 @@ export function createRenderTarget(
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+  const stencil = gl.createRenderbuffer();
+  if (stencil === null) {
+    gl.deleteTexture(texture);
+    throw new Error('gl.createRenderbuffer() returned null');
+  }
+  gl.bindRenderbuffer(gl.RENDERBUFFER, stencil);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.STENCIL_INDEX8, width, height);
+
   const framebuffer = gl.createFramebuffer();
-  if (framebuffer === null) throw new Error('gl.createFramebuffer() returned null');
+  if (framebuffer === null) {
+    gl.deleteTexture(texture);
+    gl.deleteRenderbuffer(stencil);
+    throw new Error('gl.createFramebuffer() returned null');
+  }
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(
     gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0,
+  );
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER, gl.STENCIL_ATTACHMENT, gl.RENDERBUFFER, stencil,
   );
 
   const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
   if (status !== gl.FRAMEBUFFER_COMPLETE) {
     gl.deleteFramebuffer(framebuffer);
     gl.deleteTexture(texture);
+    gl.deleteRenderbuffer(stencil);
     throw new FramebufferIncompleteError(status);
   }
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  return { framebuffer, texture, width, height };
+  return { framebuffer, texture, stencil, width, height };
 }
 
 export function deleteRenderTarget(gl: TargetGl, target: RenderTarget): void {
   gl.deleteFramebuffer(target.framebuffer);
   gl.deleteTexture(target.texture);
+  gl.deleteRenderbuffer(target.stencil);
 }
 
 /**
