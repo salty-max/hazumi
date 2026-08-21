@@ -47,9 +47,14 @@ functions; changing values live behind typed getters such as `screen.width`,
 lifecycle callback is currently running, without writing anything to `window`.
 
 The scene factory still receives the application context once. That is where
-app-owned plugin services such as audio belong; `update()` and `draw()` do not
-need to unpack it every frame. The old callback arguments remain supported
-during the transition.
+app-owned plugin services such as audio belong; `update()` and `draw()` import
+capabilities instead of unpacking the context every frame. After an `await` in
+the factory, those imports are inactive until the returned callbacks run — use
+the context argument to finish setup.
+
+Global-style `*.scene.ts` files can omit the capability imports: the Vite plugin
+inserts them at build time. It does not destructure the context and it does not
+invent aliases for the old p5 names (`width`, `t`, `with`).
 
 Style can be scoped instead of pushed and popped:
 
@@ -135,6 +140,17 @@ if (hit) {
 Point containment, AABB/circle overlap, raycasts, and circle sweeps follow the
 same shape-first naming. `createRayHit()` and `createSweepHit()` produce reusable
 outputs for hot loops.
+
+`slideAabb()` is the movement helper a tile mover needs: it resolves X then Y
+against a list of solid AABBs so a blocked axis does not cancel the other, and
+it skips `null` holes in a sparse collider array.
+
+```ts
+const out = { x: 0, y: 0 };
+collision.slideAabb(player, velocity.x * dt, velocity.y * dt, walls, out);
+player.x += out.x;
+player.y += out.y;
+```
 
 ## World and screen space
 
@@ -506,16 +522,17 @@ Build the packages, then start the Vite development server:
 bun run dev
 ```
 
-| Page                  | What it is                                         |
-| --------------------- | -------------------------------------------------- |
-| `/`                   | Landing page                                       |
-| `/playground`         | Live editor, seven starters, SVG export            |
-| `/reference`          | Generated API reference                            |
-| `/examples`           | The twelve example scenes                          |
-| `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG  |
-| `/bench/gpu.html`     | 100k-shape GPU benchmark                           |
-| `/bench/probe.html`   | Stencil-through-a-render-pass regression check     |
-| `/bench/sprites.html` | Sprite orientation, across both image source types |
+| Page                    | What it is                                                            |
+| ----------------------- | --------------------------------------------------------------------- |
+| `/`                     | Landing page                                                          |
+| `/playground`           | Live editor, seven starters, SVG export                               |
+| `/reference`            | Generated API reference                                               |
+| `/examples`             | The twelve example scenes                                             |
+| `/bench/compare.html`   | Backend agreement across WebGL2, Canvas2D and SVG                     |
+| `/bench/gpu.html`       | 100k-shape GPU benchmark                                              |
+| `/bench/probe.html`     | Stencil-through-a-render-pass regression check                        |
+| `/bench/sprites.html`   | Sprite orientation, across both image source types                    |
+| `/bench/sheetinfo.html` | Blood Mage facing rows: frontLeft / frontRight / backLeft / backRight |
 
 The reference is generated from the emitted `.d.ts` files rather than by
 TypeDoc, which runs on the TypeScript compiler API that TS 7.0 does not
