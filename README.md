@@ -1,20 +1,25 @@
 # Matter
 
-A creative-coding library in the p5.js tradition, rebuilt on a typed core and a
-retained command buffer, with WebGL2 as the default renderer rather than the
-fallback.
+A typed 2D graphics library for sketches, generative work and games. The
+drawing API does not rasterise — it encodes a command stream that WebGL2,
+Canvas2D, SVG and a headless recorder each consume on their own terms.
 
 > **Status: 0.1.0, pre-alpha.** The drawing API, bezier paths, SDF text,
-> images, shader passes and SVG export all work, with nine example sketches
-> running on them. Not published to npm — WebGPU is still to come.
+> images, sprites, shader passes and SVG export all work, with twelve example
+> sketches running on them. Not published to npm.
 
 ## Why
 
-p5.js is excellent and this is not a replacement for it. But its WebGL mode is
-its weakest area — sketches that need real GPU throughput tend to leave for
-Three.js and lose the friendly API on the way out. Matter aims at that gap:
-p5-style ergonomics with a renderer that does not fall over at a hundred
-thousand objects, and where shaders are not an escape hatch.
+Drawing APIs usually rasterise as you call them, which welds what you drew to
+how it was drawn: the output cannot be exported as vectors, re-rendered at
+another resolution, or tested without a browser and a pixel diff. Renderers
+built for GPU throughput avoid that by handing you buffers and pipelines
+instead — at which point a circle stops being one line of code.
+
+Matter keeps the short API and puts a typed command buffer behind it. One
+sketch can therefore run a hundred thousand shapes in a single draw call,
+export as an SVG with real curve commands, and assert in a unit test with no
+browser involved. Shaders are a normal feature rather than an escape hatch.
 
 ## A sketch
 
@@ -32,9 +37,9 @@ sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
 ```
 
 The context is destructured in the draw callback rather than injected onto
-`window`. That recovers nearly all of p5 global mode's terseness while staying
-fully typed — and because the same object is mutated in place, reading `t` or
-`width` costs nothing per frame.
+`window`. That keeps the terseness of a global-style sketch — bare `circle`,
+`fill`, `width` — while staying fully typed, and because the same object is
+mutated in place, reading `t` or `width` costs nothing per frame.
 
 Style can be scoped instead of pushed and popped:
 
@@ -48,7 +53,7 @@ It restores on exit *including when the body throws*, which is the failure
 `push()`/`pop()` cannot protect you from.
 
 Run `bun run bench/serve.ts` and open
-http://localhost:5199/examples/gallery.html to see the five sketches in
+http://localhost:5199/examples/gallery.html to see the twelve sketches in
 `examples/`.
 
 ## Design in one page
@@ -319,7 +324,7 @@ bun run bench/serve.ts
 | `/index.html` | Landing page |
 | `/apps/playground/index.html` | Live editor, five starters, SVG export |
 | `/apps/docs/dist/index.html` | API reference, 184 symbols |
-| `/examples/gallery.html` | The six example sketches |
+| `/examples/gallery.html` | The twelve example sketches |
 | `/bench/compare.html` | Backend agreement across WebGL2, Canvas2D and SVG |
 | `/bench/gpu.html` | 100k-shape GPU benchmark |
 | `/bench/probe.html` | Stencil-through-a-render-pass regression check |

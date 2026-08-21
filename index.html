@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Matter — a creative-coding library</title>
+<title>Matter — a typed 2D graphics library</title>
 <link rel="stylesheet" href="./apps/docs/dist/style.css" />
 <style>
   body { display: block; }
@@ -29,9 +29,10 @@
   <header class="hero">
     <p class="status">0.1.0 · pre-alpha</p>
     <h1>Matter</h1>
-    <p>A creative-coding library in the p5.js tradition, rebuilt on a typed core
-    and a retained command buffer — with WebGL2 as the default renderer rather
-    than the fallback.</p>
+    <p>A typed 2D graphics library for sketches, generative work and games.
+    The drawing API does not rasterise — it encodes a command stream that
+    WebGL2, Canvas2D, SVG and a headless recorder each consume on their own
+    terms.</p>
   </header>
 
   <div class="cards">
@@ -45,7 +46,7 @@
     </a>
     <a class="card" href="./examples/gallery.html">
       <h2>Examples →</h2>
-      <p>Six sketches, from a noise flow field to a type specimen.</p>
+      <p>Twelve sketches, from a noise flow field to an animated spritesheet.</p>
     </a>
   </div>
 
@@ -62,23 +63,27 @@ sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
   };
 });</code></pre>
     <p class="body">The context is destructured in the draw callback rather than
-    injected onto <code>window</code>. That keeps almost all of p5 global mode's
-    terseness while staying fully typed, and because the same object is mutated
-    in place, reading <code>t</code> or <code>width</code> costs nothing per
-    frame.</p>
+    injected onto <code>window</code>. That keeps the terseness of a
+    global-style sketch — bare <code>circle</code>, <code>fill</code>,
+    <code>width</code> — while staying fully typed, and because the same object
+    is mutated in place, reading <code>t</code> or <code>width</code> costs
+    nothing per frame.</p>
   </section>
 
   <section>
     <h2 class="head">Why it exists</h2>
-    <p class="body">p5.js is excellent, and this is not a replacement for it.
-    But its WebGL mode is its weakest area — sketches that need real GPU
-    throughput tend to leave for Three.js and lose the friendly API on the way
-    out. Matter aims at that gap.</p>
+    <p class="body">Drawing APIs usually rasterise as you call them, which
+    welds what you drew to how it was drawn: the output cannot be exported as
+    vectors, re-rendered at another resolution, or tested without a browser and
+    a pixel diff. Renderers built for GPU throughput avoid that by handing you
+    buffers and pipelines instead — at which point a circle stops being one
+    line of code. Matter keeps the short API and puts a typed command buffer
+    behind it.</p>
     <table class="facts">
       <tr><td>100k shapes</td><td>10.0 ms per frame, one draw call — 60% of the 60fps budget</td></tr>
       <tr><td>Allocation</td><td>Zero in steady state: 0.0 kB heap delta over 200 frames</td></tr>
       <tr><td>Backends</td><td>WebGL2, Canvas2D, SVG and a headless recorder, from one command stream</td></tr>
-      <tr><td>Agreement</td><td>12 scenes verified pixel-by-pixel across backends</td></tr>
+      <tr><td>Agreement</td><td>18 scenes verified pixel-by-pixel across backends</td></tr>
       <tr><td>Colour</td><td>OKLCH throughout, so blends stay perceptually even</td></tr>
       <tr><td>Randomness</td><td>Seeded by default — a sketch renders identically every run</td></tr>
     </table>
@@ -86,9 +91,9 @@ sketch({ backend: webgl2(), width: 600, height: 600 }, () => {
 
   <section>
     <h2 class="head">Not there yet</h2>
-    <p class="body">Bezier paths, images and pixel access, and a WebGPU backend.
-    Text renders from a runtime SDF rather than MSDF, so corners soften well
-    above the atlas resolution. Not published to npm.</p>
+    <p class="body">Pixel access, a fixed-timestep game loop, and a WebGPU
+    backend. Text renders from a runtime SDF rather than MSDF, so corners
+    soften well above the atlas resolution. Not published to npm.</p>
   </section>
 </div>
 </body>

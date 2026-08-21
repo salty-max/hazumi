@@ -2,8 +2,8 @@
 
 Guidance for AI agents and new contributors working in this repository.
 
-Matter is a creative-coding library in the p5.js tradition, rebuilt on a typed
-core with a WebGL2-first renderer. The full architecture and phased build plan
+Matter is a typed 2D graphics library built on a retained command buffer, with
+a WebGL2-first renderer. The full architecture and phased build plan
 live in the architecture document; this file covers the rules that are cheap to
 state and expensive to violate.
 

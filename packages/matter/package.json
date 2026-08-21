@@ -1,7 +1,7 @@
 {
   "name": "matter",
   "version": "0.1.0",
-  "description": "A creative-coding library with a WebGL2-first renderer.",
+  "description": "A typed 2D graphics library built on a retained command buffer.",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
