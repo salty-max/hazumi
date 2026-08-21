@@ -188,7 +188,11 @@ export function sketch(
   canvas.width = Math.round(width * ratio);
   canvas.height = Math.round(height * ratio);
   canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
+  // Keep the logical aspect ratio when a narrow parent constrains the canvas.
+  // A fixed inline height would stretch the bitmap as only its width shrinks.
+  canvas.style.maxWidth = '100%';
+  canvas.style.height = 'auto';
+  canvas.style.aspectRatio = `${width} / ${height}`;
 
   if (options.canvas === undefined) {
     (options.parent ?? document.body).append(canvas);
@@ -240,8 +244,10 @@ export function sketch(
 
   const onMove = (event: MouseEvent): void => {
     const rect = canvas.getBoundingClientRect();
-    state.mouseX = event.clientX - rect.left;
-    state.mouseY = event.clientY - rect.top;
+    const scaleX = rect.width === 0 ? 1 : state.width / rect.width;
+    const scaleY = rect.height === 0 ? 1 : state.height / rect.height;
+    state.mouseX = (event.clientX - rect.left) * scaleX;
+    state.mouseY = (event.clientY - rect.top) * scaleY;
   };
   const onDown = (event: MouseEvent): void => {
     state.mouseIsPressed = true;

@@ -7,10 +7,17 @@ class TestCanvas extends EventTarget {
   width = 0;
   height = 0;
   removed = false;
-  readonly style = { width: '', height: '' };
+  displayWidth = 0;
+  displayHeight = 0;
+  readonly style = { width: '', maxWidth: '', height: '', aspectRatio: '' };
 
   getBoundingClientRect(): DOMRect {
-    return { left: 0, top: 0 } as DOMRect;
+    return {
+      left: 0,
+      top: 0,
+      width: this.displayWidth,
+      height: this.displayHeight,
+    } as DOMRect;
   }
 
   remove(): void {
@@ -91,6 +98,57 @@ function harness(): RuntimeHarness {
     },
   };
 }
+
+describe('canvas sizing', () => {
+  test('preserves the logical aspect ratio when CSS constrains its width', async () => {
+    const h = harness();
+    const handle = sketch(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        width: 800,
+        height: 450,
+        pixelRatio: 2,
+      },
+      () => {},
+    );
+
+    await handle.ready;
+
+    expect(h.canvas.width).toBe(1600);
+    expect(h.canvas.height).toBe(900);
+    expect(h.canvas.style.width).toBe('800px');
+    expect(h.canvas.style.maxWidth).toBe('100%');
+    expect(h.canvas.style.height).toBe('auto');
+    expect(h.canvas.style.aspectRatio).toBe('800 / 450');
+
+    handle.stop();
+  });
+
+  test('maps pointer coordinates back into logical canvas space', async () => {
+    const h = harness();
+    const canvas = h.canvas as unknown as TestCanvas;
+    canvas.displayWidth = 400;
+    canvas.displayHeight = 225;
+    const handle = sketch(
+      { backend: () => h.renderer, canvas: h.canvas, width: 800, height: 450 },
+      () => {},
+    );
+    const move = new Event('mousemove');
+    Object.defineProperties(move, {
+      clientX: { value: 200 },
+      clientY: { value: 112.5 },
+    });
+
+    await handle.ready;
+    h.canvas.dispatchEvent(move);
+
+    expect(handle.context.mouseX).toBe(400);
+    expect(handle.context.mouseY).toBe(225);
+
+    handle.stop();
+  });
+});
 
 describe('fixed loop', () => {
   test('validates timing before acquiring the renderer', () => {
