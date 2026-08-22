@@ -1,4 +1,5 @@
 import { DUNGEON_RUN } from "./starters/dungeon-run";
+import { RAYCASTER } from "./starters/raycaster";
 
 /** Starter scenes, written the way a user would write them. */
 export interface Starter {
@@ -92,6 +93,11 @@ return {
     name: "Dungeon run",
     code: DUNGEON_RUN[0]?.code ?? "",
     files: DUNGEON_RUN,
+  },
+  {
+    name: "Raycaster",
+    code: RAYCASTER[0]?.code ?? "",
+    files: RAYCASTER,
   },
   {
     name: "Transform stack",
