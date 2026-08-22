@@ -100,7 +100,9 @@ the scene. Grid A* lives in `@hazumi/math` as `pathfind`, beside `collision`.
 
 ## Library gaps, independent of games
 
-- **npm publish.** Changesets is configured; nothing has been released.
+- **npm publish.** Changesets and trusted publishing (OIDC, no `NPM_TOKEN`)
+  are wired. Each package still needs a trusted publisher on npmjs.com, and
+  names that do not exist yet need a one-time 2FA bootstrap publish.
   `bun create hazumi` and the generated `^0.1.0` dependency both wait on this.
 
 ## Deferred by decision

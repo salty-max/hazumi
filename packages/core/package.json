@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Application lifecycle, clock, and the typed plugin registry.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/salty-max/hazumi.git",
+    "directory": "packages/core"
+  },
   "files": [
     "dist"
   ],
@@ -14,6 +19,10 @@
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsdown",

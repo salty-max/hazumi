@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Vectors, collision queries, grid pathfinding, rigid-body physics, 4x4 matrices, seeded PRNG, noise, and easing.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/salty-max/hazumi.git",
+    "directory": "packages/math"
+  },
   "files": [
     "dist"
   ],
@@ -14,6 +19,10 @@
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsdown",

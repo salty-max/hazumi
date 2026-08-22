@@ -294,3 +294,28 @@ tests import `hazumi/app` and friends, which resolve through `dist/`.
 Do not add WebGL or pixel-comparison jobs: GitHub-hosted runners have no GPU,
 and backend agreement stays `bench/compare.html`. `test:browser` is reserved
 until a package actually ships Playwright tests.
+
+## Release
+
+Publishing is GitHub Actions OIDC (trusted publishing). There is no `NPM_TOKEN`.
+The workflow is `.github/workflows/release.yml`. On push to `main` it either
+opens a version PR or, after that PR is merged, packs and publishes.
+
+npm must list this workflow as the trusted publisher on **each** package:
+
+- Organization or user: `salty-max`
+- Repository: `hazumi`
+- Workflow filename: `release.yml` (the filename only)
+- Environment: leave empty
+- Allowed action: `npm publish`
+
+A name that does not yet exist on the registry cannot receive a trusted
+publisher. Bootstrap it once with a 2FA `npm publish` from a laptop, then
+attach the publisher. Every later version goes through the workflow.
+
+Provenance is automatic. `repository.url` on each package must stay
+`https://github.com/salty-max/hazumi.git`.
+
+In the GitHub repo: Settings → Actions → General → allow GitHub Actions to
+create and approve pull requests. The version job needs that to open the
+"version packages" PR.

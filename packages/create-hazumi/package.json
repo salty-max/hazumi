@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Scaffold a Vite + Hazumi project.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/salty-max/hazumi.git",
+    "directory": "packages/create-hazumi"
+  },
   "bin": {
     "create-hazumi": "./dist/index.js"
   },
@@ -10,6 +15,10 @@
     "dist"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",

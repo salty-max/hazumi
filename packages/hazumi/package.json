@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "A typed 2D graphics library built on a retained command buffer.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/salty-max/hazumi.git",
+    "directory": "packages/hazumi"
+  },
   "files": [
     "dist"
   ],
@@ -70,6 +75,10 @@
       "default": "./dist/backends/headless.js"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsdown",
