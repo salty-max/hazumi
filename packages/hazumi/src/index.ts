@@ -15,7 +15,8 @@
 
 // --- application and scene API ---
 export { start, ShaderPassesUnavailableError, TextMeasurementUnavailableError } from "./app";
-export { loadImage } from "./load-image";
+export { loadImage, loadText, loadJson, loadFont, AssetLoadError } from "./load";
+export type { LoadOptions } from "./load";
 export { NoActiveSceneError } from "./active-context";
 export { Pixels, PixelAccessUnavailableError } from "./pixels";
 export type { MutablePixelColor, PixelColor } from "./pixels";

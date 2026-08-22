@@ -11,7 +11,7 @@ import { isSpriteFrame, type SpriteFrame } from "./spritesheet";
 import { createNoise, type Noise, type Rng, seeded } from "@hazumi/math";
 import { type ColorCache, type ColorLike } from "./color-cache";
 import { type Camera2D, createCamera2D } from "./camera";
-import { loadImage } from "./load-image";
+import { loadImage } from "./load";
 
 /** Style overrides accepted by `with()`. */
 export interface StyleOverrides {
