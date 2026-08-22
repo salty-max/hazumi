@@ -37,7 +37,7 @@
     },
     "test:browser": {
       "dependsOn": ["build"],
-      "inputs": ["src/**", "test/**", "vitest.config.ts"],
+      "inputs": ["src/**", "test/**", "playwright.config.ts"],
       "outputs": []
     },
     "dev": {
