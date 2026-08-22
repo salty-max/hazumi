@@ -246,6 +246,33 @@ at the same word. The backends without a font context — the headless recorder 
 throw `TextMeasurementUnavailableError` rather than guessing a width that would
 silently misplace everything built on it.
 
+## Depth
+
+Draw order is call order, which is the simplest rule and the right default.
+When it is not enough — a player who should pass behind a tree, a HUD that
+belongs above everything — `layer()` overrides it:
+
+```ts
+layer(0, () => drawGround());
+layer(1, () => {
+  for (const entity of sortedByY) drawEntity(entity);
+});
+layer(10, () => drawHud());
+```
+
+Lower depths paint first. Depth overrides _only_ call order: within one depth,
+and inside a block, calls still paint in the order they were made, so the
+y-sort above behaves exactly as written. Anything drawn outside a layer sits at
+depth 0.
+
+Style and transform are scoped to the block. That is load-bearing rather than
+tidy: a layer that leaked a fill would change another layer's colour depending
+on which depth happened to sort first.
+
+The reordering happens once, on the buffer, before any backend sees the stream
+— batching merges only adjacent commands, so the order has to be settled before
+then, and afterwards every backend is unchanged.
+
 ## Shaders
 
 A pass is a `main()`. The runtime provides `v_uv`, `fragColor`, `u_texture`,

@@ -54,11 +54,12 @@ function makeContext(): {
   buffer: CommandBuffer;
   state: ContextState;
   beginFrame: () => void;
+  endFrame: () => void;
   ops: () => string[];
 } {
   const buffer = new CommandBuffer();
   const state: ContextState = makeState(400, 300);
-  const { context, beginFrame } = createContext({
+  const { context, beginFrame, endFrame } = createContext({
     buffer,
     colors: new ColorCache(),
     state,
@@ -78,6 +79,7 @@ function makeContext(): {
     buffer,
     state,
     beginFrame,
+    endFrame,
     ops: () => record(buffer).map((c) => c.op),
   };
 }
@@ -687,5 +689,109 @@ describe("text measurement", () => {
     const h = makeContext();
     h.ctx.textSize(16);
     expect(h.ctx.wrapText("a\n\nb", 400)).toEqual(["a", "", "b"]);
+  });
+});
+
+describe("depth layers", () => {
+  /** Circle x values in the order a backend would walk them. */
+  function painted(h: { buffer: CommandBuffer }): number[] {
+    return record(h.buffer)
+      .filter((c) => c.op === "circle")
+      .map((c) => c.args[0] as number);
+  }
+
+  test("lower depth paints first, whatever the call order", () => {
+    const h = makeContext();
+    h.ctx.layer(5, () => h.ctx.circle(1, 0, 1));
+    h.ctx.layer(1, () => h.ctx.circle(2, 0, 1));
+    h.endFrame();
+    expect(painted(h)).toEqual([2, 1]);
+  });
+
+  test("call order still decides inside one depth", () => {
+    const h = makeContext();
+    h.ctx.layer(1, () => {
+      h.ctx.circle(1, 0, 1);
+      h.ctx.circle(2, 0, 1);
+    });
+    h.endFrame();
+    expect(painted(h)).toEqual([1, 2]);
+  });
+
+  test("two layers at the same depth keep the order they were written", () => {
+    const h = makeContext();
+    h.ctx.layer(3, () => h.ctx.circle(1, 0, 1));
+    h.ctx.layer(3, () => h.ctx.circle(2, 0, 1));
+    h.endFrame();
+    expect(painted(h)).toEqual([1, 2]);
+  });
+
+  test("unlayered drawing sits at depth 0", () => {
+    const h = makeContext();
+    h.ctx.layer(-1, () => h.ctx.circle(1, 0, 1));
+    h.ctx.circle(2, 0, 1);
+    h.ctx.layer(1, () => h.ctx.circle(3, 0, 1));
+    h.endFrame();
+    expect(painted(h)).toEqual([1, 2, 3]);
+  });
+
+  test("a layer's fill cannot leak into another layer", () => {
+    // The hazard depth ordering introduces: without scoping, moving a layer
+    // that sets a fill would repaint whichever layer sorts after it. Walking
+    // the stream means honouring push/pop, since that is what restores it —
+    // reading the last setFill textually before the circle would see the blue
+    // that pop has already undone.
+    const h = makeContext();
+    h.ctx.fill("#ff0000");
+    h.ctx.layer(1, () => {
+      h.ctx.fill("#0000ff");
+      h.ctx.circle(1, 0, 1);
+    });
+    h.ctx.layer(2, () => h.ctx.circle(2, 0, 1));
+    h.endFrame();
+
+    let fill: readonly number[] = [];
+    const stack: (readonly number[])[] = [];
+    const fillAtCircle = new Map<number, readonly number[]>();
+    for (const command of record(h.buffer)) {
+      if (command.op === "setFill") fill = command.args.slice(0, 3);
+      else if (command.op === "push") stack.push(fill);
+      else if (command.op === "pop") fill = stack.pop() ?? fill;
+      else if (command.op === "circle") fillAtCircle.set(command.args[0] as number, fill);
+    }
+    // Rounded: colour round-trips through OKLCH, so the channels land a
+    // rounding error away from the literals rather than on them.
+    expect(fillAtCircle.get(1)?.map(Math.round)).toEqual([0, 0, 1]);
+    // Red: the blue belonged to the other layer and pop gave it back.
+    expect(fillAtCircle.get(2)?.map(Math.round)).toEqual([1, 0, 0]);
+  });
+
+  test("nesting puts the inner layer at its own depth", () => {
+    const h = makeContext();
+    h.ctx.layer(5, () => {
+      h.ctx.circle(1, 0, 1);
+      h.ctx.layer(0, () => h.ctx.circle(2, 0, 1));
+      h.ctx.circle(3, 0, 1);
+    });
+    h.endFrame();
+    expect(painted(h)).toEqual([2, 1, 3]);
+  });
+
+  test("a throwing body still closes its layer", () => {
+    const h = makeContext();
+    expect(() => {
+      h.ctx.layer(1, () => {
+        h.ctx.circle(1, 0, 1);
+        throw new Error("boom");
+      });
+    }).toThrow("boom");
+    h.ctx.circle(2, 0, 1);
+    h.endFrame();
+    expect(painted(h)).toEqual([2, 1]);
+  });
+
+  test("rejects a depth that is not a finite number", () => {
+    const h = makeContext();
+    expect(() => h.ctx.layer(Number.NaN, () => {})).toThrow(RangeError);
   });
 });

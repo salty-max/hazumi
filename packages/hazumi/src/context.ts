@@ -226,6 +226,19 @@ export interface HazumiContext {
    * font context — the headless recorder — cannot answer, and says so rather
    * than guessing a width that would silently misplace every layout built on it.
    */
+  /**
+   * Draw `body` at `depth`. Lower depths paint first.
+   *
+   * Depth overrides call order, and only that: within one depth, and inside a
+   * layer, calls still paint in the order they were made. Anything drawn
+   * outside a layer sits at depth 0.
+   *
+   * Style and transform are scoped to the block, like `scoped()`. That is not
+   * a convenience — a layer that leaked a fill would change the colour of a
+   * different layer depending on which depth sorted first, which is the kind of
+   * bug that only appears when someone reorders their scene.
+   */
+  layer: (depth: number, body: () => void) => void;
   measureText: (content: string) => TextMetrics;
   /** Advance width of one line at the current font and size. */
   textWidth: (content: string) => number;
@@ -326,6 +339,8 @@ export interface ContextBundle {
    * what makes `fill()` in a scene factory behave the way anyone would expect.
    */
   readonly beginFrame: () => void;
+  /** Settle depth ordering. Call once after the scene has drawn. */
+  readonly endFrame: () => void;
   /** Update camera geometry after the logical canvas size changes. */
   readonly resize: (width: number, height: number) => void;
 }
@@ -635,6 +650,25 @@ export function createContext(deps: ContextDeps): ContextBundle {
       buffer.image(source, x, y, width ?? source.width, height ?? source.height);
     },
 
+    layer: (depth: number, body: () => void): void => {
+      if (!Number.isFinite(depth)) {
+        throw new RangeError(`layer depth must be a finite number, got ${depth}`);
+      }
+      // Close whatever was open at the ambient depth, then run the body inside
+      // its own push/pop so the segment is self-contained once moved.
+      closeSegment(layerDepth, buffer.length);
+      const outerDepth = layerDepth;
+      layerDepth = depth;
+      buffer.push();
+      try {
+        body();
+      } finally {
+        buffer.pop();
+        closeSegment(depth, buffer.length);
+        layerDepth = outerDepth;
+      }
+    },
+
     measureText: (content: string): TextMetrics => deps.measureText(content, fontFamily, fontSize),
 
     textWidth: (content: string): number => deps.measureText(content, fontFamily, fontSize).width,
@@ -799,6 +833,32 @@ export function createContext(deps: ContextDeps): ContextBundle {
     isLooping: (): boolean => state.looping,
   };
 
+  /**
+   * Depth segments for this frame.
+   *
+   * Reused across frames rather than rebuilt: `layer()` runs per draw, and a
+   * fresh array each time would allocate in the hot path. `segmentCount` is the
+   * live length; entries past it are last frame's, waiting to be overwritten.
+   */
+  const segments: { depth: number; start: number; end: number }[] = [];
+  let segmentCount = 0;
+  let openStart = 0;
+  let layerDepth = 0;
+
+  const closeSegment = (depth: number, end: number): void => {
+    if (end <= openStart) return;
+    const existing = segments[segmentCount];
+    if (existing === undefined) {
+      segments.push({ depth, start: openStart, end });
+    } else {
+      existing.depth = depth;
+      existing.start = openStart;
+      existing.end = end;
+    }
+    segmentCount++;
+    openStart = end;
+  };
+
   const beginFrame = (): void => {
     applyFill();
     applyTint();
@@ -806,10 +866,20 @@ export function createContext(deps: ContextDeps): ContextBundle {
     buffer.setBlend(blend);
     applyText();
     beginCameraFrame();
+    // Style set up above belongs to every layer, so the first segment opens
+    // after it rather than carrying it into whichever layer sorts first.
+    segmentCount = 0;
+    openStart = buffer.length;
+    layerDepth = 0;
+  };
+
+  const endFrame = (): void => {
+    closeSegment(layerDepth, buffer.length);
+    if (segmentCount > 1) buffer.reorderSegments(segments.slice(0, segmentCount));
   };
 
   // Establish the defaults the first frame starts from.
   beginFrame();
 
-  return { context, beginFrame, resize };
+  return { context, beginFrame, endFrame, resize };
 }

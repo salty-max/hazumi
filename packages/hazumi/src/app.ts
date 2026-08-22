@@ -328,6 +328,7 @@ export function start<Api extends object = Record<never, never>>(
   const {
     context,
     beginFrame,
+    endFrame,
     resize: resizeContext,
   } = createContext({
     buffer,
@@ -446,6 +447,9 @@ export function start<Api extends object = Record<never, never>>(
         restoreContext(previousContext);
       }
       if (stopped) return;
+      // Settle depth ordering before the renderer walks the stream: batching
+      // merges adjacent commands, so the order has to be final by now.
+      endFrame();
       if (supportsPasses(renderer)) renderer.setTime(state.t);
       renderer.render(buffer);
     } catch (error) {

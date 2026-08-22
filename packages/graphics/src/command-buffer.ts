@@ -6,6 +6,16 @@ export type ImageSource = ImageBitmap | HTMLImageElement | HTMLCanvasElement;
 /** Words (4 bytes each) reserved on first allocation. */
 const INITIAL_WORDS = 1024;
 
+/** A span of recorded words that paints together, at one depth. */
+export interface BufferSegment {
+  /** Lower paints first. Ties keep the order the segments were recorded in. */
+  readonly depth: number;
+  /** First word, inclusive. */
+  readonly start: number;
+  /** Last word, exclusive. */
+  readonly end: number;
+}
+
 /**
  * Struct-of-arrays command buffer.
  *
@@ -83,6 +93,63 @@ export class CommandBuffer {
   /** Images referenced by draw commands, indexed by the id each one carries. */
   get images(): readonly ImageSource[] {
     return this.#images;
+  }
+
+  /**
+   * Rewrite the recorded commands so segments paint in depth order.
+   *
+   * Batching merges only *adjacent* commands, which is what keeps overlapping
+   * transparency correct — so depth cannot be a sort inside the backend. It
+   * happens here instead, once, before any backend sees the stream: afterwards
+   * the buffer is still a linear list in paint order and every consumer is
+   * unchanged.
+   *
+   * The sort is stable, so call order still decides within one depth. Segments
+   * must tile the whole buffer in order and not overlap; the caller builds them
+   * while encoding, which is the only place that knows where a layer began.
+   *
+   * Side tables are untouched: strings and images are referenced by index, and
+   * moving the words that hold those indices does not move what they point at.
+   */
+  reorderSegments(segments: readonly BufferSegment[]): void {
+    if (segments.length < 2) return;
+
+    // Stable by construction: sort on (depth, original position).
+    const order = segments.map((segment, index) => ({ segment, index }));
+    order.sort((a, b) => a.segment.depth - b.segment.depth || a.index - b.index);
+
+    let moved = false;
+    for (const [position, entry] of order.entries()) {
+      if (entry.index !== position) {
+        moved = true;
+        break;
+      }
+    }
+    if (!moved) return;
+
+    // Segments cover a span of the buffer, not all of it: whatever was encoded
+    // before the first one — the frame's opening style, say — has to stay put.
+    // Writing back at 0 instead of at that span's start shifts every following
+    // word by the size of the prefix, which desyncs opcodes from operands and
+    // surfaces as a float being read as an instruction.
+    const base = segments[0]?.start ?? 0;
+    const scratch = this.#scratchFor(this.#length - base);
+    let write = 0;
+    for (const { segment } of order) {
+      scratch.set(this.#u32.subarray(segment.start, segment.end), write);
+      write += segment.end - segment.start;
+    }
+    this.#u32.set(scratch.subarray(0, write), base);
+  }
+
+  /** Kept across frames so reordering allocates nothing in steady state. */
+  #scratch: Uint32Array | null = null;
+  #scratchFor(words: number): Uint32Array {
+    const existing = this.#scratch;
+    if (existing !== null && existing.length >= words) return existing;
+    const grown = new Uint32Array(Math.max(words, (existing?.length ?? 0) * 2));
+    this.#scratch = grown;
+    return grown;
   }
 
   /** Rewind the write cursor. Does not release memory — that is the point. */
