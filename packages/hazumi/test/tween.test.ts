@@ -16,7 +16,7 @@ describe("tween", () => {
     // the same answer as sampling forwards.
     const t = tween({ from: 0, to: 10, duration: 1 });
     const forwards = [0, 0.25, 0.5, 0.75, 1].map((s) => t.at(s));
-    const backwards = [1, 0.75, 0.5, 0.25, 0].map((s) => t.at(s)).reverse();
+    const backwards = [1, 0.75, 0.5, 0.25, 0].map((s) => t.at(s)).toReversed();
     expect(backwards).toEqual(forwards);
   });
 
