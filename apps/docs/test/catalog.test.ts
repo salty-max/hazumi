@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import { loadCatalog, packagePathFromSpecifier, type CatalogIo } from "../src/load-catalog";
 
@@ -9,11 +10,10 @@ const io: CatalogIo = {
     return (await file.exists()) ? file.text() : null;
   },
   async glob(dir, pattern) {
+    const cwd = REPO_ROOT + dir;
+    if (!existsSync(cwd)) return [];
     const files: string[] = [];
-    for await (const path of new Bun.Glob(pattern).scan({
-      cwd: REPO_ROOT + dir,
-      onlyFiles: true,
-    })) {
+    for await (const path of new Bun.Glob(pattern).scan({ cwd, onlyFiles: true })) {
       files.push(path);
     }
     return files;

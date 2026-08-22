@@ -3,6 +3,7 @@
  *
  * Run with: bun run apps/docs/src/catalog.ts
  */
+import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { loadCatalog, type CatalogIo } from "./load-catalog";
 
@@ -14,8 +15,10 @@ const io: CatalogIo = {
     return (await file.exists()) ? file.text() : null;
   },
   async glob(dir, pattern) {
+    const cwd = ROOT + dir;
+    if (!existsSync(cwd)) return [];
     const files: string[] = [];
-    for await (const path of new Bun.Glob(pattern).scan({ cwd: ROOT + dir, onlyFiles: true })) {
+    for await (const path of new Bun.Glob(pattern).scan({ cwd, onlyFiles: true })) {
       files.push(path);
     }
     return files;

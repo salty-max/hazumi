@@ -30,7 +30,18 @@
       "name": "@hazumi/docs",
       "version": "0.0.0",
       "devDependencies": {
+        "@hazumi/audio": "workspace:*",
+        "@hazumi/backend-canvas2d": "workspace:*",
+        "@hazumi/backend-headless": "workspace:*",
+        "@hazumi/backend-svg": "workspace:*",
+        "@hazumi/backend-webgl2": "workspace:*",
+        "@hazumi/color": "workspace:*",
+        "@hazumi/core": "workspace:*",
+        "@hazumi/graphics": "workspace:*",
+        "@hazumi/math": "workspace:*",
+        "@hazumi/physics": "workspace:*",
         "@types/bun": "^1.4.0",
+        "hazumi": "workspace:*",
       },
     },
     "apps/web": {
