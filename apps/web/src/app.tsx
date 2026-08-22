@@ -1,8 +1,6 @@
 import { lazy, Suspense, type JSX } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
-import { SiteFooter } from "./components/site-footer";
 import { SiteHeader } from "./components/site-header";
-import { cn } from "./lib/utils";
 import { HomePage } from "./pages/home";
 
 const PlaygroundPage = lazy(async () => {
@@ -34,10 +32,9 @@ function SiteShell({
   readonly className?: string;
 }): JSX.Element {
   return (
-    <div className={cn("flex flex-col", className)}>
+    <div className={className}>
       <SiteHeader />
-      <div className="flex-1">{children}</div>
-      <SiteFooter />
+      {children}
     </div>
   );
 }

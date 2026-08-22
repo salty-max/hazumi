@@ -2,7 +2,8 @@ import type { JSX, ReactNode } from "react";
 import { Link, NavLink } from "react-router";
 import { BrandMark } from "./brand-mark";
 import { OutboundLinks } from "./outbound-links";
-import { Badge } from "./ui/badge";
+import { HAZUMI_VERSION, NPM_URL } from "../lib/site";
+import { badgeVariants } from "./ui/badge";
 import { cn } from "../lib/utils";
 
 const links = [
@@ -22,9 +23,19 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
           <BrandMark />
           Hazumi
         </Link>
-        <Badge variant="outline" className="hidden sm:inline-flex">
-          0.1 · pre-alpha
-        </Badge>
+        <a
+          href={NPM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`hazumi ${HAZUMI_VERSION} on npm`}
+          className={badgeVariants({
+            variant: "outline",
+            className:
+              "hidden hover:border-muted-foreground/60 hover:text-foreground sm:inline-flex",
+          })}
+        >
+          {HAZUMI_VERSION}
+        </a>
         <nav className="hidden items-center gap-4 text-sm sm:flex" aria-label="Primary">
           {links.map((link) => (
             <NavLink

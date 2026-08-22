@@ -1,22 +1,15 @@
 import { Coffee } from "lucide-react";
 import type { JSX } from "react";
-import { GITHUB_URL, KOFI_URL, NPM_URL } from "../lib/site";
+import { GITHUB_URL, KOFI_URL } from "../lib/site";
 import { cn } from "../lib/utils";
 import { buttonVariants } from "./ui/button";
 
 const LINKS = [
   { href: GITHUB_URL, label: "GitHub", kind: "github" },
-  { href: NPM_URL, label: "npm", kind: "npm" },
   { href: KOFI_URL, label: "Ko-fi", kind: "kofi" },
 ] as const;
 
-export function OutboundLinks({
-  labeled = false,
-  className,
-}: {
-  readonly labeled?: boolean;
-  readonly className?: string;
-}): JSX.Element {
+export function OutboundLinks({ className }: { readonly className?: string }): JSX.Element {
   return (
     <nav aria-label="Project links" className={cn("flex items-center gap-0.5", className)}>
       {LINKS.map((link) => (
@@ -27,18 +20,9 @@ export function OutboundLinks({
           rel="noopener noreferrer"
           aria-label={link.label}
           title={link.label}
-          className={buttonVariants({
-            variant: "ghost",
-            size: labeled ? "sm" : "icon",
-            className: labeled ? "text-muted-foreground" : undefined,
-          })}
+          className={buttonVariants({ variant: "ghost", size: "icon" })}
         >
-          {link.kind === "github" ? <GithubMark /> : null}
-          {link.kind === "npm" && !labeled ? (
-            <span className="font-mono text-[11px] font-semibold">npm</span>
-          ) : null}
-          {link.kind === "kofi" ? <Coffee /> : null}
-          {labeled ? <span>{link.label}</span> : null}
+          {link.kind === "github" ? <GithubMark /> : <Coffee />}
         </a>
       ))}
     </nav>
