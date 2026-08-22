@@ -7,6 +7,7 @@ import { mouseTrail } from "../../../../examples/mouse-trail";
 import { orbits } from "../../../../examples/orbits";
 import { petals } from "../../../../examples/petals";
 import { postBloom } from "../../../../examples/post-bloom";
+import { raycaster } from "../../../../examples/raycaster";
 import { rigidBodies } from "../../../../examples/rigid-bodies";
 import { staticPoster } from "../../../../examples/static-poster";
 import { tileField } from "../../../../examples/tile-field";
@@ -38,6 +39,7 @@ const SCENES: ReadonlyArray<{
   { name: "characters", run: characters },
   { name: "blood mage", run: bloodMage },
   { name: "rigid bodies", run: rigidBodies },
+  { name: "raycaster", run: raycaster },
 ];
 
 function SceneCard({
