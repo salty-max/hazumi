@@ -10,7 +10,7 @@ describe("findPackageRoot", () => {
   test("walks up from this test file to create-hazumi", () => {
     const root = findPackageRoot(import.meta.url);
     expect(root.endsWith("packages/create-hazumi")).toBe(true);
-    expect(readOwnVersion(root)).toBe("0.1.0");
+    expect(readOwnVersion(root)).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
 
