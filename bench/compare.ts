@@ -277,3 +277,12 @@ lines.push(`scenes: ${results.length}   failures: ${failures.length}`);
 lines.push(`STATUS: ${failures.length === 0 ? "ALL AGREE" : "MISMATCH"}`);
 
 out.textContent = lines.join("\n");
+
+// Machine-readable hand-off for `bun run compare`, which drives this page in
+// headless Chromium. The rendered table stays the human view; this is the same
+// data without scraping text.
+(globalThis as unknown as { comparison?: unknown }).comparison = {
+  results,
+  failures: failures.length,
+  table: lines.join("\n"),
+};

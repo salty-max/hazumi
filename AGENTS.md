@@ -291,9 +291,16 @@ without a changeset fails. A change that must not bump versions takes
 `hazumi#typecheck` waits on that package's own `build`: its subpath-export
 tests import `hazumi/app` and friends, which resolve through `dist/`.
 
-Do not add WebGL or pixel-comparison jobs: GitHub-hosted runners have no GPU,
-and backend agreement stays `bench/compare.html`. `test:browser` is reserved
-until a package actually ships Playwright tests.
+Backend agreement runs in CI as `bun run compare`. Runners have no GPU, but
+they do not need one: headless Chromium rasterises WebGL2 through SwiftShader.
+Its numbers sit slightly above a real GPU's — filled rects diff at 1.40 rather
+than 0.68 — so tolerances have to accommodate the software rasteriser, and
+tightening them to what a GPU produces would make CI flake.
+
+`bench/compare.html` is still the page to open when a scene looks wrong and you
+want to see both renders side by side; `bun run compare` drives that same page
+and turns it into an exit code. `test:browser` is reserved until a package
+actually ships Playwright tests of its own.
 
 ## Release
 
