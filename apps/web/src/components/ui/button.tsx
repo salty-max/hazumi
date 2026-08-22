@@ -19,7 +19,7 @@ export const buttonVariants: (props?: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         outline:
           "border-border bg-transparent text-foreground hover:border-muted-foreground/60 hover:bg-secondary",
-        ghost: "text-muted-foreground hover:bg-secondary hover:text-foreground",
+        ghost: "border-0 text-muted-foreground hover:bg-secondary hover:text-foreground",
         destructive: "bg-destructive/15 text-destructive hover:bg-destructive/25",
         link: "text-primary underline-offset-4 hover:underline",
       },
