@@ -95,11 +95,12 @@ writes a Vite app, and `vite build` emits a static `dist/` you zip for itch.io
 or GitHub Pages. The published CLI pins `hazumi` to the current library range,
 not to its own version. `--local` still wires `file:` paths inside this repo.
 
-`particles()` is a fixed-capacity pool. `emit` / `update` / default `draw`
-allocate nothing after construction. The default paint is a filled circle
-using `fillRgba()` so a burst does not re-parse colours every frame. A custom
-`paint` callback can draw sprites instead. The command buffer still stores
-circles, not tessellated quads.
+`particles()` is a fixed-capacity pool. `emit` / `drip` / `update` / default
+`draw` allocate nothing after construction. `draw(alpha)` interpolates
+position, angle, and size from the previous update. The default paint is
+additive circles via `fillRgba()`, or tinted sprites when the system has an
+`image`. A custom `paint` can still take over. The command buffer stores
+circles and images, not tessellated quads.
 
 Plugins now have `preupdate` / `postupdate` on the fixed clock, distinct from
 the frame `predraw` / `postdraw`. `@hazumi/physics` hosts the math solver on
