@@ -5,6 +5,7 @@ import {
   Blend,
   type CommandBuffer,
   type CommandVisitor,
+  type FrameStats as ContractStats,
   type PixelData,
   copyAffine,
   decode,
@@ -140,17 +141,18 @@ export interface Webgl2Options {
   readonly depth?: boolean;
 }
 
-export interface FrameStats {
-  /** Draw calls issued for the last frame. */
-  readonly drawCalls: number;
-  /**
-   * Instances submitted last frame, across every instanced pipeline.
-   *
-   * Counting only shapes here — as an earlier version did — reports zero for
-   * any scene made of sprites or text, which is exactly the kind of number
-   * that looks fine and means nothing.
-   */
-  readonly instances: number;
+/**
+ * This backend's frame counters.
+ *
+ * `drawCalls` and `instances` come from the contract in `@hazumi/graphics`, so
+ * any consumer can read them off any reporting backend; everything below is
+ * WebGL2-specific detail.
+ *
+ * On `instances`: counting only shapes — as an earlier version did — reports
+ * zero for any scene made of sprites or text, which is exactly the kind of
+ * number that looks fine and means nothing.
+ */
+export interface FrameStats extends ContractStats {
   /** Instanced shapes: circles, rects, ellipses, lines. */
   readonly shapes: number;
   /** Instanced glyphs and images, which share one array. */

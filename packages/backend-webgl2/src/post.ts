@@ -4,16 +4,11 @@ import type { ResourceId, ResourceRegistry } from "./resource";
 /**
  * A user post-processing pass.
  *
- * The source is only a `main()` — the prelude supplies `v_uv`, `fragColor`,
- * `u_texture`, `u_resolution` and `u_time`, so the smallest useful pass is
- * three lines. Extra uniforms are declared in the source and supplied here.
+ * The shape is the backend contract's, not this backend's — see `ShaderPass` in
+ * `@hazumi/graphics`. Re-exported here so the WebGL2 entry point stays a
+ * complete import surface for anyone working against this backend directly.
  */
-export interface ShaderPass {
-  /** Fragment shader body, appended to the prelude. */
-  readonly fragment: string;
-  /** Custom uniforms, set before the pass draws. */
-  readonly uniforms?: Readonly<Record<string, number | readonly number[]>>;
-}
+export type { ShaderPass } from "@hazumi/graphics";
 
 /** A pass with its compiled program and cached uniform locations. */
 export interface CompiledPass {
