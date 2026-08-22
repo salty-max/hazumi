@@ -120,6 +120,15 @@ export function text(content: string, x: number, y: number): void {
   getActiveContext().text(content, x, y);
 }
 
+/**
+ * Draw `body` at `depth`. Lower depths paint first, and depth overrides call
+ * order — within a depth, calls still paint in order. Style and transform are
+ * scoped to the block.
+ */
+export function layer(depth: number, body: () => void): void {
+  getActiveContext().layer(depth, body);
+}
+
 /** Measure one line at the current font and size. */
 export function measureText(content: string): TextMetrics {
   return getActiveContext().measureText(content);
