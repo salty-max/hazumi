@@ -1,6 +1,6 @@
 {
   "name": "@hazumi/audio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Web Audio plugin for Hazumi with bounded pooled voices.",
   "license": "MIT",
   "repository": {

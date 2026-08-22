@@ -1,6 +1,6 @@
 {
   "name": "@hazumi/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Application lifecycle, clock, and the typed plugin registry.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@hazumi/graphics",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The command buffer, path building, style, and transforms.",
   "license": "MIT",
   "repository": {
