@@ -12,6 +12,10 @@ describe("capability subpath exports", () => {
   test("ship their runtime values", () => {
     expect(typeof app.start).toBe("function");
     expect(typeof assets.loadImage).toBe("function");
+    expect(typeof assets.loadText).toBe("function");
+    expect(typeof assets.loadJson).toBe("function");
+    expect(typeof assets.loadFont).toBe("function");
+    expect(typeof assets.AssetLoadError).toBe("function");
     expect(typeof assets.spritesheet).toBe("function");
     expect(typeof draw.circle).toBe("function");
     expect(typeof draw.tint).toBe("function");

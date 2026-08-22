@@ -1,4 +1,5 @@
-export { loadImage } from "./load-image";
+export { loadImage, loadText, loadJson, loadFont, AssetLoadError } from "./load";
+export type { LoadOptions } from "./load";
 export {
   spritesheet,
   isSpriteFrame,

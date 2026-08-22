@@ -142,6 +142,29 @@ return {
 coordinates. `screenToWorld()` and `worldToScreen()` convert pointer and world
 points; both take an optional output object.
 
+## Loading
+
+Scene factories are async, so loading is just `await` — no preload phase, no
+manifest, no loader object to carry around:
+
+```ts
+const [sheet, level] = await Promise.all([
+  loadImage("hero.png"),
+  loadJson<LevelData>("level-1.json"),
+]);
+await loadFont("Departure Mono", "departure.woff2");
+```
+
+`loadImage`, `loadText`, `loadJson` and `loadFont`. Text drawing has always used
+whatever fonts the system already had; `loadFont` is how a game ships its own —
+await it before `textFont()` looks for the family.
+
+Failures throw `AssetLoadError` carrying the URL and, where the request
+completed, the status: a 404 and a dropped connection are different problems and
+read differently. Loading is uncached on purpose — the browser already caches
+the bytes, and a module-level map keyed by URL would hold every asset any scene
+ever touched for the life of the page.
+
 ## Sprites
 
 ```ts
