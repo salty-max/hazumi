@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from "react";
 import { Link, NavLink } from "react-router";
 import { BrandMark } from "./brand-mark";
+import { OutboundLinks } from "./outbound-links";
 import { Badge } from "./ui/badge";
 import { cn } from "../lib/utils";
 
@@ -40,9 +41,10 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
             </NavLink>
           ))}
         </nav>
-        {children === undefined ? null : (
-          <div className="ml-auto flex min-w-0 items-center gap-2">{children}</div>
-        )}
+        <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
+          <OutboundLinks />
+          {children === undefined ? null : children}
+        </div>
       </div>
     </header>
   );
