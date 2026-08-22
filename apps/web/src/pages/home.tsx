@@ -45,7 +45,7 @@ const POINTS: ReadonlyArray<{ readonly title: string; readonly body: string }> =
 export function HomePage(): JSX.Element {
   return (
     <main>
-      <Container className="grid items-center gap-14 pt-20 pb-16 lg:grid-cols-[1.05fr_.95fr] lg:pt-28 lg:pb-24">
+      <Container className="grid grid-cols-[minmax(0,1fr)] items-center gap-14 pt-20 pb-16 lg:grid-cols-[1.05fr_.95fr] lg:pt-28 lg:pb-24">
         <div>
           <h1 className="max-w-4xl font-display text-[clamp(3rem,7vw,5.6rem)] leading-[.92] font-semibold tracking-[-.05em]">
             A typed 2D graphics library
@@ -65,7 +65,10 @@ export function HomePage(): JSX.Element {
         </div>
 
         <div className="relative lg:pl-8">
-          <div className="absolute -top-8 -right-5 size-40 rounded-full bg-primary/15 blur-3xl" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-8 -right-5 size-40 rounded-full bg-primary/15 blur-3xl"
+          />
           <CodeWindow filename="scene.ts" source={SAMPLE} />
         </div>
       </Container>
