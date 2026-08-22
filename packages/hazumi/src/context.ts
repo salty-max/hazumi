@@ -141,6 +141,8 @@ export interface HazumiContext {
    * sprite. Pass `null` via `noTint()` for opaque white, a no-op.
    */
   tint: (color: ColorLike) => void;
+  /** Set tint from display-referred 0–1 channels. No parse, no allocation. */
+  tintRgba: (r: number, g: number, b: number, a: number) => void;
   noTint: () => void;
   stroke: (color: ColorLike) => void;
   noStroke: () => void;
@@ -343,6 +345,8 @@ export function createContext(deps: ContextDeps): ContextBundle {
   const fillRgbaStore: [number, number, number, number] = [1, 1, 1, 1];
   let fillUsesRgba = false;
   let tintColor: ColorLike = "#ffffff";
+  const tintRgbaStore: [number, number, number, number] = [1, 1, 1, 1];
+  let tintUsesRgba = false;
   let strokeColor: ColorLike | null = null;
   let strokeWidth = 1;
   let blend: Blend = Blend.Normal;
@@ -364,6 +368,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
   };
 
   const applyTint = (): void => {
+    if (tintUsesRgba) {
+      buffer.setTint(tintRgbaStore[0], tintRgbaStore[1], tintRgbaStore[2], tintRgbaStore[3]);
+      return;
+    }
     const [r, g, b, a] = colors.resolve(tintColor);
     buffer.setTint(r, g, b, a);
   };
@@ -483,10 +491,21 @@ export function createContext(deps: ContextDeps): ContextBundle {
     },
     tint: (color: ColorLike): void => {
       tintColor = color;
+      tintUsesRgba = false;
+      applyTint();
+    },
+    tintRgba: (r: number, g: number, b: number, a: number): void => {
+      tintColor = "#ffffff";
+      tintUsesRgba = true;
+      tintRgbaStore[0] = r;
+      tintRgbaStore[1] = g;
+      tintRgbaStore[2] = b;
+      tintRgbaStore[3] = a;
       applyTint();
     },
     noTint: (): void => {
       tintColor = "#ffffff";
+      tintUsesRgba = false;
       applyTint();
     },
     stroke: (color: ColorLike): void => {
@@ -653,6 +672,11 @@ export function createContext(deps: ContextDeps): ContextBundle {
       const savedB = fillRgbaStore[2];
       const savedA = fillRgbaStore[3];
       const savedTint = tintColor;
+      const savedTintUsesRgba = tintUsesRgba;
+      const savedTintR = tintRgbaStore[0];
+      const savedTintG = tintRgbaStore[1];
+      const savedTintB = tintRgbaStore[2];
+      const savedTintA = tintRgbaStore[3];
       const savedStroke = strokeColor;
       const savedWidth = strokeWidth;
       const savedBlend = blend;
@@ -670,6 +694,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
         }
         if (overrides.tint !== undefined) {
           tintColor = overrides.tint ?? "#ffffff";
+          tintUsesRgba = false;
           applyTint();
         }
         if (overrides.stroke !== undefined || overrides.strokeWeight !== undefined) {
@@ -705,6 +730,11 @@ export function createContext(deps: ContextDeps): ContextBundle {
         fillRgbaStore[2] = savedB;
         fillRgbaStore[3] = savedA;
         tintColor = savedTint;
+        tintUsesRgba = savedTintUsesRgba;
+        tintRgbaStore[0] = savedTintR;
+        tintRgbaStore[1] = savedTintG;
+        tintRgbaStore[2] = savedTintB;
+        tintRgbaStore[3] = savedTintA;
         strokeColor = savedStroke;
         strokeWidth = savedWidth;
         blend = savedBlend;

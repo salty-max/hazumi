@@ -50,7 +50,9 @@ export { particles } from "./particles";
 export type {
   Particle,
   ParticleBurst,
+  ParticleDrip,
   ParticleGravity,
+  ParticleImage,
   ParticleRange,
   ParticleSystem,
   ParticleSystemOptions,

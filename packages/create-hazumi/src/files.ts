@@ -179,7 +179,7 @@ function sceneImports(template: TemplateKind, autoImport: boolean): string {
       lines.push(`import { background, circle, fill, oklch } from "hazumi/draw";`);
       lines.push(`import { screen, time } from "hazumi/scene";`);
     } else {
-      lines.push(`import { background, circle, fill, oklch, rect } from "hazumi/draw";`);
+      lines.push(`import { Blend, background, circle, fill, oklch, rect } from "hazumi/draw";`);
       lines.push(`import { keyIsDown } from "hazumi/input";`);
       lines.push(`import { particles } from "hazumi/particles";`);
       lines.push(`import { screen } from "hazumi/scene";`);
@@ -209,7 +209,7 @@ start({ backend: webgl2(), width: 800, height: 450, clock: { fixedStep: 1 / 60 }
     collision.aabb(520, 80, 200, 36),
     collision.aabb(520, 330, 200, 36),
   ];
-  const dust = particles({ capacity: 64, gravity: { y: 420 }, drag: 1.8 });
+  const dust = particles({ capacity: 64, gravity: { y: 420 }, drag: 1.8, blend: Blend.Normal });
 
   return {
     update(dt: number): void {
@@ -240,6 +240,9 @@ start({ backend: webgl2(), width: 800, height: 450, clock: { fixedStep: 1 / 60 }
           y: player.y + SIZE / 2,
           count: 8,
           speed: [30, 90],
+          vx: dt > 0 ? dx / dt : 0,
+          vy: dt > 0 ? dy / dt : 0,
+          spin: [-8, 8],
           life: [0.18, 0.4],
           size: [3, 7],
           color: "oklch(0.78 0.08 80)",
@@ -261,7 +264,7 @@ start({ backend: webgl2(), width: 800, height: 450, clock: { fixedStep: 1 / 60 }
       const y = player.prevY + (player.y - player.prevY) * alpha;
       fill(oklch(0.72, 0.16, 145));
       circle(x + SIZE / 2, y + SIZE / 2, SIZE);
-      dust.draw();
+      dust.draw(alpha);
     },
   };
 });

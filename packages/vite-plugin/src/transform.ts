@@ -32,6 +32,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
       "fillRgba",
       "noFill",
       "tint",
+      "tintRgba",
       "noTint",
       "stroke",
       "noStroke",
