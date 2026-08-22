@@ -16,6 +16,8 @@ describe("capability subpath exports", () => {
     expect(typeof assets.loadJson).toBe("function");
     expect(typeof assets.loadFont).toBe("function");
     expect(typeof assets.AssetLoadError).toBe("function");
+    expect(typeof assets.fromAseprite).toBe("function");
+    expect(typeof assets.fromTiled).toBe("function");
     expect(typeof assets.spritesheet).toBe("function");
     expect(typeof draw.circle).toBe("function");
     expect(typeof draw.tint).toBe("function");

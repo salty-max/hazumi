@@ -198,6 +198,35 @@ Batching follows draw order. Sprites from one sheet drawn together are one
 draw call; mixing sheets costs one call per switch. `app.stats.drawCalls`
 reports the last frame.
 
+### From Aseprite and Tiled
+
+Sprite work arrives as an Aseprite export and levels as a Tiled one, so both
+read directly rather than being retyped into source — a copy that goes stale the
+first time an animation gains a frame:
+
+```ts
+const hero = spritesheet(
+  await loadImage("hero.png"),
+  fromAseprite(await loadJson<AsepriteSheet>("hero.json")),
+);
+hero.clip("run");
+
+const level = tilemap(fromTiled(await loadJson<TiledMap>("level-1.tmj"), { terrain }));
+```
+
+Both are pure transforms: they fetch nothing and hold no images, so the caller
+decides how assets load and supplies a sheet per tileset.
+
+Aseprite's per-frame durations become a rate plus repeats — the mechanism clips
+already use to hold a frame longer — so 100ms then 200ms comes out as 10fps with
+the second frame twice. Tags become clips, with `pingpong` and `reverse` handled
+and a fixed repeat count read as holding.
+
+The Tiled importer covers the common export: CSV tile layers, one tileset per
+layer. A flipped tile is refused rather than drawn the wrong way round, and a
+layer mixing two tilesets is refused because one texture per layer is what lets
+it batch. Object groups are skipped, not rejected.
+
 ## Tilemaps
 
 ```ts
