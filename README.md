@@ -119,6 +119,26 @@ button state. Disconnecting a held controller reports release edges before it
 leaves the list. Unlike DOM events, polling cannot observe a complete press and
 release that happens between two updates.
 
+## Start a project
+
+```bash
+bun create matter
+```
+
+The wizard asks for a name and whether you want a sketch (`draw`) or a game
+(`update` + `draw`). Explicit capability imports are the default; pass
+`--auto-import` if you want `*.scene.ts` plus the Vite plugin.
+
+`vite build` writes a static `dist/`. Zip that folder to ship the scene —
+itch.io, GitHub Pages, Netlify, a USB stick. There is no custom packager.
+
+Until the packages are on npm, scaffold from this repo so the app can depend
+on local `file:` paths:
+
+```bash
+bun packages/create-matter/src/index.ts my-scene --local
+```
+
 ## Collision queries
 
 `collision` groups allocation-optional 2D queries in `@matter/math`. Static
@@ -152,31 +172,63 @@ player.x += out.x;
 player.y += out.y;
 ```
 
+## Pathfinding
+
+`pathfind` is a cost grid, not a tilemap. `EMPTY_TILE` means "do not draw";
+walkability is a separate array of costs — 0 is blocked, 1 is a normal step:
+
+```ts
+import { pathfind } from "matter/math";
+
+const map = pathfind.grid(32, 18);
+map.set(4, 5, 0);
+const path = pathfind.createPath();
+pathfind.astar(map, 1, 1, 30, 16, { out: path });
+```
+
+`astar` returns cell coordinates, start through goal, or `null`. Pass
+`{ diagonal: true }` for 8-direction movement; diagonals will not cut a
+blocked corner. Reuse the path and the grid — scratch lives on the grid, so a
+second search after the first allocates nothing.
+
 ## Rigid bodies
 
 `physics` is a separate world, not a replacement for those queries. Platformers
-keep `slideAabb`. When a scene wants gravity, spin, bounce and friction, it
-steps a world from `update`:
+keep `slideAabb`. The solver lives in `@matter/math` as a pure `step(dt)`. The
+usual way to run it is the plugin host, which owns a world on the context and
+steps it after each **fixed** update:
 
 ```ts
-import { physics } from "matter/math";
+import { createPluginHost, start } from "matter/app";
+import { overlay } from "matter/debug";
+import { physics } from "matter/physics";
 
-const world = physics.world({ gravityY: 1400 });
-world.addBox({ x: 300, y: 580, width: 600, height: 24, isStatic: true });
-const ball = world.addCircle({ x: 300, y: 80, radius: 18, restitution: 0.7 });
-
-return {
-  update(dt) {
-    world.step(dt);
+start(
+  {
+    backend: webgl2(),
+    plugins: createPluginHost()
+      .use(physics({ gravityY: 1400 }))
+      .use(overlay()),
   },
-  draw() {
-    circle(ball.x, ball.y, ball.radius * 2);
+  ({ physics }) => {
+    physics.world.addBox({ x: 300, y: 580, width: 600, height: 24, isStatic: true });
+    const ball = physics.world.addCircle({ x: 300, y: 80, radius: 18, restitution: 0.7 });
+    return {
+      draw() {
+        circle(ball.x, ball.y, ball.radius * 2);
+      },
+    };
   },
-};
+);
 ```
 
+Do not also call `world.step` — the host already did. `overlay()` draws a
+screen-space HUD and body outlines after the scene; pass `toggleKey: "F1"` if
+you want it dismissible.
+
 Circles and oriented boxes. Sequential impulses with restitution and friction.
-An offset `applyImpulse` produces spin.
+An offset `applyImpulse` produces spin. `import { physics } from "matter/math"`
+still works when a scene wants to step the solver itself.
 
 ## World and screen space
 

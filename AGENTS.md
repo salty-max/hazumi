@@ -167,21 +167,28 @@ coupling.
 `@matter/audio` sits beside the stack: it depends only on core, and Matter
 loads it as a typed plugin. It is not a renderer and it is not L5.
 
+`@matter/physics` is the same shape for rigid bodies: it depends on core and
+math, owns a world on the scene context, and steps it on the **fixed** clock
+via `postupdate`. The solver itself stays in `@matter/math`. Drawing debug
+outlines is the overlay plugin in L5, because that encodes commands.
+
 ## Layout
 
-| Path                        | Layer | Role                                                           |
-| --------------------------- | ----- | -------------------------------------------------------------- |
-| `packages/core`             | L0    | Clock, plugin host. Depends on nothing.                        |
-| `packages/math`             | L1    | Vec/Mat4, RNG, noise, easing, collision, rigid-body physics.   |
-| `packages/color`            | L2    | OKLCH colour type, parsing, interpolation.                     |
-| `packages/graphics`         | L3    | Command buffer, paths, style, transforms.                      |
-| `packages/backend-webgl2`   | L4    | **Primary renderer.** Most of the engineering.                 |
-| `packages/backend-canvas2d` | L4    | Reference oracle for tests + text fallback.                    |
-| `packages/backend-svg`      | L4    | Vector export.                                                 |
-| `packages/backend-headless` | L4    | Records commands for assertions.                               |
-| `packages/audio`            | —     | Optional Web Audio plugin. Depends on core only.               |
-| `packages/matter`           | L5    | Application runtime: `start()`, scenes, input, camera, pixels. |
-| `packages/vite-plugin`      | —     | Optional build-time auto-import of capability modules.         |
+| Path                        | Layer | Role                                                            |
+| --------------------------- | ----- | --------------------------------------------------------------- |
+| `packages/core`             | L0    | Clock, plugin host. Depends on nothing.                         |
+| `packages/math`             | L1    | Vec/Mat4, RNG, noise, easing, collision, A*, rigid-body solver. |
+| `packages/color`            | L2    | OKLCH colour type, parsing, interpolation.                      |
+| `packages/graphics`         | L3    | Command buffer, paths, style, transforms.                       |
+| `packages/backend-webgl2`   | L4    | **Primary renderer.** Most of the engineering.                  |
+| `packages/backend-canvas2d` | L4    | Reference oracle for tests + text fallback.                     |
+| `packages/backend-svg`      | L4    | Vector export.                                                  |
+| `packages/backend-headless` | L4    | Records commands for assertions.                                |
+| `packages/audio`            | —     | Optional Web Audio plugin. Depends on core only.                |
+| `packages/physics`          | —     | Optional rigid-body host. Depends on core + math.               |
+| `packages/matter`           | L5    | Application runtime: `start()`, scenes, input, camera, pixels.  |
+| `packages/vite-plugin`      | —     | Optional build-time auto-import of capability modules.          |
+| `packages/create-matter`    | —     | Project wizard: `npm create matter`. Not a layer.               |
 
 L5 is the runtime, not a thin re-export bag. The loop, input, camera, pixels,
 tilemaps, and capability bridges live here because they need a canvas and a

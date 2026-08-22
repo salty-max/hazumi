@@ -4,7 +4,7 @@ What is built, what is next, and what is deliberately deferred. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 11 packages, 658 unit tests, 20
+**Where it stands:** 0.1.0, pre-alpha. 13 packages, 755 unit tests, 20
 backend-agreement scenes, 13 example scenes. Not published to npm.
 
 ## Shipped
@@ -88,9 +88,20 @@ frame instead of 5.60 MB; current Chrome medians remain within the pre-change
 8.8–9.2 ms variance, so the bandwidth reduction is claimed without pretending
 it is a separately measurable frame-time win.
 
+`create-matter` is the consumer path: a short wizard (name, sketch vs game)
+writes a Vite app, and `vite build` emits a static `dist/` you zip for itch.io
+or GitHub Pages. Until the packages are on npm, run it from this repo with
+`--local` so the generated app depends on `file:` paths.
+
+Plugins now have `preupdate` / `postupdate` on the fixed clock, distinct from
+the frame `predraw` / `postdraw`. `@matter/physics` hosts the math solver on
+that update hook. The debug overlay in L5 draws stats and body outlines after
+the scene. Grid A* lives in `@matter/math` as `pathfind`, beside `collision`.
+
 ## Library gaps, independent of games
 
 - **npm publish.** Changesets is configured; nothing has been released.
+  `bun create matter` and the generated `^0.1.0` dependency both wait on this.
 
 ## Deferred by decision
 

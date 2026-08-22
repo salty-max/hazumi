@@ -48,6 +48,18 @@ const PACKAGES: ReadonlyArray<[string, string, string, boolean?]> = [
     true,
   ],
   [
+    "matter/debug",
+    "packages/matter/dist/debug.d.ts",
+    "Debug overlay: stats HUD and rigid-body outlines.",
+    true,
+  ],
+  [
+    "matter/physics",
+    "packages/matter/dist/physics.d.ts",
+    "Rigid-body plugin host. The solver is still @matter/math.",
+    true,
+  ],
+  [
     "@matter/audio",
     "packages/audio/dist/index.d.ts",
     "Audio loading, playback, gain, and pooled voices.",
@@ -56,7 +68,7 @@ const PACKAGES: ReadonlyArray<[string, string, string, boolean?]> = [
   [
     "@matter/math",
     "packages/math/dist/index.d.ts",
-    "L1 — vectors, collision, rigid bodies, randomness, noise.",
+    "L1 — vectors, collision, pathfinding, rigid bodies, randomness, noise.",
   ],
   ["@matter/color", "packages/color/dist/index.d.ts", "L2 — OKLCH colour."],
   ["@matter/graphics", "packages/graphics/dist/index.d.ts", "L3 — the command buffer."],
