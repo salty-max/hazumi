@@ -81,10 +81,11 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
         </nav>
         <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
           <OutboundLinks className="hidden sm:flex" />
+          {children === undefined ? null : children}
           <Button
             variant="ghost"
             size="icon"
-            className="order-first sm:hidden"
+            className="sm:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             aria-controls="primary-menu"
@@ -92,7 +93,6 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
           >
             {open ? <X /> : <Menu />}
           </Button>
-          {children === undefined ? null : children}
         </div>
       </div>
       {open ? (
@@ -110,15 +110,20 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
               {link.label}
             </NavLink>
           ))}
-          <div className="mt-1 flex items-center gap-2 border-t border-border/60 pt-2">
-            <OutboundLinks />
+          <div className="mt-1 flex items-center gap-3 border-t border-border/60 pt-3">
+            <OutboundLinks className="-ml-2" />
             <a
               href={NPM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-muted-foreground hover:text-foreground"
+              aria-label={`hazumi ${HAZUMI_VERSION} on npm`}
+              className={badgeVariants({
+                variant: "default",
+                className: "gap-1.5 px-2.5 py-1 text-[11px] tracking-normal",
+              })}
             >
-              hazumi {HAZUMI_VERSION} on npm
+              <NpmMark />
+              {HAZUMI_VERSION}
             </a>
           </div>
         </nav>
