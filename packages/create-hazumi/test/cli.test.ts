@@ -78,6 +78,24 @@ describe("run", () => {
     expect(io.stdoutText()).toContain("Zip that folder");
   });
 
+  test("an absolute target is printed as-is", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "create-hazumi-cli-"));
+    const target = mkdtempSync(join(tmpdir(), "create-hazumi-abs-"));
+    const io = captureIo();
+    const code = await run([target, "--yes", "--no-install"], {
+      cwd,
+      stdin: io.stdin,
+      stdout: io.stdout,
+      stderr: io.stderr,
+      packageRoot,
+      env: { npm_config_user_agent: "bun/1.3.14" },
+      install: async () => 0,
+    });
+    expect(code).toBe(0);
+    expect(io.stdoutText()).toContain("/T/create-hazumi-abs-");
+    expect(io.stdoutText()).not.toMatch(/\.\.\//);
+  });
+
   test("--local rewrites hazumi to a file: URL", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "create-hazumi-cli-"));
     const io = captureIo();

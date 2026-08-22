@@ -117,7 +117,11 @@ function printNextSteps(
 
 function displayPath(cwd: string, directory: string): string {
   const rel = relative(cwd, directory);
-  return rel.length === 0 ? "." : rel;
+  if (rel.length === 0) return ".";
+  // An absolute target outside cwd becomes `../../tmp/foo`. Print the path
+  // the user typed rather than a climb.
+  if (rel.startsWith("..")) return directory;
+  return rel;
 }
 
 function writeln(out: NodeJS.WritableStream, line: string): void {
