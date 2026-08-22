@@ -148,9 +148,11 @@ export function createInputTracking(state: ContextState, canvas: HTMLCanvasEleme
           seen: true,
         };
         gamepadsByIndex.set(native.index, input);
-        let insertion = state.gamepads.length;
-        while (insertion > 0 && state.gamepads[insertion - 1]!.index > native.index) insertion--;
-        state.gamepads.splice(insertion, 0, input);
+        // Kept sorted by index, so insert before the first higher one. Saying
+        // that directly beats scanning backwards past an index the checker
+        // cannot prove is in range.
+        const after = state.gamepads.findIndex((existing) => existing.index > native.index);
+        state.gamepads.splice(after === -1 ? state.gamepads.length : after, 0, input);
       }
 
       input.seen = true;
@@ -179,7 +181,8 @@ export function createInputTracking(state: ContextState, canvas: HTMLCanvasEleme
         target.touched = source.touched;
       }
       for (let button = native.buttons.length; button < input.buttons.length; button++) {
-        if (input.buttons[button]!.pressed) {
+        const stale = input.buttons[button];
+        if (stale?.pressed === true) {
           addGamepadEdge(state.gamepadButtonsReleased, native.index, button);
         }
       }

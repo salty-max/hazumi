@@ -1,3 +1,4 @@
+import { toByte } from "@hazumi/color";
 import {
   Align,
   Baseline,
@@ -59,13 +60,9 @@ const BASELINE_TO_CSS: Readonly<Record<Baseline, CanvasTextBaseline>> = {
   [Baseline.Bottom]: "bottom",
 };
 
-function channel(v: number): number {
-  return Math.round(Math.min(Math.max(v, 0), 1) * 255);
-}
-
 /** Linear-light components to a CSS colour, matching the GPU path's input. */
 function toCss(c: readonly [number, number, number, number]): string {
-  return `rgba(${channel(c[0])}, ${channel(c[1])}, ${channel(c[2])}, ${c[3]})`;
+  return `rgba(${toByte(c[0])}, ${toByte(c[1])}, ${toByte(c[2])}, ${c[3]})`;
 }
 
 export class Canvas2dRenderer {
