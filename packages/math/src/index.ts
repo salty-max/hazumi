@@ -1,5 +1,5 @@
 /**
- * L1 — pure math: vectors, collision queries, and a rigid-body world.
+ * L1 — pure math: vectors, collision queries, grid pathfinding, and a rigid-body world.
  *
  * Matrices are 4x4 from day one: 2D is a constrained use of Mat4 so the 3D
  * addon does not require a migration later. See the "2D now, 3D later" section
@@ -14,6 +14,7 @@ export * as vec3 from "./vec3";
 export * as mat4 from "./mat4";
 export * as easing from "./easing";
 export * as collision from "./collision";
+export * as pathfind from "./pathfind";
 export * as physics from "./physics";
 
 export type { Vec2 } from "./vec2";
@@ -21,6 +22,7 @@ export type { Vec3 } from "./vec3";
 export type { Mat4 } from "./mat4";
 export type { Easing } from "./easing";
 export type { Aabb, Circle, RayHit, SweepHit } from "./collision";
+export type { AstarOptions, Grid, Path } from "./pathfind";
 export type {
   BodyOptions,
   BoxBodyOptions,
