@@ -29,29 +29,34 @@ interface SceneSpec {
   readonly run: (parent: HTMLElement) => RunningScene;
   /** Skip autoplay: thousands of shapes, extra passes, or a WebGL hog. */
   readonly heavy?: boolean;
+  /** Still shown under the Run overlay. Capture with `bun run capture:examples`. */
+  readonly preview?: string;
 }
 
+const PREVIEW = "/examples/assets/previews";
+
 const SCENES: readonly SceneSpec[] = [
-  { name: "flow field", run: flowField, heavy: true },
+  { name: "flow field", run: flowField, heavy: true, preview: `${PREVIEW}/flow-field.png` },
   { name: "orbits", run: orbits },
   { name: "mouse trail", run: mouseTrail },
-  { name: "grid waves", run: gridWaves, heavy: true },
+  { name: "grid waves", run: gridWaves, heavy: true, preview: `${PREVIEW}/grid-waves.png` },
   { name: "static poster", run: staticPoster },
   { name: "type specimen", run: typeSpecimen },
   { name: "image grid", run: imageGrid },
-  { name: "post bloom", run: postBloom, heavy: true },
-  { name: "petals", run: petals, heavy: true },
+  { name: "post bloom", run: postBloom, heavy: true, preview: `${PREVIEW}/post-bloom.png` },
+  { name: "petals", run: petals, heavy: true, preview: `${PREVIEW}/petals.png` },
   { name: "tile field", run: tileField },
-  { name: "characters", run: characters, heavy: true },
-  { name: "blood mage", run: bloodMage, heavy: true },
+  { name: "characters", run: characters, heavy: true, preview: `${PREVIEW}/characters.png` },
+  { name: "blood mage", run: bloodMage, heavy: true, preview: `${PREVIEW}/blood-mage.png` },
   { name: "rigid bodies", run: rigidBodies },
-  { name: "raycaster", run: raycaster, heavy: true },
+  { name: "raycaster", run: raycaster, heavy: true, preview: `${PREVIEW}/raycaster.png` },
 ];
 
 function SceneCard({
   name,
   run,
   heavy = false,
+  preview,
   onReady,
 }: SceneSpec & {
   readonly onReady: (name: string, app: RunningScene | null) => void;
@@ -97,12 +102,27 @@ function SceneCard({
         <CardTitle>{error === null ? name : `${name} — failed`}</CardTitle>
       </CardHeader>
       <CardContent className="relative min-h-[300px] overflow-hidden p-0">
+        {!running && preview !== undefined ? (
+          <img
+            src={preview}
+            alt=""
+            width={600}
+            height={600}
+            decoding="async"
+            aria-hidden="true"
+            className="absolute inset-0 size-full object-cover"
+          />
+        ) : null}
         <div
           ref={hostRef}
-          className="grid min-h-[300px] place-items-center bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px] p-3"
+          className={
+            running
+              ? "grid min-h-[300px] place-items-center bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px] p-3"
+              : "grid min-h-[300px] place-items-center p-3"
+          }
         />
         {!running && error === null ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/55 backdrop-blur-md">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-md">
             <Button type="button" onClick={() => setRunning(true)} aria-label={`Run ${name}`}>
               <Play className="fill-current" />
               Run
