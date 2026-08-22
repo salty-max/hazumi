@@ -103,6 +103,8 @@ interface Contact {
   pn: number;
   pt: number;
   velocityBias: number;
+  /** Set while matching warm-start so two fresh points cannot clone one impulse. */
+  matched: boolean;
 }
 
 interface MutablePoint {
@@ -120,7 +122,6 @@ const POSITION_PERCENT = 0.4;
 const MAX_LINEAR_CORRECTION = 2;
 const RESTITUTION_THRESHOLD = 80;
 const WARM_START_DISTANCE_SQ = 4;
-const MAX_CONTACTS = 4096;
 
 const CLIP_IN: readonly [MutablePoint, MutablePoint] = [
   { x: 0, y: 0 },
@@ -266,10 +267,10 @@ function addContact(
   py: number,
   depth: number,
 ): number {
-  if (depth < 0 || count >= MAX_CONTACTS) return count;
+  if (depth < 0) return count;
   let contact = contacts[count];
   if (contact === undefined) {
-    contact = { a, b, nx, ny, px, py, depth, pn: 0, pt: 0, velocityBias: 0 };
+    contact = { a, b, nx, ny, px, py, depth, pn: 0, pt: 0, velocityBias: 0, matched: false };
     contacts[count] = contact;
   } else {
     contact.a = a;
@@ -282,6 +283,7 @@ function addContact(
     contact.pn = 0;
     contact.pt = 0;
     contact.velocityBias = 0;
+    contact.matched = false;
   }
   return count + 1;
 }
@@ -647,6 +649,10 @@ function matchWarmStart(
   stale: readonly Contact[],
   staleCount: number,
 ): void {
+  for (let j = 0; j < staleCount; j++) {
+    const previous = stale[j];
+    if (previous !== undefined) previous.matched = false;
+  }
   for (let i = 0; i < freshCount; i++) {
     const contact = fresh[i];
     if (contact === undefined) continue;
@@ -654,7 +660,14 @@ function matchWarmStart(
     let bestDist = WARM_START_DISTANCE_SQ;
     for (let j = 0; j < staleCount; j++) {
       const previous = stale[j];
-      if (previous === undefined || previous.a !== contact.a || previous.b !== contact.b) continue;
+      if (
+        previous === undefined ||
+        previous.matched ||
+        previous.a !== contact.a ||
+        previous.b !== contact.b
+      ) {
+        continue;
+      }
       const dx = previous.px - contact.px;
       const dy = previous.py - contact.py;
       const dist = dx * dx + dy * dy;
@@ -666,6 +679,7 @@ function matchWarmStart(
     if (best === -1) continue;
     const previous = stale[best];
     if (previous === undefined) continue;
+    previous.matched = true;
     contact.pn = previous.pn;
     contact.pt = previous.pt;
   }

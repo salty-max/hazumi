@@ -133,6 +133,17 @@ describe("resting contact", () => {
   });
 });
 
+describe("contacts", () => {
+  test("a dense pile still steps without dropping the extra pairs", () => {
+    const world = physics.world({ gravityY: 0 });
+    for (let i = 0; i < 120; i++) {
+      world.addCircle({ x: (i % 10) * 6, y: Math.floor(i / 10) * 6, radius: 8 });
+    }
+    expect(() => world.step(1 / 60)).not.toThrow();
+    expect(world.bodies).toHaveLength(120);
+  });
+});
+
 describe("oriented boxes", () => {
   test("a rotated box still sits on a floor", () => {
     const world = physics.world({ gravityY: 900 });

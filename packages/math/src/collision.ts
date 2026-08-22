@@ -393,7 +393,16 @@ function earliestAabbImpact(
     const wall = obstacles[index];
     if (wall === null || wall === undefined) continue;
     const hit = sweepAabb(box, SLIDE_DELTA, wall, SLIDE_HIT);
-    if (hit !== null && hit.time < safe) safe = hit.time;
+    if (hit === null) continue;
+    if (hit.time === 0) {
+      // Already overlapping: allow motion that separates, freeze motion
+      // that drives further in. Without this, a rounding-overlap freezes
+      // the actor inside the wall.
+      const separating = deltaX * hit.normalX + deltaY * hit.normalY > 0;
+      if (separating) continue;
+      return 0;
+    }
+    if (hit.time < safe) safe = hit.time;
   }
   return safe;
 }

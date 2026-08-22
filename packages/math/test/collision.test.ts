@@ -204,6 +204,16 @@ describe("slideAabb", () => {
   test("a zero delta is a no-op", () => {
     expect(collision.slideAabb(box, 0, 0, [wall])).toEqual({ x: 0, y: 0 });
   });
+
+  test("already overlapping a wall can still walk out", () => {
+    const overlapping = collision.aabb(8, 0, 12, 10);
+    const block = collision.aabb(10, -10, 20, 30);
+    const out = collision.slideAabb(overlapping, -6, 0, [block]);
+    expect(out.x).toBe(-6);
+    expect(out.y).toBe(0);
+    const into = collision.slideAabb(overlapping, 6, 0, [block]);
+    expect(into.x).toBe(0);
+  });
 });
 
 describe("sweepCircle", () => {
