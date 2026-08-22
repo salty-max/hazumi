@@ -17,7 +17,7 @@ export function sparks(parent: HTMLElement): HazumiApp {
     return {
       update: (dt: number): void => {
         fountain.emit({
-          x: screen.width / 2,
+          x: [screen.width / 2 - 10, screen.width / 2 + 10],
           y: screen.height - 36,
           count: 3,
           speed: [80, 160],

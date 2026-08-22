@@ -1,7 +1,6 @@
-import { parse, toSrgb } from "@hazumi/color";
 import { type Rng } from "@hazumi/math";
 import { getActiveContext } from "./active-context";
-import type { ColorLike, Rgba } from "./color-cache";
+import { ColorCache, type ColorLike } from "./color-cache";
 
 /** A number, or a closed interval sampled uniformly at emit time. */
 export type ParticleRange = number | readonly [number, number];
@@ -27,14 +26,22 @@ export interface Particle {
 }
 
 export interface ParticleBurst {
-  readonly x: number;
-  readonly y: number;
+  /** Origin. A range sprays across a segment. */
+  readonly x: ParticleRange;
+  readonly y: ParticleRange;
   /** How many to spawn. Defaults to 1. Extra particles are dropped if the pool is full. */
   readonly count?: number;
   readonly speed?: ParticleRange;
   /** Radians. Defaults to a full turn. */
   readonly angle?: ParticleRange;
+  /**
+   * Added after the polar `speed`/`angle` so a burst can inherit a body's
+   * velocity: `vx: player.vx`, `angle` for the spray.
+   */
+  readonly vx?: ParticleRange;
+  readonly vy?: ParticleRange;
   readonly life?: ParticleRange;
+  /** Diameter, same as `circle()`. */
   readonly size?: ParticleRange;
   /** Defaults to `size`. */
   readonly endSize?: ParticleRange;
@@ -112,11 +119,26 @@ function sample(rng: Rng, value: ParticleRange | undefined, fallback: number): n
   return rng.range(lo, hi);
 }
 
-function toRgba(color: ColorLike | undefined, fallback: Rgba): Rgba {
-  if (color === undefined) return fallback;
-  const oklch = typeof color === "string" ? parse(color) : color;
-  const rgb = toSrgb(oklch);
-  return [rgb.r, rgb.g, rgb.b, rgb.alpha];
+const OPAQUE_WHITE: readonly [number, number, number, number] = [1, 1, 1, 1];
+
+function writeColor(
+  cache: ColorCache,
+  color: ColorLike | undefined,
+  into: [number, number, number, number],
+  fallback: readonly [number, number, number, number],
+): void {
+  if (color === undefined) {
+    into[0] = fallback[0];
+    into[1] = fallback[1];
+    into[2] = fallback[2];
+    into[3] = fallback[3];
+    return;
+  }
+  const [r, g, b, a] = cache.resolve(color);
+  into[0] = r;
+  into[1] = g;
+  into[2] = b;
+  into[3] = a;
 }
 
 function rngForEmit(explicit: Rng | undefined): Rng {
@@ -142,6 +164,9 @@ export function particles(options: ParticleSystemOptions): ParticleSystem {
   const gravityY = options.gravity?.y ?? 0;
   const drag = options.drag ?? 0;
   const rngOption = options.random;
+  const colors = new ColorCache();
+  const startCol: [number, number, number, number] = [1, 1, 1, 1];
+  const endCol: [number, number, number, number] = [1, 1, 1, 0];
 
   const slots: Slot[] = [];
   for (let i = 0; i < capacity; i++) {
@@ -189,8 +214,15 @@ export function particles(options: ParticleSystemOptions): ParticleSystem {
     emit: (burst: ParticleBurst): void => {
       const rng = rngForEmit(rngOption);
       const n = Math.max(0, Math.trunc(burst.count ?? 1));
-      const start = toRgba(burst.color, [1, 1, 1, 1]);
-      const end = toRgba(burst.endColor, [start[0], start[1], start[2], 0]);
+      writeColor(colors, burst.color, startCol, OPAQUE_WHITE);
+      if (burst.endColor === undefined) {
+        endCol[0] = startCol[0];
+        endCol[1] = startCol[1];
+        endCol[2] = startCol[2];
+        endCol[3] = 0;
+      } else {
+        writeColor(colors, burst.endColor, endCol, startCol);
+      }
       for (let i = 0; i < n; i++) {
         if (count >= capacity) return;
         const slot = slots[count] as Slot;
@@ -201,28 +233,28 @@ export function particles(options: ParticleSystemOptions): ParticleSystem {
         const life = Math.max(1e-6, sample(rng, burst.life, 1));
         const size0 = Math.max(0, sample(rng, burst.size, 8));
         const size1 = Math.max(0, sample(rng, burst.endSize, size0));
-        slot.x = burst.x;
-        slot.y = burst.y;
-        slot.vx = Math.cos(angle) * speed;
-        slot.vy = Math.sin(angle) * speed;
+        slot.x = sample(rng, burst.x, 0);
+        slot.y = sample(rng, burst.y, 0);
+        slot.vx = Math.cos(angle) * speed + sample(rng, burst.vx, 0);
+        slot.vy = Math.sin(angle) * speed + sample(rng, burst.vy, 0);
         slot.life = life;
         slot.maxLife = life;
         slot.t = 0;
         slot.size0 = size0;
         slot.size1 = size1;
         slot.size = size0;
-        slot.r0 = start[0];
-        slot.g0 = start[1];
-        slot.b0 = start[2];
-        slot.a0 = start[3];
-        slot.r1 = end[0];
-        slot.g1 = end[1];
-        slot.b1 = end[2];
-        slot.a1 = end[3];
-        slot.r = start[0];
-        slot.g = start[1];
-        slot.b = start[2];
-        slot.a = start[3];
+        slot.r0 = startCol[0];
+        slot.g0 = startCol[1];
+        slot.b0 = startCol[2];
+        slot.a0 = startCol[3];
+        slot.r1 = endCol[0];
+        slot.g1 = endCol[1];
+        slot.b1 = endCol[2];
+        slot.a1 = endCol[3];
+        slot.r = startCol[0];
+        slot.g = startCol[1];
+        slot.b = startCol[2];
+        slot.a = startCol[3];
       }
     },
     update: (dt: number): void => {
@@ -255,9 +287,19 @@ export function particles(options: ParticleSystemOptions): ParticleSystem {
       const ctx = getActiveContext();
       ctx.push();
       ctx.noStroke();
+      let lastR = NaN;
+      let lastG = NaN;
+      let lastB = NaN;
+      let lastA = NaN;
       for (let i = 0; i < count; i++) {
         const slot = slots[i] as Slot;
-        ctx.fillRgba(slot.r, slot.g, slot.b, slot.a);
+        if (slot.r !== lastR || slot.g !== lastG || slot.b !== lastB || slot.a !== lastA) {
+          ctx.fillRgba(slot.r, slot.g, slot.b, slot.a);
+          lastR = slot.r;
+          lastG = slot.g;
+          lastB = slot.b;
+          lastA = slot.a;
+        }
         ctx.circle(slot.x, slot.y, slot.size);
       }
       ctx.pop();

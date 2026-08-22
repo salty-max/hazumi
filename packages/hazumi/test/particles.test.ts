@@ -107,7 +107,7 @@ describe("particles", () => {
       expect(ops[0]).toBe("push");
       expect(ops.at(-1)).toBe("pop");
       expect(ops.filter((op) => op === "circle")).toHaveLength(3);
-      expect(ops.filter((op) => op === "setFill")).toHaveLength(3);
+      expect(ops.filter((op) => op === "setFill")).toHaveLength(1);
     } finally {
       restoreContext(previous);
     }
@@ -118,5 +118,71 @@ describe("particles", () => {
     dust.emit({ x: 0, y: 0, count: 4, life: 10 });
     dust.clear();
     expect(dust.count).toBe(0);
+  });
+
+  test("gravity and drag change velocity", () => {
+    const dust = particles({ capacity: 1, gravity: { y: 100 }, drag: 0, random: seeded(1) });
+    dust.emit({ x: 0, y: 0, count: 1, speed: 0, life: 2 });
+    dust.update(0.5);
+    let vy = 0;
+    dust.draw((p) => {
+      vy = p.vy;
+    });
+    expect(vy).toBeCloseTo(50);
+  });
+
+  test("colour and size lerp toward the end values", () => {
+    const dust = particles({ capacity: 1, random: seeded(1) });
+    dust.emit({
+      x: 0,
+      y: 0,
+      count: 1,
+      speed: 0,
+      life: 1,
+      size: 10,
+      endSize: 0,
+      color: "#ffffff",
+      endColor: "#000000",
+    });
+    dust.update(0.5);
+    dust.draw((p) => {
+      expect(p.t).toBeCloseTo(0.5);
+      expect(p.size).toBeCloseTo(5);
+      expect(p.r).toBeCloseTo(0.5, 1);
+    });
+  });
+
+  test("a range origin sprays across a segment", () => {
+    const dust = particles({ capacity: 16, random: seeded(3) });
+    dust.emit({ x: [0, 100], y: 0, count: 16, speed: 0, life: 1 });
+    const xs: number[] = [];
+    dust.draw((p) => xs.push(p.x));
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...xs)).toBeLessThan(100);
+    expect(new Set(xs.map((x) => x.toFixed(3))).size).toBeGreaterThan(1);
+  });
+
+  test("vx/vy are added on top of the polar speed", () => {
+    const dust = particles({ capacity: 1, random: seeded(1) });
+    dust.emit({ x: 0, y: 0, count: 1, speed: 0, vx: 12, vy: -8, life: 1 });
+    dust.draw((p) => {
+      expect(p.vx).toBe(12);
+      expect(p.vy).toBe(-8);
+    });
+  });
+
+  test("default draw skips setFill when every particle shares a colour", () => {
+    const h = makeContext();
+    const previous = enterContext(h.ctx);
+    try {
+      const dust = particles({ capacity: 4, random: seeded(1) });
+      dust.emit({ x: 0, y: 0, count: 4, speed: 0, size: 8, life: 1, color: "#ff0000" });
+      h.buffer.reset();
+      dust.draw();
+      expect(record(h.buffer).filter((c) => c.op === "setFill")).toHaveLength(1);
+      expect(record(h.buffer).filter((c) => c.op === "circle")).toHaveLength(4);
+    } finally {
+      restoreContext(previous);
+    }
   });
 });
