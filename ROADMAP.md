@@ -98,13 +98,6 @@ the frame `predraw` / `postdraw`. `@hazumi/physics` hosts the math solver on
 that update hook. The debug overlay in L5 draws stats and body outlines after
 the scene. Grid A* lives in `@hazumi/math` as `pathfind`, beside `collision`.
 
-## Library gaps, independent of games
-
-- **npm publish.** Changesets and trusted publishing (OIDC, no `NPM_TOKEN`)
-  are wired. Each package still needs a trusted publisher on npmjs.com, and
-  names that do not exist yet need a one-time 2FA bootstrap publish.
-  `bun create hazumi` and the generated `^0.1.0` dependency both wait on this.
-
 ## Deferred by decision
 
 - **WebGPU.** A backend at parity with WebGL2 — shapes, glyphs, images,

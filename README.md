@@ -6,7 +6,7 @@ Draw with ordinary functions. The same scene can run on WebGL2, export as SVG,
 or record commands in a unit test. Colour is OKLCH. Input, a camera, sprites,
 paths, text, physics, and audio are all there.
 
-> **0.1.0, pre-alpha.** Not on npm yet.
+> **0.1.0, pre-alpha.**
 
 ## Start a project
 
@@ -17,12 +17,6 @@ bun create hazumi
 The wizard asks for a name and whether you want a sketch (`draw`) or a game
 (`update` + `draw`). `vite build` writes a static `dist/` you can zip for
 itch.io or GitHub Pages.
-
-Until the packages are on npm, scaffold from this repo:
-
-```bash
-bun packages/create-hazumi/src/index.ts my-scene --local
-```
 
 ## A scene
 
