@@ -30,5 +30,6 @@ describe("capability subpath exports", () => {
     expect(typeof debug.overlay).toBe("function");
     expect(typeof particlesApi.particles).toBe("function");
     expect(typeof draw.fillRgba).toBe("function");
+    expect(typeof draw.tintRgba).toBe("function");
   });
 });

@@ -30,6 +30,11 @@ export function tint(color: ColorLike): void {
   getActiveContext().tint(color);
 }
 
+/** Set tint from display-referred 0–1 channels. No parse, no allocation. */
+export function tintRgba(r: number, g: number, b: number, a: number): void {
+  getActiveContext().tintRgba(r, g, b, a);
+}
+
 /** Opaque white — a no-op multiply. */
 export function noTint(): void {
   getActiveContext().noTint();

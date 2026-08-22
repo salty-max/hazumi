@@ -11,6 +11,7 @@ declare global {
   const fillRgba: typeof import("hazumi/draw").fillRgba;
   const noFill: typeof import("hazumi/draw").noFill;
   const tint: typeof import("hazumi/draw").tint;
+  const tintRgba: typeof import("hazumi/draw").tintRgba;
   const noTint: typeof import("hazumi/draw").noTint;
   const stroke: typeof import("hazumi/draw").stroke;
   const noStroke: typeof import("hazumi/draw").noStroke;

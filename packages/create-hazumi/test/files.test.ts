@@ -24,6 +24,8 @@ describe("sceneSource", () => {
     expect(source).toContain('from "hazumi/math"');
     expect(source).toContain('from "hazumi/particles"');
     expect(source).toContain("dust.emit");
+    expect(source).toContain("Blend.Normal");
+    expect(source).toContain("dust.draw(alpha)");
   });
 
   test("auto-import still needs start, the backend, and math", () => {
