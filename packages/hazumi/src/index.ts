@@ -46,6 +46,15 @@ export {
   UnknownFrameError,
   UnknownClipError,
 } from "./spritesheet";
+export { particles } from "./particles";
+export type {
+  Particle,
+  ParticleBurst,
+  ParticleGravity,
+  ParticleRange,
+  ParticleSystem,
+  ParticleSystemOptions,
+} from "./particles";
 export { createClip, ClipEnd, EmptyClipError } from "./animation";
 export type { AnimationClip, ClipOptions } from "./animation";
 export { tilemap, EMPTY_TILE } from "./tilemap";

@@ -5,7 +5,8 @@ import { isUserError, UserError } from "./errors";
 import type { PackageManagerName } from "./files";
 import { installCommand, runCommand } from "./files";
 import { detectPackageManager, installDependencies } from "./install";
-import { findPackageRoot, readOwnVersion, resolveLocalSpecs } from "./local";
+import { HAZUMI_RANGE } from "./library";
+import { findPackageRoot, resolveLocalSpecs } from "./local";
 import { resolveAnswers, type WizardIo } from "./prompt";
 import { scaffold } from "./scaffold";
 
@@ -59,10 +60,9 @@ async function runInner(
   const answers = await resolveAnswers(args, ctx.cwd, io, pm);
 
   const packageRoot = ctx.options.packageRoot ?? findPackageRoot();
-  const version = readOwnVersion(packageRoot);
   const local = answers.local ? resolveLocalSpecs(packageRoot) : undefined;
-  const hazumiSpec = local?.hazumiSpec ?? `^${version}`;
-  const vitePluginSpec = local?.vitePluginSpec ?? `^${version}`;
+  const hazumiSpec = local?.hazumiSpec ?? HAZUMI_RANGE;
+  const vitePluginSpec = local?.vitePluginSpec ?? HAZUMI_RANGE;
 
   const result = scaffold({
     directory: answers.target.directory,

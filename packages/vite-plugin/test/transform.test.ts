@@ -188,6 +188,7 @@ describe("drift against capability modules", () => {
     "hazumi/input": "packages/hazumi/src/input.ts",
     "hazumi/scene": "packages/hazumi/src/scene.ts",
     "hazumi/assets": "packages/hazumi/src/assets.ts",
+    "hazumi/particles": "packages/hazumi/src/particles.ts",
   };
 
   async function exportedValues(relativePath: string): Promise<Set<string>> {

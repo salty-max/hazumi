@@ -21,6 +21,7 @@ const HAZUMI_MODULES = new Set([
   "hazumi/draw",
   "hazumi/input",
   "hazumi/math",
+  "hazumi/particles",
   "hazumi/physics",
   "hazumi/scene",
 ]);

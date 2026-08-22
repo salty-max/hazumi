@@ -29,6 +29,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
       "oklch",
       "rgb",
       "fill",
+      "fillRgba",
       "noFill",
       "tint",
       "noTint",
@@ -102,6 +103,10 @@ export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
       "tilemap",
       "EMPTY_TILE",
     ],
+  },
+  {
+    module: "hazumi/particles",
+    members: ["particles"],
   },
 ];
 

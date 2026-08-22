@@ -52,6 +52,12 @@ export const PACKAGES: readonly PackageSpec[] = [
     group: "scene",
   },
   {
+    name: "hazumi/particles",
+    path: "packages/hazumi/dist/particles.d.ts",
+    blurb: "Pooled emitters. Circles, or paint your own.",
+    group: "scene",
+  },
+  {
     name: "hazumi/audio",
     path: "packages/hazumi/dist/audio.d.ts",
     blurb: "Load, play, gain, voice pool.",

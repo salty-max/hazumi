@@ -8,6 +8,7 @@ declare global {
   const oklch: typeof import("hazumi/draw").oklch;
   const rgb: typeof import("hazumi/draw").rgb;
   const fill: typeof import("hazumi/draw").fill;
+  const fillRgba: typeof import("hazumi/draw").fillRgba;
   const noFill: typeof import("hazumi/draw").noFill;
   const tint: typeof import("hazumi/draw").tint;
   const noTint: typeof import("hazumi/draw").noTint;
@@ -65,4 +66,5 @@ declare global {
   const ClipEnd: typeof import("hazumi/assets").ClipEnd;
   const tilemap: typeof import("hazumi/assets").tilemap;
   const EMPTY_TILE: typeof import("hazumi/assets").EMPTY_TILE;
+  const particles: typeof import("hazumi/particles").particles;
 }

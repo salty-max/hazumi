@@ -5,6 +5,7 @@ import { gridWaves } from "../../../../examples/grid-waves";
 import { imageGrid } from "../../../../examples/image-grid";
 import { mouseTrail } from "../../../../examples/mouse-trail";
 import { orbits } from "../../../../examples/orbits";
+import { sparks } from "../../../../examples/particles";
 import { petals } from "../../../../examples/petals";
 import { postBloom } from "../../../../examples/post-bloom";
 import { raycaster } from "../../../../examples/raycaster";
@@ -40,6 +41,7 @@ const SCENES: readonly SceneSpec[] = [
   { name: "flow field", run: flowField, heavy: true, preview: `${PREVIEW}/flow-field.png` },
   { name: "orbits", run: orbits },
   { name: "mouse trail", run: mouseTrail },
+  { name: "particles", run: sparks },
   { name: "grid waves", run: gridWaves, heavy: true, preview: `${PREVIEW}/grid-waves.png` },
   { name: "static poster", run: staticPoster },
   { name: "type specimen", run: typeSpecimen },

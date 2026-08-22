@@ -16,6 +16,11 @@ export function fill(color: ColorLike): void {
   getActiveContext().fill(color);
 }
 
+/** Set fill from display-referred 0–1 channels. No parse, no allocation. */
+export function fillRgba(r: number, g: number, b: number, a: number): void {
+  getActiveContext().fillRgba(r, g, b, a);
+}
+
 export function noFill(): void {
   getActiveContext().noFill();
 }

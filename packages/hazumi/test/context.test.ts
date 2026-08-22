@@ -147,6 +147,13 @@ describe("drawing", () => {
 });
 
 describe("style", () => {
+  test("fillRgba writes channels without going through the colour cache", () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.fillRgba(0.25, 0.5, 0.75, 0.5);
+    expect(record(h.buffer).find((c) => c.op === "setFill")?.args).toEqual([0.25, 0.5, 0.75, 0.5]);
+  });
+
   test("noFill emits a zero-alpha fill", () => {
     const h = makeContext();
     h.buffer.reset();

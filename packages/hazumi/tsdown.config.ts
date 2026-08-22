@@ -21,6 +21,7 @@ export default defineConfig([
       "src/audio.ts",
       "src/physics.ts",
       "src/debug.ts",
+      "src/particles.ts",
       "src/backends/webgl2.ts",
       "src/backends/canvas2d.ts",
       "src/backends/svg.ts",

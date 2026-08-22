@@ -22,6 +22,8 @@ describe("sceneSource", () => {
     expect(source).toContain("collision.slideAabb");
     expect(source).toContain("keyIsDown");
     expect(source).toContain('from "hazumi/math"');
+    expect(source).toContain('from "hazumi/particles"');
+    expect(source).toContain("dust.emit");
   });
 
   test("auto-import still needs start, the backend, and math", () => {
@@ -35,6 +37,8 @@ describe("sceneSource", () => {
     expect(game).toContain('from "hazumi/math"');
     expect(game).not.toContain('from "hazumi/draw"');
     expect(game).not.toContain('from "hazumi/input"');
+    expect(game).not.toContain('from "hazumi/particles"');
+    expect(game).toContain("particles(");
   });
 });
 
