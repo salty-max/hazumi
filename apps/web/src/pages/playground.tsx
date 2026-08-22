@@ -330,9 +330,22 @@ export function PlaygroundPage(): JSX.Element {
 
   return (
     <div className="flex h-dvh min-h-[480px] flex-col overflow-hidden bg-background text-foreground">
-      <SiteHeader>
+      <SiteHeader />
+
+      {/* The workspace controls get their own row rather than riding in the
+          site header. Sharing that line meant the page's actions and the site
+          navigation competed for the same width, which overflowed at tablet
+          sizes and had already pushed the menu button off-screen once. */}
+      <div
+        role="toolbar"
+        aria-label="Workspace"
+        className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-5 sm:px-8"
+      >
         <Select value={starterIndex} onValueChange={chooseStarter} items={STARTER_ITEMS}>
-          <SelectTrigger aria-label="Starter scene" className="hidden min-w-40 sm:flex">
+          <SelectTrigger
+            aria-label="Starter scene"
+            className="min-w-0 flex-1 sm:min-w-40 sm:flex-none"
+          >
             <Sparkles className="size-3.5 text-primary" />
             <SelectValue />
           </SelectTrigger>
@@ -348,8 +361,8 @@ export function PlaygroundPage(): JSX.Element {
           aria-live="polite"
           className={
             status.kind === "error"
-              ? "hidden max-w-48 truncate text-xs text-destructive lg:block"
-              : "hidden text-xs text-muted-foreground lg:block"
+              ? "hidden max-w-48 truncate text-xs text-destructive md:block"
+              : "hidden text-xs text-muted-foreground md:block"
           }
         >
           {status.text}
@@ -360,35 +373,37 @@ export function PlaygroundPage(): JSX.Element {
             `aria-label` is on the button because a `display: none` label is
             absent from the accessibility tree too, so icon-only left these
             buttons with no accessible name at all. */}
-        <Button
-          variant="outline"
-          size="sm"
-          aria-label="Export SVG"
-          title="Export SVG"
-          onClick={() => void exportSvg()}
-        >
-          <Spline />
-          <span className="hidden sm:inline">SVG</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          aria-label="Export PNG"
-          title="Export PNG"
-          onClick={() => void exportPng()}
-        >
-          <ImageIcon />
-          <span className="hidden sm:inline">PNG</span>
-        </Button>
-        <Button size="sm" onClick={() => void run()}>
-          <Play className="fill-current" />
-          Run
-          <KbdGroup data-icon="inline-end" className="hidden translate-x-0.5 lg:inline-flex">
-            <Kbd>⌘</Kbd>
-            <Kbd>↵</Kbd>
-          </KbdGroup>
-        </Button>
-      </SiteHeader>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Export SVG"
+            title="Export SVG"
+            onClick={() => void exportSvg()}
+          >
+            <Spline />
+            <span className="hidden sm:inline">SVG</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Export PNG"
+            title="Export PNG"
+            onClick={() => void exportPng()}
+          >
+            <ImageIcon />
+            <span className="hidden sm:inline">PNG</span>
+          </Button>
+          <Button size="sm" onClick={() => void run()}>
+            <Play className="fill-current" />
+            Run
+            <KbdGroup data-icon="inline-end" className="hidden translate-x-0.5 lg:inline-flex">
+              <Kbd>⌘</Kbd>
+              <Kbd>↵</Kbd>
+            </KbdGroup>
+          </Button>
+        </div>
+      </div>
 
       <main className="min-h-0 flex-1">
         <ResizablePanelGroup orientation={narrow ? "vertical" : "horizontal"} id="workspace">

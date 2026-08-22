@@ -1,5 +1,5 @@
 import { Menu, X } from "lucide-react";
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { BrandMark } from "./brand-mark";
 import { OutboundLinks } from "./outbound-links";
@@ -21,7 +21,7 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   );
 }
 
-export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX.Element {
+export function SiteHeader(): JSX.Element {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
 
@@ -81,7 +81,6 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
         </nav>
         <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
           <OutboundLinks className="hidden sm:flex" />
-          {children === undefined ? null : children}
           <Button
             variant="ghost"
             size="icon"
