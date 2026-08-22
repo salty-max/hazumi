@@ -197,3 +197,45 @@ export function transform(source: string, options: TransformOptions = {}): strin
   if (lines.length === 0) return source;
   return `${lines.join("\n")}\n${source}`;
 }
+
+/** Ambient globals matching `AUTO_IMPORT_MEMBERS`, for `tsc` on `*.scene.ts` files. */
+export function globalsDeclaration(): string {
+  const lines = ["export type MatterAutoImportGlobals = never;", "", "declare global {"];
+  for (const entry of CAPABILITY_MODULES) {
+    for (const name of entry.members) {
+      lines.push(`  const ${name}: typeof import(${JSON.stringify(entry.module)}).${name};`);
+    }
+  }
+  lines.push("}", "");
+  return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Identity source map that maps output line `i + extraLines` to source line `i`.
+ *
+ * The transform only prepends import lines, so every original line is unchanged
+ * — it just sits further down the file.
+ */
+export function offsetSourceMap(
+  extraLines: number,
+  original: string,
+  file: string,
+): {
+  version: 3;
+  file: string;
+  sources: string[];
+  sourcesContent: string[];
+  names: string[];
+  mappings: string;
+} {
+  const lineCount = original.length === 0 ? 1 : original.split("\n").length;
+  const body = Array.from({ length: lineCount }, (_, i) => (i === 0 ? "AAAA" : "AACA")).join(";");
+  return {
+    version: 3,
+    file,
+    sources: [file],
+    sourcesContent: [original],
+    names: [],
+    mappings: `${";".repeat(extraLines)}${body}`,
+  };
+}

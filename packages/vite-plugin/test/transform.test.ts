@@ -3,6 +3,7 @@ import {
   AUTO_IMPORT_MEMBERS,
   CAPABILITY_MODULES,
   findUsedMembers,
+  globalsDeclaration,
   hasExplicitImport,
   importedNames,
   matterAutoImport,
@@ -159,7 +160,16 @@ describe("matterAutoImport", () => {
   test("produces code the bundler can consume", () => {
     const result = matterAutoImport().transform("circle(1,2,3);", "/s.scene.ts");
     expect(result?.code).toContain('from "matter/draw"');
-    expect(result?.map).toBeNull();
+    expect(result?.map).not.toBeNull();
+    expect(result?.map?.mappings.startsWith(";")).toBe(true);
+  });
+
+  test("offsets the source map by every prepended import line", () => {
+    const source = "circle(1,2,3);\nkeyIsDown('x');\nscreen.width;";
+    const result = matterAutoImport().transform(source, "/s.scene.ts");
+    const extra = (result?.code.split("\n").length ?? 0) - source.split("\n").length;
+    expect(extra).toBeGreaterThan(1);
+    expect(result?.map?.mappings.startsWith(";".repeat(extra))).toBe(true);
   });
 });
 
@@ -203,6 +213,13 @@ describe("drift against capability modules", () => {
     }
     return names;
   }
+
+  test("globals.d.ts declares every auto-import member", () => {
+    const dts = globalsDeclaration();
+    for (const name of AUTO_IMPORT_MEMBERS) {
+      expect(dts).toContain(`  const ${name}:`);
+    }
+  });
 
   test("every auto-import name is exported by its module", async () => {
     const exportedByModule = await Promise.all(

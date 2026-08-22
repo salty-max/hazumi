@@ -9,7 +9,7 @@
  * `matter/draw`, `matter/input`, `matter/scene`, and `matter/assets`.
  */
 
-import { transform, type TransformOptions } from "./transform";
+import { offsetSourceMap, transform, type TransformOptions } from "./transform";
 
 export interface MatterPluginOptions extends TransformOptions {
   /** Which files to transform. Defaults to `*.scene.ts` and `*.scene.js`. */
@@ -20,7 +20,10 @@ export interface MatterPluginOptions extends TransformOptions {
 export interface VitePluginLike {
   readonly name: string;
   readonly enforce?: "pre" | "post";
-  transform: (code: string, id: string) => { code: string; map: null } | null;
+  transform: (
+    code: string,
+    id: string,
+  ) => { code: string; map: ReturnType<typeof offsetSourceMap> | null } | null;
 }
 
 const DEFAULT_INCLUDE = /\.scene\.[jt]s$/;
@@ -39,10 +42,12 @@ export function matterAutoImport(options: MatterPluginOptions = {}): VitePluginL
       const out = transform(code, options);
       if (out === code) return null;
 
-      // No source map: the transform only prepends a line, so a map would be
-      // an exact off-by-one and is better handled by the bundler's own
-      // line-offset tracking than by a wrong map.
-      return { code: out, map: null };
+      const prefix = out.length === code.length ? "" : out.slice(0, -code.length);
+      const extraLines = prefix.length === 0 ? 0 : prefix.split("\n").length - 1;
+      return {
+        code: out,
+        map: offsetSourceMap(Math.max(extraLines, 0), code, id),
+      };
     },
   };
 }
@@ -54,5 +59,7 @@ export {
   findUsedMembers,
   hasExplicitImport,
   importedNames,
+  globalsDeclaration,
+  offsetSourceMap,
 } from "./transform";
 export type { CapabilityModule, TransformOptions } from "./transform";
