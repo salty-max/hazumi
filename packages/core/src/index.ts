@@ -7,7 +7,13 @@
 export { AppClock } from "./clock";
 export type { Clock, ClockOptions } from "./clock";
 
-export { createPluginHost, definePlugin, DuplicatePluginError } from "./plugin";
+export {
+  createPluginHost,
+  definePlugin,
+  DuplicatePluginError,
+  DuplicateContributionError,
+  ReservedContributionError,
+} from "./plugin";
 export type {
   Plugin,
   PluginSetupContext,

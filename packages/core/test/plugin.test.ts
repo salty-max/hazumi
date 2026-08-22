@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   createPluginHost,
   definePlugin,
+  DuplicateContributionError,
   DuplicatePluginError,
+  ReservedContributionError,
   type PluginHost,
 } from "../src/index";
 
@@ -97,6 +99,41 @@ describe("type accumulation", () => {
       expect((error as DuplicatePluginError).pluginName).toBe("audio");
     }
   });
+
+  test("rejects duplicate contribution keys", () => {
+    const first = definePlugin({ name: "one", setup: () => ({ volume: 1 }) });
+    const second = definePlugin({ name: "two", setup: () => ({ volume: 2 }) });
+    expect(() => createPluginHost().use(first).use(second).build()).toThrow(
+      DuplicateContributionError,
+    );
+  });
+
+  test("rejects contributions that collide with PluginHost", () => {
+    const clash = definePlugin({ name: "clash", setup: () => ({ dispose: true }) });
+    expect(() => createPluginHost().use(clash).build()).toThrow(ReservedContributionError);
+  });
+
+  test("rolls back earlier plugins when a later setup throws", () => {
+    const log: string[] = [];
+    const first = definePlugin({
+      name: "first",
+      setup: () => {
+        log.push("first:setup");
+        return { a: 1 };
+      },
+      dispose: () => void log.push("first:dispose"),
+    });
+    const second = definePlugin({
+      name: "second",
+      setup: () => {
+        log.push("second:setup");
+        throw new Error("setup failed");
+      },
+      dispose: () => void log.push("second:dispose"),
+    });
+    expect(() => createPluginHost().use(first).use(second).build()).toThrow("setup failed");
+    expect(log).toEqual(["first:setup", "second:setup", "first:dispose"]);
+  });
 });
 
 describe("lifecycle dispatch", () => {
@@ -131,6 +168,42 @@ describe("lifecycle dispatch", () => {
 
     // Reverse, so a plugin tears down before anything it depends on.
     expect(log).toEqual(["second", "first"]);
+  });
+
+  test("finishes dispose after a plugin throws", () => {
+    const log: string[] = [];
+    const first = definePlugin({ name: "first", dispose: () => void log.push("first") });
+    const second = definePlugin({
+      name: "second",
+      dispose: () => {
+        log.push("second");
+        throw new Error("second failed");
+      },
+    });
+
+    expect(() => createPluginHost().use(first).use(second).build().dispose()).toThrow(
+      "second failed",
+    );
+    expect(log).toEqual(["second", "first"]);
+  });
+
+  test("aggregates multiple dispose failures", () => {
+    const first = definePlugin({
+      name: "first",
+      dispose: () => {
+        throw new Error("first failed");
+      },
+    });
+    const second = definePlugin({
+      name: "second",
+      dispose: () => {
+        throw new Error("second failed");
+      },
+    });
+
+    expect(() => createPluginHost().use(first).use(second).build().dispose()).toThrow(
+      AggregateError,
+    );
   });
 
   test("passes dt through to draw hooks", () => {

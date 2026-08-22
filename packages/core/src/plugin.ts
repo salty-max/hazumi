@@ -64,6 +64,38 @@ export class DuplicatePluginError extends Error {
   }
 }
 
+export class DuplicateContributionError extends Error {
+  readonly key: string;
+
+  constructor(key: string) {
+    super(`Plugin contribution ${JSON.stringify(key)} is already registered`);
+    this.name = "DuplicateContributionError";
+    this.key = key;
+  }
+}
+
+export class ReservedContributionError extends Error {
+  readonly key: string;
+
+  constructor(key: string) {
+    super(`Plugin contribution ${JSON.stringify(key)} conflicts with PluginHost`);
+    this.name = "ReservedContributionError";
+    this.key = key;
+  }
+}
+
+const HOST_KEYS: ReadonlySet<string> = new Set([
+  "plugins",
+  "extensions",
+  "presetup",
+  "postsetup",
+  "preupdate",
+  "postupdate",
+  "predraw",
+  "postdraw",
+  "dispose",
+]);
+
 /** Lifecycle dispatch plus everything registered plugins add. */
 export interface PluginHost<Api extends object = Record<never, never>> {
   readonly plugins: readonly string[];
@@ -104,6 +136,21 @@ export function createPluginHost(): PluginBuilder<Record<never, never>> {
  * rather than a loop of awaits so the ordering is the shape of the code.
  * Promise.all here would be a silent behaviour change.
  */
+function disposePlugins(plugins: readonly Plugin<never>[]): void {
+  const errors: unknown[] = [];
+  for (let i = plugins.length - 1; i >= 0; i--) {
+    try {
+      plugins[i]?.dispose?.();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length === 1) throw errors[0];
+  if (errors.length > 1) {
+    throw new AggregateError(errors, "Plugin disposal failed");
+  }
+}
+
 function runInOrder(
   plugins: readonly Plugin<never>[],
   pick: (plugin: Plugin<never>) => (() => void | Promise<void>) | undefined,
@@ -125,13 +172,28 @@ function builder<Api extends object>(plugins: readonly Plugin<never>[]): PluginB
 
     build(): PluginHost<Api> & Api {
       const api: Record<string, unknown> = {};
+      const started: Plugin<never>[] = [];
 
-      for (const plugin of plugins) {
-        const contributed = plugin.setup?.({ name: plugin.name });
-        if (contributed === undefined) continue;
-        for (const [key, value] of Object.entries(contributed)) {
-          api[key] = value;
+      try {
+        for (const plugin of plugins) {
+          const contributed = plugin.setup?.({ name: plugin.name });
+          started.push(plugin);
+          if (contributed === undefined) continue;
+          for (const [key, value] of Object.entries(contributed)) {
+            if (HOST_KEYS.has(key)) throw new ReservedContributionError(key);
+            if (Object.hasOwn(api, key)) throw new DuplicateContributionError(key);
+            api[key] = value;
+          }
         }
+      } catch (error) {
+        // setup() is not a dry run: a plugin may already have opened a context
+        // or attached listeners. Roll those back before the host exists.
+        try {
+          disposePlugins(started);
+        } catch {
+          // Keep the setup failure; a dispose error during rollback is secondary.
+        }
+        throw error;
       }
 
       const core: PluginHost<Api> = {
@@ -152,9 +214,7 @@ function builder<Api extends object>(plugins: readonly Plugin<never>[]): PluginB
           for (const p of plugins) p.postdraw?.(dt);
         },
         // Reverse order, so a plugin tears down before anything it depends on.
-        dispose: (): void => {
-          for (let i = plugins.length - 1; i >= 0; i--) plugins[i]?.dispose?.();
-        },
+        dispose: (): void => disposePlugins(plugins),
       };
 
       return Object.assign({}, api, core) as PluginHost<Api> & Api;
