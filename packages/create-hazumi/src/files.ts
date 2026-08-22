@@ -181,6 +181,7 @@ function sceneImports(template: TemplateKind, autoImport: boolean): string {
     } else {
       lines.push(`import { background, circle, fill, oklch, rect } from "hazumi/draw";`);
       lines.push(`import { keyIsDown } from "hazumi/input";`);
+      lines.push(`import { particles } from "hazumi/particles";`);
       lines.push(`import { screen } from "hazumi/scene";`);
     }
   }
@@ -208,6 +209,7 @@ start({ backend: webgl2(), width: 800, height: 450, clock: { fixedStep: 1 / 60 }
     collision.aabb(520, 80, 200, 36),
     collision.aabb(520, 330, 200, 36),
   ];
+  const dust = particles({ capacity: 64, gravity: { y: 420 }, drag: 1.8 });
 
   return {
     update(dt: number): void {
@@ -229,10 +231,25 @@ start({ backend: webgl2(), width: 800, height: 450, clock: { fixedStep: 1 / 60 }
 
       const box = collision.aabb(player.x, player.y, SIZE, SIZE);
       const moved = collision.slideAabb(box, dx, dy, walls);
+      if (
+        length > 0 &&
+        (Math.abs(moved.x) + 1e-6 < Math.abs(dx) || Math.abs(moved.y) + 1e-6 < Math.abs(dy))
+      ) {
+        dust.emit({
+          x: player.x + SIZE / 2,
+          y: player.y + SIZE / 2,
+          count: 8,
+          speed: [30, 90],
+          life: [0.18, 0.4],
+          size: [3, 7],
+          color: "oklch(0.78 0.08 80)",
+        });
+      }
       player.x += moved.x;
       player.y += moved.y;
       player.x = Math.min(Math.max(player.x, 0), screen.width - SIZE);
       player.y = Math.min(Math.max(player.y, 0), screen.height - SIZE);
+      dust.update(dt);
     },
     draw(alpha: number): void {
       background(oklch(0.16, 0.02, 250));
@@ -244,6 +261,7 @@ start({ backend: webgl2(), width: 800, height: 450, clock: { fixedStep: 1 / 60 }
       const y = player.prevY + (player.y - player.prevY) * alpha;
       fill(oklch(0.72, 0.16, 145));
       circle(x + SIZE / 2, y + SIZE / 2, SIZE);
+      dust.draw();
     },
   };
 });

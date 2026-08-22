@@ -6,7 +6,7 @@ Draw with ordinary functions. The same scene can run on WebGL2, export as SVG,
 or record commands in a unit test. Colour is OKLCH. Input, a camera, sprites,
 paths, text, physics, and audio are all there.
 
-> **0.1.0, pre-alpha.**
+> Published on npm as `hazumi`. Runtime packages share one version.
 
 ## Start a project
 
@@ -40,14 +40,14 @@ start({ backend: webgl2(), width: 600, height: 600 }, () => {
 ```
 
 Import by capability: `hazumi/draw`, `hazumi/input`, `hazumi/scene`,
-`hazumi/assets`, `hazumi/audio`, `hazumi/math`, `hazumi/color`. Functions do
-the work; live values sit on objects (`screen.width`, `time.elapsed`,
-`input.mouseX`). They resolve to the application that is currently running.
+`hazumi/assets`, `hazumi/particles`, `hazumi/audio`, `hazumi/math`,
+`hazumi/color`. Functions do the work; live values sit on objects
+(`screen.width`, `time.elapsed`, `input.mouseX`). They resolve to the
+application that is currently running.
 
 The scene factory still receives the context, which is where plugin APIs such
-as `audio` live. After an `await` in the factory, capability imports are
-inactive until the returned callbacks run — finish async setup from the
-context argument.
+as `audio` live. Capability imports stay live for the whole factory, including
+code after an `await`.
 
 Pass `--auto-import` to `create-hazumi` for `*.scene.ts` files that skip the
 capability imports. The Vite plugin inserts them at build time.

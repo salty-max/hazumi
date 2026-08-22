@@ -4,8 +4,9 @@ What is built, what is next, and what is deliberately deferred. Numbers here
 are measured, not estimated — when one goes stale, correct it rather than
 dropping it.
 
-**Where it stands:** 0.1.0, pre-alpha. 13 packages, 755 unit tests, 20
-backend-agreement scenes, 13 example scenes. Not published to npm.
+**Where it stands:** `hazumi` is on npm. Runtime packages (`hazumi` and
+`@hazumi/*`) share one version via a changesets `fixed` group. `create-hazumi`
+is independent and pins the library range explicitly.
 
 ## Shipped
 
@@ -21,6 +22,7 @@ backend-agreement scenes, 13 example scenes. Not published to npm.
 | P8 ✅  | Typed runtime plugins and Web Audio with bounded pooled voices                       |
 | P9 ✅  | Runtime resize and DPR tracking, mutable pixels, and PNG frame capture               |
 | P10 ✅ | Packed RGBA8 WebGL uploads for shapes, text, images, and paths                       |
+| P11 ✅ | Image tint, source-rect crops, factory TLS across `await`, pooled particles          |
 
 The measurements that back these:
 
@@ -90,8 +92,14 @@ it is a separately measurable frame-time win.
 
 `create-hazumi` is the consumer path: a short wizard (name, sketch vs game)
 writes a Vite app, and `vite build` emits a static `dist/` you zip for itch.io
-or GitHub Pages. Until the packages are on npm, run it from this repo with
-`--local` so the generated app depends on `file:` paths.
+or GitHub Pages. The published CLI pins `hazumi` to the current library range,
+not to its own version. `--local` still wires `file:` paths inside this repo.
+
+`particles()` is a fixed-capacity pool. `emit` / `update` / default `draw`
+allocate nothing after construction. The default paint is a filled circle
+using `fillRgba()` so a burst does not re-parse colours every frame. A custom
+`paint` callback can draw sprites instead. The command buffer still stores
+circles, not tessellated quads.
 
 Plugins now have `preupdate` / `postupdate` on the fixed clock, distinct from
 the frame `predraw` / `postdraw`. `@hazumi/physics` hosts the math solver on

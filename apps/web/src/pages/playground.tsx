@@ -16,6 +16,7 @@ import * as debugApi from "hazumi/debug";
 import * as drawApi from "hazumi/draw";
 import * as inputApi from "hazumi/input";
 import * as mathApi from "hazumi/math";
+import * as particlesApi from "hazumi/particles";
 import * as physicsApi from "hazumi/physics";
 import * as sceneApi from "hazumi/scene";
 import { createPluginHost, start, type HazumiApp, type PluginBuilder } from "hazumi/app";
@@ -59,6 +60,7 @@ const PLAYGROUND_MODULES = Object.freeze({
   "hazumi/draw": drawApi,
   "hazumi/input": inputApi,
   "hazumi/math": mathApi,
+  "hazumi/particles": particlesApi,
   "hazumi/physics": physicsApi,
   "hazumi/scene": sceneApi,
 });

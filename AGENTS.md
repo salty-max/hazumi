@@ -23,6 +23,7 @@ import { background, circle, fill, scoped } from "hazumi/draw";
 import { keyIsDown, keyJustPressed } from "hazumi/input";
 import { camera, screen, time } from "hazumi/scene";
 import { loadImage, spritesheet, tilemap } from "hazumi/assets";
+import { particles } from "hazumi/particles";
 ```
 
 Those functions resolve to the application whose lifecycle callback is running.

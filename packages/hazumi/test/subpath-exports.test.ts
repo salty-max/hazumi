@@ -5,6 +5,7 @@ import * as debug from "hazumi/debug";
 import * as draw from "hazumi/draw";
 import * as input from "hazumi/input";
 import * as physicsPlugin from "hazumi/physics";
+import * as particlesApi from "hazumi/particles";
 import * as scene from "hazumi/scene";
 
 describe("capability subpath exports", () => {
@@ -27,5 +28,7 @@ describe("capability subpath exports", () => {
     expect(typeof physicsPlugin.physics).toBe("function");
     expect(typeof physicsPlugin.Shape).toBe("object");
     expect(typeof debug.overlay).toBe("function");
+    expect(typeof particlesApi.particles).toBe("function");
+    expect(typeof draw.fillRgba).toBe("function");
   });
 });

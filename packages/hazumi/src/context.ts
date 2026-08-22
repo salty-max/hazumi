@@ -130,6 +130,11 @@ export interface HazumiContext {
   // --- style ---
   background: (color: ColorLike) => void;
   fill: (color: ColorLike) => void;
+  /**
+   * Set fill from display-referred 0–1 channels. No parse, no allocation —
+   * the path a particle system (or any per-shape colour) needs.
+   */
+  fillRgba: (r: number, g: number, b: number, a: number) => void;
   noFill: () => void;
   /**
    * Multiplier for images. Independent of fill so `noFill()` cannot hide a
@@ -335,6 +340,8 @@ export function createContext(deps: ContextDeps): ContextBundle {
 
   // Mirrors what has been written to the buffer, so `with()` can restore it.
   let fillColor: ColorLike | null = "#ffffff";
+  const fillRgbaStore: [number, number, number, number] = [1, 1, 1, 1];
+  let fillUsesRgba = false;
   let tintColor: ColorLike = "#ffffff";
   let strokeColor: ColorLike | null = null;
   let strokeWidth = 1;
@@ -348,6 +355,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
   let pathStarted = false;
 
   const applyFill = (): void => {
+    if (fillUsesRgba) {
+      buffer.setFill(fillRgbaStore[0], fillRgbaStore[1], fillRgbaStore[2], fillRgbaStore[3]);
+      return;
+    }
     const [r, g, b, a] = fillColor === null ? [0, 0, 0, 0] : colors.resolve(fillColor);
     buffer.setFill(r, g, b, a);
   };
@@ -453,10 +464,21 @@ export function createContext(deps: ContextDeps): ContextBundle {
     },
     fill: (color: ColorLike): void => {
       fillColor = color;
+      fillUsesRgba = false;
+      applyFill();
+    },
+    fillRgba: (r: number, g: number, b: number, a: number): void => {
+      fillColor = "#ffffff";
+      fillUsesRgba = true;
+      fillRgbaStore[0] = r;
+      fillRgbaStore[1] = g;
+      fillRgbaStore[2] = b;
+      fillRgbaStore[3] = a;
       applyFill();
     },
     noFill: (): void => {
       fillColor = null;
+      fillUsesRgba = false;
       applyFill();
     },
     tint: (color: ColorLike): void => {
@@ -625,6 +647,11 @@ export function createContext(deps: ContextDeps): ContextBundle {
 
     with: (overrides: StyleOverrides, body: () => void): void => {
       const savedFill = fillColor;
+      const savedUsesRgba = fillUsesRgba;
+      const savedR = fillRgbaStore[0];
+      const savedG = fillRgbaStore[1];
+      const savedB = fillRgbaStore[2];
+      const savedA = fillRgbaStore[3];
       const savedTint = tintColor;
       const savedStroke = strokeColor;
       const savedWidth = strokeWidth;
@@ -638,6 +665,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
       try {
         if (overrides.fill !== undefined) {
           fillColor = overrides.fill;
+          fillUsesRgba = false;
           applyFill();
         }
         if (overrides.tint !== undefined) {
@@ -671,6 +699,11 @@ export function createContext(deps: ContextDeps): ContextBundle {
         // style into everything drawn afterwards.
         buffer.pop();
         fillColor = savedFill;
+        fillUsesRgba = savedUsesRgba;
+        fillRgbaStore[0] = savedR;
+        fillRgbaStore[1] = savedG;
+        fillRgbaStore[2] = savedB;
+        fillRgbaStore[3] = savedA;
         tintColor = savedTint;
         strokeColor = savedStroke;
         strokeWidth = savedWidth;

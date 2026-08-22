@@ -62,6 +62,10 @@ describe("hazumi exports", () => {
     expect(typeof hazumi.spritesheet).toBe("function");
   });
 
+  test("exports particles as a runtime value", () => {
+    expect(typeof hazumi.particles).toBe("function");
+  });
+
   test("the re-exported CommandBuffer is usable", () => {
     const buf = new hazumi.CommandBuffer();
     buf.circle(1, 2, 3);

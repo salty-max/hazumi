@@ -59,6 +59,10 @@
       "types": "./dist/debug.d.ts",
       "default": "./dist/debug.js"
     },
+    "./particles": {
+      "types": "./dist/particles.d.ts",
+      "default": "./dist/particles.js"
+    },
     "./backends/webgl2": {
       "types": "./dist/backends/webgl2.d.ts",
       "default": "./dist/backends/webgl2.js"
