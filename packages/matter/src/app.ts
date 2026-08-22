@@ -712,7 +712,9 @@ export function start<Api extends object = Record<never, never>>(
     beginInputStep();
     const previousContext = enterContext(sceneContext);
     try {
+      pluginHost.preupdate(fixedDt);
       activeScene?.update?.(fixedDt, sceneContext);
+      pluginHost.postupdate(fixedDt);
     } finally {
       restoreContext(previousContext);
       endInputStep();

@@ -174,6 +174,33 @@ describe("plugins", () => {
     expect(log.at(-1)).toBe("dispose");
   });
 
+  test("runs update hooks on the fixed step, even without a scene update", async () => {
+    const h = harness();
+    const log: string[] = [];
+    const plugin = definePlugin({
+      name: "clock",
+      preupdate: (fixedDt: number) => void log.push(`pre:${fixedDt}`),
+      postupdate: (fixedDt: number) => void log.push(`post:${fixedDt}`),
+    });
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        clock: { fixedStep: 0.01 },
+        plugins: createPluginHost().use(plugin),
+      },
+      { draw: (): void => {} },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+    expect(log).toEqual([]);
+    h.runFrame(25);
+    expect(log).toEqual(["pre:0.01", "post:0.01", "pre:0.01", "post:0.01"]);
+
+    app.stop();
+  });
+
   test("rejects contributions that overwrite the built-in context", () => {
     const h = harness();
     const plugin = definePlugin({

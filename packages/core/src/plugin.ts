@@ -18,7 +18,14 @@ export interface PluginLifecycle {
   presetup?: () => void | Promise<void>;
   /** After setup runs. May be async. */
   postsetup?: () => void | Promise<void>;
-  /** Before each draw. */
+  /**
+   * Before each fixed update. `fixedDt` is the configured step, not the frame
+   * delta — a physics host belongs here, not in `predraw`.
+   */
+  preupdate?: (fixedDt: number) => void;
+  /** After each fixed update. */
+  postupdate?: (fixedDt: number) => void;
+  /** Before each draw. `dt` is the frame delta. */
   predraw?: (dt: number) => void;
   /** After each draw. */
   postdraw?: (dt: number) => void;
@@ -64,6 +71,8 @@ export interface PluginHost<Api extends object = Record<never, never>> {
   readonly extensions: Api;
   presetup: () => Promise<void>;
   postsetup: () => Promise<void>;
+  preupdate: (fixedDt: number) => void;
+  postupdate: (fixedDt: number) => void;
   predraw: (dt: number) => void;
   postdraw: (dt: number) => void;
   dispose: () => void;
@@ -130,6 +139,12 @@ function builder<Api extends object>(plugins: readonly Plugin<never>[]): PluginB
         extensions: api as Api,
         presetup: (): Promise<void> => runInOrder(plugins, (p) => p.presetup),
         postsetup: (): Promise<void> => runInOrder(plugins, (p) => p.postsetup),
+        preupdate: (fixedDt: number): void => {
+          for (const p of plugins) p.preupdate?.(fixedDt);
+        },
+        postupdate: (fixedDt: number): void => {
+          for (const p of plugins) p.postupdate?.(fixedDt);
+        },
         predraw: (dt: number): void => {
           for (const p of plugins) p.predraw?.(dt);
         },

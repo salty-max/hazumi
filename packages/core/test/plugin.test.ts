@@ -25,10 +25,12 @@ function makePhysics(log: string[] = []) {
     },
     presetup: () => void log.push("physics:presetup"),
     postsetup: () => void log.push("physics:postsetup"),
-    predraw: () => {
+    preupdate: () => void log.push("physics:preupdate"),
+    postupdate: () => {
       steps++;
-      log.push("physics:predraw");
+      log.push("physics:postupdate");
     },
+    predraw: () => void log.push("physics:predraw"),
     postdraw: () => void log.push("physics:postdraw"),
     dispose: () => void log.push("physics:dispose"),
   });
@@ -104,6 +106,8 @@ describe("lifecycle dispatch", () => {
 
     await host.presetup();
     await host.postsetup();
+    host.preupdate(0.016);
+    host.postupdate(0.016);
     host.predraw(0.016);
     host.postdraw(0.016);
 
@@ -111,6 +115,8 @@ describe("lifecycle dispatch", () => {
       "physics:setup",
       "physics:presetup",
       "physics:postsetup",
+      "physics:preupdate",
+      "physics:postupdate",
       "physics:predraw",
       "physics:postdraw",
     ]);
@@ -139,6 +145,20 @@ describe("lifecycle dispatch", () => {
     expect(seen).toEqual([0.5]);
   });
 
+  test("passes the fixed step through to update hooks", () => {
+    const seen: number[] = [];
+    const plugin = definePlugin({
+      name: "timing",
+      preupdate: (fixedDt: number) => void seen.push(fixedDt),
+      postupdate: (fixedDt: number) => void seen.push(fixedDt),
+    });
+
+    const host = createPluginHost().use(plugin).build();
+    host.preupdate(1 / 60);
+    host.postupdate(1 / 60);
+    expect(seen).toEqual([1 / 60, 1 / 60]);
+  });
+
   test("awaits async setup hooks in order", async () => {
     const log: string[] = [];
     const slow = definePlugin({
@@ -161,8 +181,8 @@ describe("lifecycle dispatch", () => {
   test("setup runs once at build, not per hook", () => {
     const log: string[] = [];
     const host = createPluginHost().use(makePhysics(log)).build();
-    host.predraw(0);
-    host.predraw(0);
+    host.postupdate(0);
+    host.postupdate(0);
     expect(log.filter((l) => l === "physics:setup")).toHaveLength(1);
     expect(host.stepCount()).toBe(2);
   });
