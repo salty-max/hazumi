@@ -276,5 +276,18 @@ bun run test         # bun test via turbo
 bun run lint         # oxlint
 bun run format       # oxfmt
 bun run format:check # oxfmt --check (husky pre-commit)
+bun run ci           # format, lint, typecheck, test, build — same as GitHub Actions
 bun run changeset    # record a version bump
 ```
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) is the merge gate. It installs with
+`--frozen-lockfile`, then runs `bun run ci`. Pull requests also lint the commit
+range and run `changeset status --since` the base SHA, so a package change
+without a changeset fails. A change that must not bump versions takes
+`changeset --empty`.
+
+Do not add WebGL or pixel-comparison jobs: GitHub-hosted runners have no GPU,
+and backend agreement stays `bench/compare.html`. `test:browser` is reserved
+until a package actually ships Playwright tests.
