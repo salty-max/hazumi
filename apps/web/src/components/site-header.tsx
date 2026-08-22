@@ -29,11 +29,12 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
           rel="noopener noreferrer"
           aria-label={`hazumi ${HAZUMI_VERSION} on npm`}
           className={badgeVariants({
-            variant: "outline",
+            variant: "default",
             className:
-              "hidden hover:border-muted-foreground/60 hover:text-foreground sm:inline-flex",
+              "gap-1.5 px-2.5 py-1 text-[11px] tracking-normal hover:bg-primary hover:text-primary-foreground",
           })}
         >
+          <NpmMark />
           {HAZUMI_VERSION}
         </a>
         <nav className="hidden items-center gap-4 text-sm sm:flex" aria-label="Primary">
@@ -58,5 +59,13 @@ export function SiteHeader({ children }: { readonly children?: ReactNode }): JSX
         </div>
       </div>
     </header>
+  );
+}
+
+function NpmMark(): JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-3.5">
+      <path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474C23.214 24 24 23.214 24 22.237V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L11.99 19.15H5.113z" />
+    </svg>
   );
 }
