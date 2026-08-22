@@ -288,6 +288,9 @@ range and run `changeset status --since` the base SHA, so a package change
 without a changeset fails. A change that must not bump versions takes
 `changeset --empty`.
 
+`hazumi#typecheck` waits on that package's own `build`: its subpath-export
+tests import `hazumi/app` and friends, which resolve through `dist/`.
+
 Do not add WebGL or pixel-comparison jobs: GitHub-hosted runners have no GPU,
 and backend agreement stays `bench/compare.html`. `test:browser` is reserved
 until a package actually ships Playwright tests.

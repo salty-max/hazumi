@@ -25,6 +25,11 @@
       "inputs": ["src/**", "test/**", "tsconfig.json"],
       "outputs": []
     },
+    "hazumi#typecheck": {
+      "dependsOn": ["build"],
+      "inputs": ["src/**", "test/**", "tsconfig.json"],
+      "outputs": []
+    },
     "test": {
       "dependsOn": ["build"],
       "inputs": ["src/**", "test/**"],
