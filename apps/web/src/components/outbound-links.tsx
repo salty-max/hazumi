@@ -2,7 +2,7 @@ import { Coffee } from "lucide-react";
 import type { JSX } from "react";
 import { GITHUB_URL, KOFI_URL } from "../lib/site";
 import { cn } from "../lib/utils";
-import { buttonVariants } from "./ui/button";
+import { Button } from "./ui/button";
 
 const LINKS = [
   { href: GITHUB_URL, label: "GitHub", kind: "github" },
@@ -13,17 +13,23 @@ export function OutboundLinks({ className }: { readonly className?: string }): J
   return (
     <nav aria-label="Project links" className={cn("flex items-center gap-0.5", className)}>
       {LINKS.map((link) => (
-        <a
+        <Button
           key={link.href}
-          href={link.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={link.label}
-          title={link.label}
-          className={buttonVariants({ variant: "ghost", size: "icon" })}
+          variant="ghost"
+          size="icon"
+          nativeButton={false}
+          render={
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={link.label}
+              title={link.label}
+            />
+          }
         >
           {link.kind === "github" ? <GithubMark /> : <Coffee />}
-        </a>
+        </Button>
       ))}
     </nav>
   );

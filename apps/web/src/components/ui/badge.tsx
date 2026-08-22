@@ -9,7 +9,7 @@ export const badgeVariants: (props?: {
   variant?: BadgeVariant | null;
   className?: ClassValue;
 }) => string = cva(
-  "inline-flex w-fit shrink-0 items-center rounded-full border border-transparent px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.08em] uppercase",
+  "inline-flex w-fit shrink-0 items-center rounded-full border border-transparent px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.08em] uppercase transition-colors",
   {
     variants: {
       variant: {
