@@ -48,6 +48,14 @@ function makeContext(): { ctx: HazumiContext; buffer: CommandBuffer } {
     state: makeState(),
     seed: 1,
     setPasses: () => {},
+    // A monospace stand-in: every glyph half the font size wide, so a test can
+    // assert on layout arithmetic without a real font.
+    measureText: (content: string, _font: string, size: number) => ({
+      width: [...content].length * size * 0.5,
+      ascent: size * 0.8,
+      descent: size * 0.2,
+      lineHeight: size * 1.2,
+    }),
   });
   return { ctx: context, buffer };
 }

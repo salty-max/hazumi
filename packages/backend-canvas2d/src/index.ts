@@ -3,10 +3,11 @@ import {
   Align,
   Baseline,
   Blend,
+  decode,
   type CommandBuffer,
   type CommandVisitor,
   type PixelData,
-  decode,
+  type TextMetrics,
 } from "@hazumi/graphics";
 
 /**
@@ -120,6 +121,33 @@ export class Canvas2dRenderer {
    * update — but a backend that silently ignored a resize would be a trap, so
    * the dimensions are recorded and asserted against in tests.
    */
+  /**
+   * Measure a line through the canvas's own font machinery.
+   *
+   * `ascent` and `descent` come from a fixed "Hg" sample rather than from the
+   * content, so they describe the line box and not whichever glyphs happen to
+   * be in this string — and so they match what the GPU path reports from its
+   * atlas, which samples the same pair.
+   */
+  measureText(content: string, font: string, size: number): TextMetrics {
+    const ctx = this.#ctx;
+    const saved = ctx.font;
+    ctx.font = `${size}px ${font}`;
+    const run = ctx.measureText(content);
+    const sample = ctx.measureText("Hg");
+    ctx.font = saved;
+
+    const boxAscent = sample.fontBoundingBoxAscent;
+    const boxDescent = sample.fontBoundingBoxDescent;
+    const box = (boxAscent ?? 0) + (boxDescent ?? 0);
+    return {
+      width: run.width,
+      ascent: sample.actualBoundingBoxAscent || size * 0.8,
+      descent: sample.actualBoundingBoxDescent || size * 0.2,
+      lineHeight: box > 0 ? box : size * 1.2,
+    };
+  }
+
   setViewport(width: number, height: number): void {
     this.#viewport = { width, height };
   }

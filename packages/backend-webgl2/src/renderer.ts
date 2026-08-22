@@ -7,6 +7,7 @@ import {
   type CommandVisitor,
   type FrameStats as ContractStats,
   type PixelData,
+  type TextMetrics as ContractTextMetrics,
   copyAffine,
   decode,
   identityAffine,
@@ -1021,6 +1022,32 @@ export class Webgl2Renderer {
 
     this.#batches.push(blend);
     this.#count++;
+  }
+
+  /**
+   * Measure a line from the same atlas the GPU draws it with.
+   *
+   * Summing the advances the renderer already walks means the number a scene
+   * lays out against is the number that gets drawn — measuring through a
+   * separate canvas would drift from the atlas at exactly the sizes where it
+   * matters.
+   */
+  measureText(content: string, font: string, size: number): ContractTextMetrics {
+    const entry = this.#atlasFor(font);
+    if (entry === null) return { width: 0, ascent: 0, descent: 0, lineHeight: size };
+
+    const { atlas } = entry;
+    let width = 0;
+    for (const char of content) {
+      const glyph = atlas.glyph(char);
+      if (glyph !== undefined) width += glyph.advance * size;
+    }
+    return {
+      width,
+      ascent: atlas.ascent * size,
+      descent: atlas.descent * size,
+      lineHeight: atlas.lineHeight * size,
+    };
   }
 
   /** Build the atlas for a family on first use, then reuse it. */

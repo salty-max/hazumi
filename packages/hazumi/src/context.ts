@@ -5,6 +5,7 @@ import {
   CommandBuffer,
   type ImageSource,
   type ShaderPass,
+  type TextMetrics,
 } from "@hazumi/graphics";
 import { isSpriteFrame, type SpriteFrame } from "./spritesheet";
 import { createNoise, type Noise, type Rng, seeded } from "@hazumi/math";
@@ -218,6 +219,23 @@ export interface HazumiContext {
   /** Font family, as in CSS. Defaults to sans-serif. */
   textFont: (family: string) => void;
   textSize: (size: number) => void;
+  /**
+   * Measure one line at the current font and size.
+   *
+   * Needs the renderer, because only it knows the font. A backend without a
+   * font context — the headless recorder — cannot answer, and says so rather
+   * than guessing a width that would silently misplace every layout built on it.
+   */
+  measureText: (content: string) => TextMetrics;
+  /** Advance width of one line at the current font and size. */
+  textWidth: (content: string) => number;
+  /**
+   * Break text into lines that each fit `maxWidth`.
+   *
+   * Splits on spaces, keeps existing newlines, and never drops a word: one
+   * longer than `maxWidth` gets a line to itself rather than being cut.
+   */
+  wrapText: (content: string, maxWidth: number) => readonly string[];
   textAlign: (horizontal: Align, vertical?: Baseline) => void;
   text: (content: string, x: number, y: number) => void;
 
@@ -289,6 +307,8 @@ export interface ContextDeps {
   readonly seed: number;
   /** Injected by the runtime; the context does not know about renderers. */
   readonly setPasses: (passes: readonly ShaderPass[]) => void;
+  /** Measure at the family and size the context currently holds. */
+  readonly measureText: (content: string, font: string, size: number) => TextMetrics;
 }
 
 /**
@@ -613,6 +633,36 @@ export function createContext(deps: ContextDeps): ContextBundle {
         return;
       }
       buffer.image(source, x, y, width ?? source.width, height ?? source.height);
+    },
+
+    measureText: (content: string): TextMetrics => deps.measureText(content, fontFamily, fontSize),
+
+    textWidth: (content: string): number => deps.measureText(content, fontFamily, fontSize).width,
+
+    wrapText: (content: string, maxWidth: number): readonly string[] => {
+      const lines: string[] = [];
+      // Existing newlines are the author's own breaks and survive wrapping.
+      for (const paragraph of content.split("\n")) {
+        const words = paragraph.split(" ").filter((word) => word.length > 0);
+        if (words.length === 0) {
+          lines.push("");
+          continue;
+        }
+        let line = words[0] as string;
+        for (const word of words.slice(1)) {
+          const candidate = `${line} ${word}`;
+          if (deps.measureText(candidate, fontFamily, fontSize).width <= maxWidth) {
+            line = candidate;
+          } else {
+            // A word wider than the box still gets its own line: cutting it
+            // would lose characters, which is worse than overflowing.
+            lines.push(line);
+            line = word;
+          }
+        }
+        lines.push(line);
+      }
+      return lines;
     },
 
     textFont: (family: string): void => {

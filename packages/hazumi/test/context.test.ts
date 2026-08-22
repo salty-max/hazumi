@@ -64,6 +64,14 @@ function makeContext(): {
     state,
     seed: 42,
     setPasses: () => {},
+    // A monospace stand-in: every glyph half the font size wide, so a test can
+    // assert on layout arithmetic without a real font.
+    measureText: (content: string, _font: string, size: number) => ({
+      width: [...content].length * size * 0.5,
+      ascent: size * 0.8,
+      descent: size * 0.2,
+      lineHeight: size * 1.2,
+    }),
   });
   return {
     ctx: context,
@@ -216,6 +224,14 @@ describe("style", () => {
       state,
       seed: 1,
       setPasses: () => {},
+      // A monospace stand-in: every glyph half the font size wide, so a test can
+      // assert on layout arithmetic without a real font.
+      measureText: (content: string, _font: string, size: number) => ({
+        width: [...content].length * size * 0.5,
+        ascent: size * 0.8,
+        descent: size * 0.2,
+        lineHeight: size * 1.2,
+      }),
     });
 
     // createContext already resolved the default fill, so measure the delta.
@@ -619,5 +635,57 @@ describe("sprites", () => {
   test("a partial source crop throws rather than guessing", () => {
     const h = makeContext();
     expect(() => h.ctx.image(fakeImage(8, 8), 0, 0, 8, 8, 1)).toThrow(/sx, sy, sw, and sh/);
+  });
+});
+
+describe("text measurement", () => {
+  // The stub font above is monospace at half the size, so 16px gives 8px a
+  // character — every expectation below is that arithmetic, not a real face.
+  test("measures a line at the current size", () => {
+    const h = makeContext();
+    h.ctx.textSize(16);
+    expect(h.ctx.textWidth("hello")).toBe(40);
+    expect(h.ctx.measureText("hello")).toEqual({
+      width: 40,
+      ascent: 12.8,
+      descent: 3.2,
+      lineHeight: 19.2,
+    });
+  });
+
+  test("follows a size change", () => {
+    const h = makeContext();
+    h.ctx.textSize(32);
+    expect(h.ctx.textWidth("hello")).toBe(80);
+  });
+
+  test("wraps on spaces without splitting words", () => {
+    const h = makeContext();
+    h.ctx.textSize(16);
+    // 80px holds ten characters, so "the quick" (9) fits and "the quick brown"
+    // does not.
+    expect(h.ctx.wrapText("the quick brown fox", 80)).toEqual(["the quick", "brown fox"]);
+  });
+
+  test("gives a word wider than the box its own line rather than cutting it", () => {
+    const h = makeContext();
+    h.ctx.textSize(16);
+    expect(h.ctx.wrapText("hi supercalifragilistic go", 40)).toEqual([
+      "hi",
+      "supercalifragilistic",
+      "go",
+    ]);
+  });
+
+  test("keeps the author's own newlines", () => {
+    const h = makeContext();
+    h.ctx.textSize(16);
+    expect(h.ctx.wrapText("one\ntwo three", 400)).toEqual(["one", "two three"]);
+  });
+
+  test("an empty line survives as an empty line", () => {
+    const h = makeContext();
+    h.ctx.textSize(16);
+    expect(h.ctx.wrapText("a\n\nb", 400)).toEqual(["a", "", "b"]);
   });
 });

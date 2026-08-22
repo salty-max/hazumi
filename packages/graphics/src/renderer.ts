@@ -37,6 +37,25 @@ export interface FrameStats {
 }
 
 /**
+ * What one run of text occupies, in logical pixels at the size measured.
+ *
+ * Reported by the backend because only the backend knows the font: the GPU
+ * path measures from its SDF atlas, the raster paths ask the canvas. A scene
+ * cannot compute this itself, which is why laying out a dialogue box or fitting
+ * a label to a button needs the renderer.
+ */
+export interface TextMetrics {
+  /** Total pen advance, including the trailing side bearing. */
+  readonly width: number;
+  /** Baseline to the top of the tallest glyph, positive upwards. */
+  readonly ascent: number;
+  /** Baseline to the lowest descender, positive downwards. */
+  readonly descent: number;
+  /** Baseline-to-baseline distance for stacked lines, from the font's own box. */
+  readonly lineHeight: number;
+}
+
+/**
  * What every backend implements.
  *
  * Declared at L3 rather than in a backend package so `start()` can accept any
@@ -68,6 +87,13 @@ export interface Renderer {
   setTime?: (seconds: number) => void;
   /** What the last frame cost, where the backend counts it. */
   readonly stats?: FrameStats;
+  /**
+   * Measure a single line at the given family and size.
+   *
+   * Optional because a backend without a font context cannot answer: the
+   * headless recorder has no glyphs to measure against.
+   */
+  measureText?: (content: string, font: string, size: number) => TextMetrics;
   /** Release GPU or canvas resources. */
   dispose: () => void;
 }

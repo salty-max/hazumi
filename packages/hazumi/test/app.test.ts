@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { record, type RecordedCommand } from "@hazumi/backend-headless";
 import { createPluginHost, definePlugin } from "@hazumi/core";
 import type { CommandBuffer, Renderer, ShaderPass } from "@hazumi/graphics";
-import { ShaderPassesUnavailableError, start } from "../src/app";
+import { ShaderPassesUnavailableError, TextMeasurementUnavailableError, start } from "../src/app";
 import { PixelAccessUnavailableError, Pixels } from "../src/pixels";
-import { background, circle, fill } from "../src/draw";
+import { background, circle, fill, measureText, textSize, textWidth } from "../src/draw";
 import {
   input,
   keyIsDown as activeKeyIsDown,
@@ -1435,6 +1435,44 @@ describe("backend capability contract", () => {
     await app.ready;
     expect(thrown).toBeInstanceOf(ShaderPassesUnavailableError);
     expect((thrown as Error).name).toBe("ShaderPassesUnavailableError");
+    app.stop();
+  });
+
+  test("measuring text on a backend with no font names the reason", async () => {
+    const h = harness();
+    let thrown: unknown;
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, () => {
+      try {
+        measureText("hello");
+      } catch (error) {
+        thrown = error;
+      }
+      return { draw: () => {} };
+    });
+    await app.ready;
+    expect(thrown).toBeInstanceOf(TextMeasurementUnavailableError);
+    app.stop();
+  });
+
+  test("a renderer declaring measureText answers through the context", async () => {
+    const h = harness();
+    const measuring: Renderer = {
+      ...h.renderer,
+      measureText: (content, _font, size) => ({
+        width: [...content].length * size,
+        ascent: size,
+        descent: 0,
+        lineHeight: size,
+      }),
+    };
+    let width = -1;
+    const app = start({ backend: () => measuring, canvas: h.canvas }, () => {
+      textSize(10);
+      width = textWidth("abc");
+      return { draw: () => {} };
+    });
+    await app.ready;
+    expect(width).toBe(30);
     app.stop();
   });
 

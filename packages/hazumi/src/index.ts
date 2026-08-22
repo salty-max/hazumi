@@ -14,7 +14,7 @@
  */
 
 // --- application and scene API ---
-export { start, ShaderPassesUnavailableError } from "./app";
+export { start, ShaderPassesUnavailableError, TextMeasurementUnavailableError } from "./app";
 export { loadImage } from "./load-image";
 export { NoActiveSceneError } from "./active-context";
 export { Pixels, PixelAccessUnavailableError } from "./pixels";

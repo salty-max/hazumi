@@ -22,4 +22,11 @@ export {
   scaleFactor,
 } from "./affine";
 export type { Affine } from "./affine";
-export type { Renderer, BackendFactory, PixelData, ShaderPass, FrameStats } from "./renderer";
+export type {
+  Renderer,
+  BackendFactory,
+  PixelData,
+  ShaderPass,
+  FrameStats,
+  TextMetrics,
+} from "./renderer";
