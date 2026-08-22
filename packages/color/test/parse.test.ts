@@ -80,6 +80,17 @@ describe("parse oklch()", () => {
 });
 
 describe("parse failures", () => {
+  test("rejects leftover units that are not CSS hue suffixes", () => {
+    expect(() => parse("rgb(10px 0 0)")).toThrow(ColorParseError);
+    expect(() => parse("oklch(0.7 0.18 250px)")).toThrow(ColorParseError);
+  });
+
+  test("accepts CSS hue units on oklch hue", () => {
+    expect(parse("oklch(0.7 0.18 250deg)").h).toBeCloseTo(250);
+    expect(parse("oklch(0.7 0.18 0.5turn)").h).toBeCloseTo(180);
+    expect(parse("oklch(0.7 0.18 200grad)").h).toBeCloseTo(180);
+  });
+
   test("rejects malformed input with the offending string", () => {
     for (const bad of ["", "nonsense", "#12345", "rgb(1 2)", "hsl(1 2 3)", "#gg0000"]) {
       expect(() => parse(bad)).toThrow(ColorParseError);

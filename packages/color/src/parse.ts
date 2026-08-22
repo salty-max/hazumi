@@ -68,11 +68,28 @@ function splitArgs(body: string): string[] {
     .filter((part) => part.length > 0);
 }
 
+const NUMBER = /^[+-]?(?:\d*\.)?\d+(?:e[+-]?\d+)?/i;
+const HUE_UNIT = /^(?:deg|rad|grad|turn)$/i;
+
 function number(token: string, scaleIfPercent: number, input: string): number {
-  const value = token.endsWith("%")
-    ? (Number.parseFloat(token) / 100) * scaleIfPercent
-    : Number.parseFloat(token);
+  const percent = token.endsWith("%");
+  const body = percent ? token.slice(0, -1) : token;
+  const match = NUMBER.exec(body);
+  if (match === null || match[0].length === 0) throw new ColorParseError(input);
+  const rest = body.slice(match[0].length);
+  let value = Number.parseFloat(match[0]);
   if (Number.isNaN(value)) throw new ColorParseError(input);
+  if (percent) {
+    if (rest.length > 0) throw new ColorParseError(input);
+    return (value / 100) * scaleIfPercent;
+  }
+  if (rest.length > 0) {
+    if (!HUE_UNIT.test(rest)) throw new ColorParseError(input);
+    const unit = rest.toLowerCase();
+    if (unit === "rad") value = (value * 180) / Math.PI;
+    else if (unit === "grad") value = value * 0.9;
+    else if (unit === "turn") value = value * 360;
+  }
   return value;
 }
 
