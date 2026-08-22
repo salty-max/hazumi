@@ -2,8 +2,8 @@
  * A single-frame scene.
  * Tests: noLoop, lines, strokes, seeded reproducibility.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
 import {
   background,
   circle,
@@ -14,10 +14,10 @@ import {
   scoped,
   stroke,
   strokeWeight,
-} from "matter/draw";
-import { noLoop, random } from "matter/scene";
+} from "hazumi/draw";
+import { noLoop, random } from "hazumi/scene";
 
-export function staticPoster(parent: HTMLElement): MatterApp {
+export function staticPoster(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 11 }, () => {
     noLoop();
     return {

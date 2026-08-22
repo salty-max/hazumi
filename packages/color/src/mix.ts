@@ -1,4 +1,4 @@
-import { angleDelta, clamp, lerp, wrap } from "@matter/math";
+import { angleDelta, clamp, lerp, wrap } from "@hazumi/math";
 import type { Oklch } from "./oklch";
 
 /**

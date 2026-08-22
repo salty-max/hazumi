@@ -7,10 +7,10 @@
  * noticeably — enough to catch a wrong stroke width, a flipped painter order
  * or a broken transform, without failing on a half-intensity edge pixel.
  */
-import { CommandBuffer } from "@matter/graphics";
-import { Webgl2Renderer } from "@matter/backend-webgl2";
-import { Canvas2dRenderer } from "@matter/backend-canvas2d";
-import { toSvg } from "@matter/backend-svg";
+import { CommandBuffer } from "@hazumi/graphics";
+import { Webgl2Renderer } from "@hazumi/backend-webgl2";
+import { Canvas2dRenderer } from "@hazumi/backend-canvas2d";
+import { toSvg } from "@hazumi/backend-svg";
 import { SCENES, prepareScenes } from "./scenes";
 
 const W = 400;

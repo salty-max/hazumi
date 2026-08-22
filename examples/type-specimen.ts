@@ -3,8 +3,8 @@
  * Tests: glyph layout, alignment, the second render pipeline, and whether the
  * distance field actually stays crisp as the size climbs.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
 import {
   Align,
   Baseline,
@@ -15,10 +15,10 @@ import {
   textAlign,
   textFont,
   textSize,
-} from "matter/draw";
-import { screen, time } from "matter/scene";
+} from "hazumi/draw";
+import { screen, time } from "hazumi/scene";
 
-export function typeSpecimen(parent: HTMLElement): MatterApp {
+export function typeSpecimen(parent: HTMLElement): HazumiApp {
   return start(
     { backend: webgl2(), width: 600, height: 600, parent },
     {

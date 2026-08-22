@@ -12,7 +12,7 @@ import {
   rotateAffine,
   scaleAffine,
   translateAffine,
-} from "@matter/graphics";
+} from "@hazumi/graphics";
 
 /**
  * L4 — vector export.

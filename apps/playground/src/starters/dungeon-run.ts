@@ -1,7 +1,7 @@
 export const DUNGEON_RUN: readonly { readonly name: string; readonly code: string }[] = [
   {
     name: "scene.js",
-    code: `import { loadImage, spritesheet } from 'matter/assets';
+    code: `import { loadImage, spritesheet } from 'hazumi/assets';
 import { createGame } from './game.js';
 
 const { audio, camera: initialCamera } = s;
@@ -37,10 +37,10 @@ return createGame(audio, initialCamera, {
   },
   {
     name: "game.js",
-    code: `import { background, fill, image, pop, push, rect, scale, text, textSize, translate } from 'matter/draw';
-import { keyIsDown, keyJustPressed, pointerJustPressed } from 'matter/input';
-import { collision } from 'matter/math';
-import { camera, time } from 'matter/scene';
+    code: `import { background, fill, image, pop, push, rect, scale, text, textSize, translate } from 'hazumi/draw';
+import { keyIsDown, keyJustPressed, pointerJustPressed } from 'hazumi/input';
+import { collision } from 'hazumi/math';
+import { camera, time } from 'hazumi/scene';
 import { createLevel } from './level.js';
 import { bodyFor, createMover } from './physics.js';
 
@@ -231,8 +231,8 @@ export function createGame(audio, initialCamera, assets) {
   },
   {
     name: "level.js",
-    code: `import { EMPTY_TILE, tilemap } from 'matter/assets';
-import { collision } from 'matter/math';
+    code: `import { EMPTY_TILE, tilemap } from 'hazumi/assets';
+import { collision } from 'hazumi/math';
 
 export function createLevel(tiles) {
   const tileSize = 32;
@@ -285,7 +285,7 @@ export function createLevel(tiles) {
   },
   {
     name: "physics.js",
-    code: `import { collision } from 'matter/math';
+    code: `import { collision } from 'hazumi/math';
 
 export function bodyFor(actor, size) {
   return collision.aabb(actor.x - size / 2, actor.y - size / 2, size, size);

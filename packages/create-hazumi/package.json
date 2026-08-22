@@ -1,0 +1,21 @@
+{
+  "name": "create-hazumi",
+  "version": "0.1.0",
+  "description": "Scaffold a Vite + Hazumi project.",
+  "license": "MIT",
+  "bin": {
+    "create-hazumi": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --pass-with-no-tests"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
+  }
+}

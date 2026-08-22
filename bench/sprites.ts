@@ -10,9 +10,9 @@
  *    texture uploaded from a canvas and one uploaded from a decoded PNG can end
  *    up with opposite orientation. Every case runs through both source types.
  */
-import { CommandBuffer } from "@matter/graphics";
-import type { ImageSource } from "@matter/graphics";
-import { Webgl2Renderer } from "@matter/backend-webgl2";
+import { CommandBuffer } from "@hazumi/graphics";
+import type { ImageSource } from "@hazumi/graphics";
+import { Webgl2Renderer } from "@hazumi/backend-webgl2";
 
 const out = document.getElementById("out") as HTMLElement;
 

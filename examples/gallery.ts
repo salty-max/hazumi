@@ -1,4 +1,4 @@
-import type { MatterApp } from "matter/app";
+import type { HazumiApp } from "hazumi/app";
 import { flowField } from "./flow-field";
 import { gridWaves } from "./grid-waves";
 import { mouseTrail } from "./mouse-trail";
@@ -13,7 +13,7 @@ import { characters } from "./characters";
 import { bloodMage } from "./blood-mage";
 import { rigidBodies } from "./rigid-bodies";
 
-const SCENES: ReadonlyArray<[string, (parent: HTMLElement) => MatterApp]> = [
+const SCENES: ReadonlyArray<[string, (parent: HTMLElement) => HazumiApp]> = [
   ["flow field", flowField],
   ["orbits", orbits],
   ["mouse trail", mouseTrail],
@@ -30,7 +30,7 @@ const SCENES: ReadonlyArray<[string, (parent: HTMLElement) => MatterApp]> = [
 ];
 
 const root = document.getElementById("root") as HTMLElement;
-const apps = new Map<string, MatterApp>();
+const apps = new Map<string, HazumiApp>();
 
 for (const [name, run] of SCENES) {
   const cell = document.createElement("article");
@@ -58,5 +58,5 @@ for (const [name, run] of SCENES) {
   }
 }
 
-(window as unknown as { galleryReady: boolean; apps: Map<string, MatterApp> }).galleryReady = true;
-(window as unknown as { apps: Map<string, MatterApp> }).apps = apps;
+(window as unknown as { galleryReady: boolean; apps: Map<string, HazumiApp> }).galleryReady = true;
+(window as unknown as { apps: Map<string, HazumiApp> }).apps = apps;

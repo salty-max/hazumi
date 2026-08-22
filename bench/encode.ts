@@ -3,7 +3,7 @@
  *
  * Run with:  bun run bench/encode.ts
  */
-import { CommandBuffer } from "@matter/graphics";
+import { CommandBuffer } from "@hazumi/graphics";
 
 const SHAPES = 100_000;
 const FRAMES = 200;

@@ -20,7 +20,7 @@ export interface CapabilityModule {
  */
 export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
   {
-    module: "matter/draw",
+    module: "hazumi/draw",
     members: [
       "Align",
       "Baseline",
@@ -59,7 +59,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
     ],
   },
   {
-    module: "matter/input",
+    module: "hazumi/input",
     members: [
       "input",
       "keyIsDown",
@@ -75,7 +75,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
     ],
   },
   {
-    module: "matter/scene",
+    module: "hazumi/scene",
     members: [
       "screen",
       "time",
@@ -89,7 +89,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
     ],
   },
   {
-    module: "matter/assets",
+    module: "hazumi/assets",
     members: [
       "loadImage",
       "spritesheet",
@@ -146,18 +146,18 @@ export function findUsedMembers(
   return used;
 }
 
-const MATTER_NAMED_IMPORT =
-  /^import\s+(?:type\s+)?\{([^}]+)\}\s+from\s*['"]matter(?:\/[^'"]*)?['"]/gm;
+const HAZUMI_NAMED_IMPORT =
+  /^import\s+(?:type\s+)?\{([^}]+)\}\s+from\s*['"]hazumi(?:\/[^'"]*)?['"]/gm;
 
 /**
- * Named bindings already imported from a Matter package, including subpaths.
+ * Named bindings already imported from a Hazumi package, including subpaths.
  *
  * Type-only imports count: `import type { SpriteFrame }` already bound the
  * name, so emitting a second value import for it would be a duplicate.
  */
 export function importedNames(source: string): Set<string> {
   const names = new Set<string>();
-  for (const match of source.matchAll(MATTER_NAMED_IMPORT)) {
+  for (const match of source.matchAll(HAZUMI_NAMED_IMPORT)) {
     const spec = match[1];
     if (spec === undefined) continue;
     for (const part of spec.split(",")) {
@@ -173,7 +173,7 @@ export function importedNames(source: string): Set<string> {
 
 /** True when the source already imports from the library itself. */
 export function hasExplicitImport(source: string): boolean {
-  return /^\s*import\s[^;]*from\s*['"]matter(?:\/[^'"]*)?['"]/m.test(source);
+  return /^\s*import\s[^;]*from\s*['"]hazumi(?:\/[^'"]*)?['"]/m.test(source);
 }
 
 /**
@@ -202,7 +202,7 @@ export function transform(source: string, options: TransformOptions = {}): strin
 
 /** Ambient globals matching `AUTO_IMPORT_MEMBERS`, for `tsc` on `*.scene.ts` files. */
 export function globalsDeclaration(): string {
-  const lines = ["export type MatterAutoImportGlobals = never;", "", "declare global {"];
+  const lines = ["export type HazumiAutoImportGlobals = never;", "", "declare global {"];
   for (const entry of CAPABILITY_MODULES) {
     for (const name of entry.members) {
       lines.push(`  const ${name}: typeof import(${JSON.stringify(entry.module)}).${name};`);

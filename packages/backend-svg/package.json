@@ -1,5 +1,5 @@
 {
-  "name": "@matter/backend-svg",
+  "name": "@hazumi/backend-svg",
   "version": "0.1.0",
   "description": "Vector export backend.",
   "license": "MIT",
@@ -21,10 +21,10 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
-    "@matter/color": "workspace:^",
-    "@matter/core": "workspace:^",
-    "@matter/graphics": "workspace:*",
-    "@matter/math": "workspace:^"
+    "@hazumi/color": "workspace:^",
+    "@hazumi/core": "workspace:^",
+    "@hazumi/graphics": "workspace:*",
+    "@hazumi/math": "workspace:^"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0"

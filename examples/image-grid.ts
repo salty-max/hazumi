@@ -2,14 +2,14 @@
  * Images and input.
  * Tests: async scene creation, image upload and reuse, keyboard and pmouse.
  */
-import { loadImage } from "matter/assets";
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, fill, image, rect, text, textSize } from "matter/draw";
-import { input, keyIsDown } from "matter/input";
-import { screen, time } from "matter/scene";
+import { loadImage } from "hazumi/assets";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, fill, image, rect, text, textSize } from "hazumi/draw";
+import { input, keyIsDown } from "hazumi/input";
+import { screen, time } from "hazumi/scene";
 
-export function imageGrid(parent: HTMLElement): MatterApp {
+export function imageGrid(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 5 }, async () => {
     // No preload phase: the scene factory is async and await means what it means.
     const swatch = await loadImage("/examples/assets/swatch.png");

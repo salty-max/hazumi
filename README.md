@@ -1,4 +1,4 @@
-# Matter
+# Hazumi
 
 A typed 2D graphics library for sketches, generative work, and games.
 
@@ -11,7 +11,7 @@ paths, text, physics, and audio are all there.
 ## Start a project
 
 ```bash
-bun create matter
+bun create hazumi
 ```
 
 The wizard asks for a name and whether you want a sketch (`draw`) or a game
@@ -21,16 +21,16 @@ itch.io or GitHub Pages.
 Until the packages are on npm, scaffold from this repo:
 
 ```bash
-bun packages/create-matter/src/index.ts my-scene --local
+bun packages/create-hazumi/src/index.ts my-scene --local
 ```
 
 ## A scene
 
 ```ts
-import { start } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, circle, fill, oklch } from "matter/draw";
-import { screen, time } from "matter/scene";
+import { start } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, circle, fill, oklch } from "hazumi/draw";
+import { screen, time } from "hazumi/scene";
 
 start({ backend: webgl2(), width: 600, height: 600 }, () => {
   return {
@@ -43,8 +43,8 @@ start({ backend: webgl2(), width: 600, height: 600 }, () => {
 });
 ```
 
-Import by capability: `matter/draw`, `matter/input`, `matter/scene`,
-`matter/assets`, `matter/audio`, `matter/math`, `matter/color`. Functions do
+Import by capability: `hazumi/draw`, `hazumi/input`, `hazumi/scene`,
+`hazumi/assets`, `hazumi/audio`, `hazumi/math`, `hazumi/color`. Functions do
 the work; live values sit on objects (`screen.width`, `time.elapsed`,
 `input.mouseX`). They resolve to the application that is currently running.
 
@@ -53,7 +53,7 @@ as `audio` live. After an `await` in the factory, capability imports are
 inactive until the returned callbacks run — finish async setup from the
 context argument.
 
-Pass `--auto-import` to `create-matter` for `*.scene.ts` files that skip the
+Pass `--auto-import` to `create-hazumi` for `*.scene.ts` files that skip the
 capability imports. The Vite plugin inserts them at build time.
 
 Colours are values: `oklch(l, c, h)` or `rgb(r, g, b)`. A CSS string still
@@ -74,8 +74,8 @@ Split simulation from drawing. `update` runs at a fixed step; `draw` follows
 the display and receives an interpolation alpha:
 
 ```ts
-import { background, circle, fill, oklch } from "matter/draw";
-import { keyIsDown, keyJustPressed } from "matter/input";
+import { background, circle, fill, oklch } from "hazumi/draw";
+import { keyIsDown, keyJustPressed } from "hazumi/input";
 
 start({ backend: webgl2(), clock: { fixedStep: 1 / 60 } }, () => {
   let previousX = 100;
@@ -122,8 +122,8 @@ Every scene has a camera. Its position is the world point shown at the centre
 of the canvas:
 
 ```ts
-import { background, circle, oklch, text } from "matter/draw";
-import { camera } from "matter/scene";
+import { background, circle, oklch, text } from "hazumi/draw";
+import { camera } from "hazumi/scene";
 
 return {
   update(dt) {
@@ -271,7 +271,7 @@ const png = await app.capturePng();
 ## Collision
 
 ```ts
-import { collision, vec2 } from "matter/math";
+import { collision, vec2 } from "hazumi/math";
 
 const hit = collision.sweepAabb(collision.aabb(x, y, 24, 24), vec2.vec2(vx * dt, vy * dt), wall);
 
@@ -299,7 +299,7 @@ player.y += out.y;
 A cost grid, separate from a tilemap. `0` is blocked, `1` is a normal step:
 
 ```ts
-import { pathfind } from "matter/math";
+import { pathfind } from "hazumi/math";
 
 const map = pathfind.grid(32, 18);
 map.set(4, 5, 0);
@@ -317,9 +317,9 @@ Circles and oriented boxes, with restitution and friction. The usual way to
 run it is the plugin, which steps after each fixed update:
 
 ```ts
-import { createPluginHost, start } from "matter/app";
-import { overlay } from "matter/debug";
-import { physics } from "matter/physics";
+import { createPluginHost, start } from "hazumi/app";
+import { overlay } from "hazumi/debug";
+import { physics } from "hazumi/physics";
 
 start(
   {
@@ -343,17 +343,17 @@ start(
 Do not also call `world.step` — the host already did. `overlay()` draws stats
 and body outlines after the scene; `toggleKey: "F1"` makes it dismissible.
 
-`import { physics } from "matter/math"` is the solver on its own, if you want
+`import { physics } from "hazumi/math"` is the solver on its own, if you want
 to step it yourself. Platformers that slide on tiles still use `slideAabb`.
 
 ## Backends
 
 | Import                     | Role                              |
 | -------------------------- | --------------------------------- |
-| `matter/backends/webgl2`   | Default renderer                  |
-| `matter/backends/canvas2d` | 2D canvas                         |
-| `matter/backends/svg`      | Vector export                     |
-| `matter/backends/headless` | Recorded command stream for tests |
+| `hazumi/backends/webgl2`   | Default renderer                  |
+| `hazumi/backends/canvas2d` | 2D canvas                         |
+| `hazumi/backends/svg`      | Vector export                     |
+| `hazumi/backends/headless` | Recorded command stream for tests |
 
 ## Try it
 

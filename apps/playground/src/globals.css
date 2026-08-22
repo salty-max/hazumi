@@ -83,7 +83,7 @@ a,
   -webkit-tap-highlight-color: transparent;
 }
 
-.matter-mark {
+.hazumi-mark {
   position: relative;
   display: grid;
   width: 26px;
@@ -95,8 +95,8 @@ a,
   transform: rotate(8deg);
 }
 
-.matter-mark::before,
-.matter-mark span {
+.hazumi-mark::before,
+.hazumi-mark span {
   position: absolute;
   width: 9px;
   height: 9px;
@@ -105,10 +105,10 @@ a,
   content: "";
 }
 
-.matter-mark::before {
+.hazumi-mark::before {
   transform: translate(-3px, -3px);
 }
-.matter-mark span {
+.hazumi-mark span {
   transform: translate(3px, 3px);
 }
 

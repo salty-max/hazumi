@@ -13,7 +13,7 @@ const routes: Readonly<Record<string, string>> = {
 
 function cleanRoutes(): Plugin {
   return {
-    name: "matter-clean-routes",
+    name: "hazumi-clean-routes",
     configureServer(server) {
       server.middlewares.use((request, _response, next) => {
         if (request.url === undefined) {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Blend } from "@matter/graphics";
+import { Blend } from "@hazumi/graphics";
 import { BatchList, Pipeline } from "../src/index";
 
 describe("BatchList", () => {

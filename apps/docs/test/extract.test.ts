@@ -203,9 +203,9 @@ export { thing };
  */
 const REPO_ROOT = new URL("../../../", import.meta.url).pathname;
 describe("against the real build output", () => {
-  test("finds the documented public API of @matter/graphics", async () => {
+  test("finds the documented public API of @hazumi/graphics", async () => {
     const source = await Bun.file(`${REPO_ROOT}packages/graphics/dist/index.d.ts`).text();
-    const mod = extractModule("@matter/graphics", source);
+    const mod = extractModule("@hazumi/graphics", source);
     const names = mod.entries.map((e) => e.name);
 
     expect(names).toContain("CommandBuffer");
@@ -218,18 +218,18 @@ describe("against the real build output", () => {
   });
 
   test("finds start() with its example", async () => {
-    const source = await Bun.file(`${REPO_ROOT}packages/matter/src/app.ts`).text();
-    const mod = extractModule("matter/app", source);
+    const source = await Bun.file(`${REPO_ROOT}packages/hazumi/src/app.ts`).text();
+    const mod = extractModule("hazumi/app", source);
     const start = mod.entries.find((e) => e.name === "start");
 
     expect(start?.kind).toBe("function");
-    expect(start?.description).toContain("Start a Matter application");
+    expect(start?.description).toContain("Start a Hazumi application");
     expect(start?.examples.length).toBeGreaterThan(0);
   });
 
   test("finds capability functions exported inline", async () => {
-    const source = await Bun.file(`${REPO_ROOT}packages/matter/src/draw.ts`).text();
-    const names = extractModule("matter/draw", source).entries.map((entry) => entry.name);
+    const source = await Bun.file(`${REPO_ROOT}packages/hazumi/src/draw.ts`).text();
+    const names = extractModule("hazumi/draw", source).entries.map((entry) => entry.name);
 
     expect(names).toContain("background");
     expect(names).toContain("circle");

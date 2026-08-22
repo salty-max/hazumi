@@ -1,7 +1,7 @@
-import type { SceneFactory } from "matter/app";
-import type { AudioApi } from "matter/audio";
-import type { OverlayApi } from "matter/debug";
-import type { PhysicsApi } from "matter/physics";
+import type { SceneFactory } from "hazumi/app";
+import type { AudioApi } from "hazumi/audio";
+import type { OverlayApi } from "hazumi/debug";
+import type { PhysicsApi } from "hazumi/physics";
 import type { Starter, StarterFile } from "./scenes";
 
 export type PlaygroundApi = AudioApi & PhysicsApi & OverlayApi;
@@ -12,28 +12,28 @@ export interface EditableFile {
 }
 
 const MODULE_SPECIFIER = /(from\s*|import\s*\(\s*|import\s+)(["'])(\.\.?\/[^"']+)\2/g;
-const MATTER_IMPORT = /^import\s*\{([^}]*)\}\s*from\s*(["'])(matter\/[^"']+)\2\s*;?/gm;
-const MATTER_MODULES = new Set([
-  "matter/assets",
-  "matter/audio",
-  "matter/color",
-  "matter/debug",
-  "matter/draw",
-  "matter/input",
-  "matter/math",
-  "matter/physics",
-  "matter/scene",
+const HAZUMI_IMPORT = /^import\s*\{([^}]*)\}\s*from\s*(["'])(hazumi\/[^"']+)\2\s*;?/gm;
+const HAZUMI_MODULES = new Set([
+  "hazumi/assets",
+  "hazumi/audio",
+  "hazumi/color",
+  "hazumi/debug",
+  "hazumi/draw",
+  "hazumi/input",
+  "hazumi/math",
+  "hazumi/physics",
+  "hazumi/scene",
 ]);
 
-function rewriteMatterImports(source: string): string {
-  return source.replace(MATTER_IMPORT, (_match, names: string, _quote: string, module: string) => {
-    if (!MATTER_MODULES.has(module)) throw new Error(`Unsupported playground import: ${module}`);
+function rewriteHazumiImports(source: string): string {
+  return source.replace(HAZUMI_IMPORT, (_match, names: string, _quote: string, module: string) => {
+    if (!HAZUMI_MODULES.has(module)) throw new Error(`Unsupported playground import: ${module}`);
     const bindings = names
       .split(",")
       .map((name) => name.trim().replace(/\s+as\s+/, ": "))
       .filter((name) => name.length > 0)
       .join(", ");
-    return `const { ${bindings} } = globalThis.__matterPlaygroundModules[${JSON.stringify(module)}];`;
+    return `const { ${bindings} } = globalThis.__hazumiPlaygroundModules[${JSON.stringify(module)}];`;
   });
 }
 
@@ -57,7 +57,7 @@ export async function compileWorkspace(
     if (building.has(name)) throw new Error(`Circular playground import: ${name}`);
     building.add(name);
 
-    const rewritten = rewriteMatterImports(source).replace(
+    const rewritten = rewriteHazumiImports(source).replace(
       MODULE_SPECIFIER,
       (match, prefix: string, quote: string, specifier: string): string => {
         const resolved = new URL(specifier, `https://playground.local/${name}`).pathname.slice(1);

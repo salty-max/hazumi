@@ -2,17 +2,17 @@
  * A grid modulated by layered noise.
  * Tests: dense per-frame drawing, rect, easing, colour interpolation.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { mix, oklch, toCss } from "matter/color";
-import { background, fill, rect } from "matter/draw";
-import { easing } from "matter/math";
-import { noise, screen, time } from "matter/scene";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { mix, oklch, toCss } from "hazumi/color";
+import { background, fill, rect } from "hazumi/draw";
+import { easing } from "hazumi/math";
+import { noise, screen, time } from "hazumi/scene";
 
 const COLS = 34;
 const ROWS = 34;
 
-export function gridWaves(parent: HTMLElement): MatterApp {
+export function gridWaves(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 3 }, () => {
     const cool = oklch(0.55, 0.17, 250);
     const warm = oklch(0.78, 0.16, 60);

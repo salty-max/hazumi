@@ -5,7 +5,7 @@
  * about: antialiasing, stroke geometry, painter order, transform composition,
  * or blend state.
  */
-import { Blend, type CommandBuffer, type ImageSource } from "@matter/graphics";
+import { Blend, type CommandBuffer, type ImageSource } from "@hazumi/graphics";
 
 /**
  * A 2x2 sheet with a distinct colour per quadrant, built once.

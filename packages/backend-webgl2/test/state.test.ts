@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Blend } from "@matter/graphics";
+import { Blend } from "@hazumi/graphics";
 import { type BlendCapableGl, GlStateCache } from "../src/index";
 
 function fakeGl(): BlendCapableGl & { calls: string[] } {

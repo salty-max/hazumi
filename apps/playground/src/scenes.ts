@@ -15,8 +15,8 @@ export interface StarterFile {
 export const STARTERS: readonly Starter[] = [
   {
     name: "Hello circle",
-    code: `import { background, circle, fill } from 'matter/draw';
-import { screen, time } from 'matter/scene';
+    code: `import { background, circle, fill } from 'hazumi/draw';
+import { screen, time } from 'hazumi/scene';
 
 return {
   draw() {
@@ -32,8 +32,8 @@ return {
   },
   {
     name: "Noise field",
-    code: `import { background, circle, fill } from 'matter/draw';
-import { noise, random, screen, time } from 'matter/scene';
+    code: `import { background, circle, fill } from 'hazumi/draw';
+import { noise, random, screen, time } from 'hazumi/scene';
 
 const points = Array.from({ length: 2500 }, () => ({
   x: random.range(0, screen.width),
@@ -57,9 +57,9 @@ return {
   },
   {
     name: "Input edges",
-    code: `import { background, circle, fill } from 'matter/draw';
-import { input, keyIsDown, keyJustPressed, pointerJustPressed } from 'matter/input';
-import { screen } from 'matter/scene';
+    code: `import { background, circle, fill } from 'hazumi/draw';
+import { input, keyIsDown, keyJustPressed, pointerJustPressed } from 'hazumi/input';
+import { screen } from 'hazumi/scene';
 
 const player = { x: screen.width / 2, y: screen.height / 2 };
 let hue = 285;
@@ -95,8 +95,8 @@ return {
   },
   {
     name: "Transform stack",
-    code: `import { background, fill, pop, push, rect, rotate, translate } from 'matter/draw';
-import { screen, time } from 'matter/scene';
+    code: `import { background, fill, pop, push, rect, rotate, translate } from 'hazumi/draw';
+import { screen, time } from 'hazumi/scene';
 
 return {
   draw() {
@@ -123,8 +123,8 @@ return {
   },
   {
     name: "Scoped style",
-    code: `import { background, circle, fill, scoped } from 'matter/draw';
-import { screen } from 'matter/scene';
+    code: `import { background, circle, fill, scoped } from 'hazumi/draw';
+import { screen } from 'hazumi/scene';
 
 // scoped() restores style and transform even if the body throws.
 return {
@@ -143,10 +143,10 @@ return {
   },
   {
     name: "Rigid bodies",
-    code: `import { background, circle, fill, pop, push, rect, rotate, translate } from 'matter/draw';
-import { input, pointerJustPressed } from 'matter/input';
-import { Shape } from 'matter/physics';
-import { random, screen } from 'matter/scene';
+    code: `import { background, circle, fill, pop, push, rect, rotate, translate } from 'hazumi/draw';
+import { input, pointerJustPressed } from 'hazumi/input';
+import { Shape } from 'hazumi/physics';
+import { random, screen } from 'hazumi/scene';
 
 const { physics, overlay } = s;
 overlay.visible = true;
@@ -214,10 +214,10 @@ return {
   },
   {
     name: "Pathfind",
-    code: `import { background, circle, fill, noStroke, rect } from 'matter/draw';
-import { input, pointerJustPressed } from 'matter/input';
-import { pathfind } from 'matter/math';
-import { screen } from 'matter/scene';
+    code: `import { background, circle, fill, noStroke, rect } from 'hazumi/draw';
+import { input, pointerJustPressed } from 'hazumi/input';
+import { pathfind } from 'hazumi/math';
+import { screen } from 'hazumi/scene';
 
 const COLS = 20;
 const ROWS = 20;
@@ -271,8 +271,8 @@ return {
   },
   {
     name: "Text",
-    code: `import { Align, Baseline, background, fill, text, textAlign, textFont, textSize } from 'matter/draw';
-import { screen, time } from 'matter/scene';
+    code: `import { Align, Baseline, background, fill, text, textAlign, textFont, textSize } from 'hazumi/draw';
+import { screen, time } from 'hazumi/scene';
 
 return {
   draw() {
@@ -283,7 +283,7 @@ return {
     for (let i = 0; i < 5; i++) {
       fill(\`oklch(\${0.5 + i * 0.09} 0.15 \${200 + i * 22})\`);
       textSize(20 + i * 14);
-      text('Matter', screen.width / 2, 110 + i * 90 + Math.sin(time.elapsed + i) * 8);
+      text('Hazumi', screen.width / 2, 110 + i * 90 + Math.sin(time.elapsed + i) * 8);
     }
   },
 };`,

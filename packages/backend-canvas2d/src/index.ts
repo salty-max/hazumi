@@ -6,7 +6,7 @@ import {
   type CommandVisitor,
   type PixelData,
   decode,
-} from "@matter/graphics";
+} from "@hazumi/graphics";
 
 /**
  * L4 — Canvas2D. Deliberately NOT the primary path.
@@ -352,7 +352,7 @@ export class Canvas2dRenderer {
   }
 }
 
-import type { BackendFactory } from "@matter/graphics";
+import type { BackendFactory } from "@hazumi/graphics";
 
 /** Backend factory for `start({ backend: canvas2d() }, scene)`. */
 export function canvas2d(options: Canvas2dOptions = {}): BackendFactory {

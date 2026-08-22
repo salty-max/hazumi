@@ -6,10 +6,10 @@
  * rather than an escape hatch. The scene is deliberately plain; the whole look
  * comes from the chain.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, blendMode, Blend, circle, fill } from "matter/draw";
-import { screen, setPasses, time } from "matter/scene";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, blendMode, Blend, circle, fill } from "hazumi/draw";
+import { screen, setPasses, time } from "hazumi/scene";
 
 /** Keep only the bright parts, so the blur has something to bloom. */
 const THRESHOLD = `
@@ -32,7 +32,7 @@ void main() {
 }
 `;
 
-export function postBloom(parent: HTMLElement): MatterApp {
+export function postBloom(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 9 }, () => {
     // Configuration, so it belongs in scene creation rather than the draw loop.
     setPasses([

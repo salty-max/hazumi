@@ -1,4 +1,4 @@
-import { type CommandBuffer, type CommandVisitor, decode } from "@matter/graphics";
+import { type CommandBuffer, type CommandVisitor, decode } from "@hazumi/graphics";
 
 /**
  * L4 — records the command stream instead of rendering it, so tests assert on

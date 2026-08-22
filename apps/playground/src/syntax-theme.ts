@@ -2,7 +2,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { tags } from "@lezer/highlight";
 
-const matterHighlightStyle = HighlightStyle.define([
+const hazumiHighlightStyle = HighlightStyle.define([
   {
     tag: [tags.comment, tags.lineComment, tags.blockComment, tags.docComment],
     color: "oklch(0.64 0.035 255)",
@@ -57,4 +57,4 @@ const matterHighlightStyle = HighlightStyle.define([
   },
 ]);
 
-export const matterSyntaxHighlighting: Extension = syntaxHighlighting(matterHighlightStyle);
+export const hazumiSyntaxHighlighting: Extension = syntaxHighlighting(hazumiHighlightStyle);

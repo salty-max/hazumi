@@ -6,7 +6,7 @@ import {
   globalsDeclaration,
   hasExplicitImport,
   importedNames,
-  matterAutoImport,
+  hazumiAutoImport,
   transform,
 } from "../src/index";
 
@@ -68,15 +68,15 @@ describe("findUsedMembers", () => {
 describe("transform", () => {
   test("prepends capability imports for exactly what is used", () => {
     const out = transform("circle(1, 2, 3);");
-    expect(out.startsWith('import { circle } from "matter/draw";')).toBe(true);
+    expect(out.startsWith('import { circle } from "hazumi/draw";')).toBe(true);
     expect(out).toContain("circle(1, 2, 3);");
   });
 
   test("groups names by capability module", () => {
     const out = transform("circle(screen.width / 2, 0, 10);\nkeyIsDown('a');");
-    expect(out).toContain('import { circle } from "matter/draw";');
-    expect(out).toContain('import { keyIsDown } from "matter/input";');
-    expect(out).toContain('import { screen } from "matter/scene";');
+    expect(out).toContain('import { circle } from "hazumi/draw";');
+    expect(out).toContain('import { keyIsDown } from "hazumi/input";');
+    expect(out).toContain('import { screen } from "hazumi/scene";');
   });
 
   test("leaves a source that uses nothing untouched", () => {
@@ -85,16 +85,16 @@ describe("transform", () => {
   });
 
   test("does not re-import a name the file already imported", () => {
-    const source = 'import { circle } from "matter/draw";\ncircle(1, 2, 3);\nfill("red");';
+    const source = 'import { circle } from "hazumi/draw";\ncircle(1, 2, 3);\nfill("red");';
     const out = transform(source);
-    expect(out.startsWith('import { fill } from "matter/draw";')).toBe(true);
+    expect(out.startsWith('import { fill } from "hazumi/draw";')).toBe(true);
     expect(out.match(/import \{ circle \}/g)?.length).toBe(1);
   });
 
   test("binds several members of one module in one statement", () => {
     const out = transform('background("x"); circle(1,2,3); fill("y");');
     const first = out.split("\n")[0] as string;
-    expect(first).toBe('import { background, fill, circle } from "matter/draw";');
+    expect(first).toBe('import { background, fill, circle } from "hazumi/draw";');
   });
 
   test("every auto-import member is transformable", () => {
@@ -106,12 +106,13 @@ describe("transform", () => {
 
 describe("hasExplicitImport", () => {
   test("detects an existing import", () => {
-    expect(hasExplicitImport("import { start } from 'matter';")).toBe(true);
-    expect(hasExplicitImport('import { webgl2 } from "matter/backends/webgl2";')).toBe(true);
+    expect(hasExplicitImport("import { start } from 'hazumi';")).toBe(true);
+    expect(hasExplicitImport('import { webgl2 } from "hazumi/backends/webgl2";')).toBe(true);
   });
 
   test("is not fooled by other packages", () => {
     expect(hasExplicitImport("import x from 'matterhorn';")).toBe(false);
+    expect(hasExplicitImport("import x from 'hazumihon';")).toBe(false);
     expect(hasExplicitImport("import x from 'other';")).toBe(false);
   });
 });
@@ -119,7 +120,7 @@ describe("hasExplicitImport", () => {
 describe("importedNames", () => {
   test("collects named bindings across subpaths", () => {
     const names = importedNames(
-      `import { circle, fill } from "matter/draw";\nimport { screen as viewport } from "matter/scene";`,
+      `import { circle, fill } from "hazumi/draw";\nimport { screen as viewport } from "hazumi/scene";`,
     );
     expect(names.has("circle")).toBe(true);
     expect(names.has("fill")).toBe(true);
@@ -129,44 +130,44 @@ describe("importedNames", () => {
 
   test("counts type-only imports so it does not emit a duplicate", () => {
     expect(
-      importedNames('import type { SpriteFrame } from "matter/assets";').has("SpriteFrame"),
+      importedNames('import type { SpriteFrame } from "hazumi/assets";').has("SpriteFrame"),
     ).toBe(true);
   });
 });
 
-describe("matterAutoImport", () => {
+describe("hazumiAutoImport", () => {
   test("only transforms matching files", () => {
-    const plugin = matterAutoImport();
+    const plugin = hazumiAutoImport();
     expect(plugin.transform("circle();", "/a/b.scene.ts")).not.toBeNull();
     expect(plugin.transform("circle();", "/a/b.ts")).toBeNull();
   });
 
   test("returns null when nothing changed, so the bundler can skip it", () => {
-    expect(matterAutoImport().transform("const x = 1;", "/a/b.scene.ts")).toBeNull();
+    expect(hazumiAutoImport().transform("const x = 1;", "/a/b.scene.ts")).toBeNull();
   });
 
   test("runs before other transforms", () => {
     // Must land before TypeScript strips types, or the binding is injected
     // into already-compiled output.
-    expect(matterAutoImport().enforce).toBe("pre");
+    expect(hazumiAutoImport().enforce).toBe("pre");
   });
 
   test("the include pattern is configurable", () => {
-    const plugin = matterAutoImport({ include: /\.art\.js$/ });
+    const plugin = hazumiAutoImport({ include: /\.art\.js$/ });
     expect(plugin.transform("circle();", "/x.art.js")).not.toBeNull();
     expect(plugin.transform("circle();", "/x.scene.ts")).toBeNull();
   });
 
   test("produces code the bundler can consume", () => {
-    const result = matterAutoImport().transform("circle(1,2,3);", "/s.scene.ts");
-    expect(result?.code).toContain('from "matter/draw"');
+    const result = hazumiAutoImport().transform("circle(1,2,3);", "/s.scene.ts");
+    expect(result?.code).toContain('from "hazumi/draw"');
     expect(result?.map).not.toBeNull();
     expect(result?.map?.mappings.startsWith(";")).toBe(true);
   });
 
   test("offsets the source map by every prepended import line", () => {
     const source = "circle(1,2,3);\nkeyIsDown('x');\nscreen.width;";
-    const result = matterAutoImport().transform(source, "/s.scene.ts");
+    const result = hazumiAutoImport().transform(source, "/s.scene.ts");
     const extra = (result?.code.split("\n").length ?? 0) - source.split("\n").length;
     expect(extra).toBeGreaterThan(1);
     expect(result?.map?.mappings.startsWith(";".repeat(extra))).toBe(true);
@@ -183,10 +184,10 @@ describe("drift against capability modules", () => {
   const ROOT = new URL("../../../", import.meta.url).pathname;
 
   const SOURCE_BY_MODULE: Readonly<Record<string, string>> = {
-    "matter/draw": "packages/matter/src/draw.ts",
-    "matter/input": "packages/matter/src/input.ts",
-    "matter/scene": "packages/matter/src/scene.ts",
-    "matter/assets": "packages/matter/src/assets.ts",
+    "hazumi/draw": "packages/hazumi/src/draw.ts",
+    "hazumi/input": "packages/hazumi/src/input.ts",
+    "hazumi/scene": "packages/hazumi/src/scene.ts",
+    "hazumi/assets": "packages/hazumi/src/assets.ts",
   };
 
   async function exportedValues(relativePath: string): Promise<Set<string>> {
@@ -247,7 +248,7 @@ describe("reserved words and the old context names", () => {
     expect(AUTO_IMPORT_MEMBERS).toContain("scoped");
     expect(findUsedMembers('with({ fill: "red" }, () => {});')).not.toContain("with");
     const out = transform("scoped({}, () => {});");
-    expect(out).toContain('import { scoped } from "matter/draw";');
+    expect(out).toContain('import { scoped } from "hazumi/draw";');
   });
 
   test("an object key that shares a member name costs one unused import", () => {

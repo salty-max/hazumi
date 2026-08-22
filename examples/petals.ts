@@ -3,8 +3,8 @@
  * Tests: the shape API, curve flattening, stencil fill with the transform
  * stack, and stroked paths.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
 import {
   background,
   beginShape,
@@ -18,10 +18,10 @@ import {
   strokeWeight,
   translate,
   vertex,
-} from "matter/draw";
-import { screen, time } from "matter/scene";
+} from "hazumi/draw";
+import { screen, time } from "hazumi/scene";
 
-export function petals(parent: HTMLElement): MatterApp {
+export function petals(parent: HTMLElement): HazumiApp {
   return start(
     { backend: webgl2(), width: 600, height: 600, parent, seed: 4 },
     {

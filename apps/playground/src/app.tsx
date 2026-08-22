@@ -5,21 +5,21 @@ import { basicSetup } from "codemirror";
 import { Check, Copy, Download, Play, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
-import { toSvg } from "@matter/backend-svg";
-import * as assetsApi from "matter/assets";
-import * as audioApi from "matter/audio";
-import * as colorApi from "matter/color";
-import * as debugApi from "matter/debug";
-import * as drawApi from "matter/draw";
-import * as inputApi from "matter/input";
-import * as mathApi from "matter/math";
-import * as physicsApi from "matter/physics";
-import * as sceneApi from "matter/scene";
-import { createPluginHost, start, type MatterApp, type PluginBuilder } from "matter/app";
-import { audio } from "matter/audio";
-import { webgl2 } from "matter/backends/webgl2";
-import { overlay } from "matter/debug";
-import { physics } from "matter/physics";
+import { toSvg } from "@hazumi/backend-svg";
+import * as assetsApi from "hazumi/assets";
+import * as audioApi from "hazumi/audio";
+import * as colorApi from "hazumi/color";
+import * as debugApi from "hazumi/debug";
+import * as drawApi from "hazumi/draw";
+import * as inputApi from "hazumi/input";
+import * as mathApi from "hazumi/math";
+import * as physicsApi from "hazumi/physics";
+import * as sceneApi from "hazumi/scene";
+import { createPluginHost, start, type HazumiApp, type PluginBuilder } from "hazumi/app";
+import { audio } from "hazumi/audio";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { overlay } from "hazumi/debug";
+import { physics } from "hazumi/physics";
 import { Button } from "./components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./components/ui/resizable";
 import {
@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import { STARTERS, type Starter } from "./scenes";
-import { matterSyntaxHighlighting } from "./syntax-theme";
+import { hazumiSyntaxHighlighting } from "./syntax-theme";
 import {
   compileWorkspace,
   copyStarterFiles,
@@ -42,15 +42,15 @@ const SIZE = 520;
 const INITIAL_STARTER: Starter = STARTERS[0] ?? { name: "Empty", code: "return {};" };
 
 const PLAYGROUND_MODULES = Object.freeze({
-  "matter/assets": assetsApi,
-  "matter/audio": audioApi,
-  "matter/color": colorApi,
-  "matter/debug": debugApi,
-  "matter/draw": drawApi,
-  "matter/input": inputApi,
-  "matter/math": mathApi,
-  "matter/physics": physicsApi,
-  "matter/scene": sceneApi,
+  "hazumi/assets": assetsApi,
+  "hazumi/audio": audioApi,
+  "hazumi/color": colorApi,
+  "hazumi/debug": debugApi,
+  "hazumi/draw": drawApi,
+  "hazumi/input": inputApi,
+  "hazumi/math": mathApi,
+  "hazumi/physics": physicsApi,
+  "hazumi/scene": sceneApi,
 });
 
 function playgroundPlugins(): PluginBuilder<PlaygroundApi> {
@@ -59,7 +59,7 @@ function playgroundPlugins(): PluginBuilder<PlaygroundApi> {
     .use(physics())
     .use(overlay({ visible: false, toggleKey: "F1" }));
 }
-Object.defineProperty(globalThis, "__matterPlaygroundModules", {
+Object.defineProperty(globalThis, "__hazumiPlaygroundModules", {
   configurable: true,
   value: PLAYGROUND_MODULES,
 });
@@ -86,7 +86,7 @@ function CodeEditor({ initialCode, onChange, onReady }: CodeEditorProps): JSX.El
         extensions: [
           basicSetup,
           javascript({ typescript: true }),
-          matterSyntaxHighlighting,
+          hazumiSyntaxHighlighting,
           keymap.of([]),
           EditorView.lineWrapping,
           EditorView.updateListener.of((update): void => {
@@ -156,7 +156,7 @@ function PanelHeading({
 
 export function App(): JSX.Element {
   const stageRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<MatterApp<PlaygroundApi> | null>(null);
+  const appRef = useRef<HazumiApp<PlaygroundApi> | null>(null);
   const runIdRef = useRef(0);
   const filesRef = useRef<EditableFile[]>(copyStarterFiles(INITIAL_STARTER));
   const [editorReady, setEditorReady] = useState(false);
@@ -218,7 +218,7 @@ export function App(): JSX.Element {
   const exportSvg = useCallback(async (): Promise<void> => {
     if (!editorReady) return;
     setStatus({ text: "Exporting", kind: "idle" });
-    let exporter: MatterApp<PlaygroundApi> | null = null;
+    let exporter: HazumiApp<PlaygroundApi> | null = null;
 
     try {
       const scene = await compileWorkspace(filesRef.current);
@@ -265,7 +265,7 @@ export function App(): JSX.Element {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "matter-frame.png";
+      link.download = "hazumi-frame.png";
       link.click();
       URL.revokeObjectURL(url);
       setStatus({ text: `PNG saved · ${(blob.size / 1024).toFixed(1)} kB`, kind: "ok" });
@@ -333,12 +333,12 @@ export function App(): JSX.Element {
   return (
     <div className="flex h-dvh min-h-[480px] flex-col overflow-hidden bg-background text-foreground">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-panel/95 px-3 shadow-sm backdrop-blur sm:px-4">
-        <a href="/" className="group mr-1 flex items-center gap-2.5" aria-label="Matter home">
-          <span className="matter-mark">
+        <a href="/" className="group mr-1 flex items-center gap-2.5" aria-label="Hazumi home">
+          <span className="hazumi-mark">
             <span />
           </span>
           <span className="hidden font-display text-base font-semibold tracking-tight sm:block">
-            Matter
+            Hazumi
           </span>
         </a>
 

@@ -3,22 +3,22 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "matter-monorepo",
+      "name": "hazumi-monorepo",
       "devDependencies": {
         "@changesets/cli": "^3.0.1",
         "@commitlint/cli": "^21.2.2",
         "@commitlint/config-conventional": "^21.2.2",
         "@commitlint/types": "^21.2.0",
-        "@matter/backend-canvas2d": "workspace:*",
-        "@matter/backend-headless": "workspace:*",
-        "@matter/backend-svg": "workspace:*",
-        "@matter/backend-webgl2": "workspace:*",
-        "@matter/graphics": "workspace:*",
+        "@hazumi/backend-canvas2d": "workspace:*",
+        "@hazumi/backend-headless": "workspace:*",
+        "@hazumi/backend-svg": "workspace:*",
+        "@hazumi/backend-webgl2": "workspace:*",
+        "@hazumi/graphics": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@types/bun": "^1.3.14",
         "@vitejs/plugin-react": "^6.0.1",
+        "hazumi": "workspace:*",
         "husky": "^9.1.7",
-        "matter": "workspace:*",
         "oxfmt": "^0.64.0",
         "oxlint": "^1.79.0",
         "react": "^19.2.8",
@@ -31,7 +31,7 @@
       },
     },
     "apps/docs": {
-      "name": "@matter/docs",
+      "name": "@hazumi/docs",
       "version": "0.0.0",
       "devDependencies": {
         "@fontsource-variable/bricolage-grotesque": "^5.3.0",
@@ -39,12 +39,12 @@
         "@lezer/javascript": "^1.5.4",
         "@tailwindcss/cli": "^4.3.3",
         "@types/bun": "^1.4.0",
-        "matter": "workspace:*",
+        "hazumi": "workspace:*",
         "tailwindcss": "^4.3.3",
       },
     },
     "apps/playground": {
-      "name": "@matter/playground",
+      "name": "@hazumi/playground",
       "version": "0.0.0",
       "dependencies": {
         "@codemirror/lang-javascript": "^6.2.5",
@@ -52,16 +52,16 @@
         "@codemirror/state": "^6.7.1",
         "@codemirror/view": "^6.43.9",
         "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+        "@hazumi/backend-svg": "workspace:*",
+        "@hazumi/backend-webgl2": "workspace:*",
+        "@hazumi/graphics": "workspace:*",
         "@lezer/highlight": "^1.2.3",
-        "@matter/backend-svg": "workspace:*",
-        "@matter/backend-webgl2": "workspace:*",
-        "@matter/graphics": "workspace:*",
         "@radix-ui/react-select": "^2.3.7",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "codemirror": "^6.0.2",
+        "hazumi": "workspace:*",
         "lucide-react": "^1.33.0",
-        "matter": "workspace:*",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",
         "react-resizable-panels": "^4.12.3",
@@ -79,148 +79,151 @@
       },
     },
     "packages/audio": {
-      "name": "@matter/audio",
+      "name": "@hazumi/audio",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/core": "workspace:^",
+        "@hazumi/core": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/backend-canvas2d": {
-      "name": "@matter/backend-canvas2d",
+      "name": "@hazumi/backend-canvas2d",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/color": "workspace:^",
-        "@matter/core": "workspace:^",
-        "@matter/graphics": "workspace:^",
-        "@matter/math": "workspace:^",
+        "@hazumi/color": "workspace:^",
+        "@hazumi/core": "workspace:^",
+        "@hazumi/graphics": "workspace:^",
+        "@hazumi/math": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/backend-headless": {
-      "name": "@matter/backend-headless",
+      "name": "@hazumi/backend-headless",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/color": "workspace:^",
-        "@matter/core": "workspace:^",
-        "@matter/graphics": "workspace:^",
-        "@matter/math": "workspace:^",
+        "@hazumi/color": "workspace:^",
+        "@hazumi/core": "workspace:^",
+        "@hazumi/graphics": "workspace:^",
+        "@hazumi/math": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/backend-svg": {
-      "name": "@matter/backend-svg",
+      "name": "@hazumi/backend-svg",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/color": "workspace:^",
-        "@matter/core": "workspace:^",
-        "@matter/graphics": "workspace:*",
-        "@matter/math": "workspace:^",
+        "@hazumi/color": "workspace:^",
+        "@hazumi/core": "workspace:^",
+        "@hazumi/graphics": "workspace:*",
+        "@hazumi/math": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.4.0",
       },
     },
     "packages/backend-webgl2": {
-      "name": "@matter/backend-webgl2",
+      "name": "@hazumi/backend-webgl2",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/color": "workspace:^",
-        "@matter/core": "workspace:^",
-        "@matter/graphics": "workspace:^",
-        "@matter/math": "workspace:^",
+        "@hazumi/color": "workspace:^",
+        "@hazumi/core": "workspace:^",
+        "@hazumi/graphics": "workspace:^",
+        "@hazumi/math": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/color": {
-      "name": "@matter/color",
+      "name": "@hazumi/color",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/math": "workspace:^",
+        "@hazumi/math": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/core": {
-      "name": "@matter/core",
+      "name": "@hazumi/core",
       "version": "0.1.0",
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
-    "packages/create-matter": {
-      "name": "create-matter",
+    "packages/create-hazumi": {
+      "name": "create-hazumi",
       "version": "0.1.0",
       "bin": {
-        "create-matter": "./dist/index.js",
+        "create-hazumi": "./dist/index.js",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/graphics": {
-      "name": "@matter/graphics",
+      "name": "@hazumi/graphics",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/color": "workspace:^",
-        "@matter/core": "workspace:^",
-        "@matter/math": "workspace:^",
+        "@hazumi/color": "workspace:^",
+        "@hazumi/core": "workspace:^",
+        "@hazumi/math": "workspace:^",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.14",
+      },
+    },
+    "packages/hazumi": {
+      "name": "hazumi",
+      "version": "0.1.0",
+      "dependencies": {
+        "@hazumi/audio": "workspace:^",
+        "@hazumi/backend-canvas2d": "workspace:^",
+        "@hazumi/backend-headless": "workspace:^",
+        "@hazumi/backend-svg": "workspace:^",
+        "@hazumi/backend-webgl2": "workspace:^",
+        "@hazumi/color": "workspace:^",
+        "@hazumi/core": "workspace:^",
+        "@hazumi/graphics": "workspace:^",
+        "@hazumi/math": "workspace:^",
+        "@hazumi/physics": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/math": {
-      "name": "@matter/math",
+      "name": "@hazumi/math",
       "version": "0.1.0",
-      "devDependencies": {
-        "@types/bun": "^1.3.14",
-      },
-    },
-    "packages/matter": {
-      "name": "matter",
-      "version": "0.1.0",
-      "dependencies": {
-        "@matter/audio": "workspace:^",
-        "@matter/backend-canvas2d": "workspace:^",
-        "@matter/backend-headless": "workspace:^",
-        "@matter/backend-svg": "workspace:^",
-        "@matter/backend-webgl2": "workspace:^",
-        "@matter/color": "workspace:^",
-        "@matter/core": "workspace:^",
-        "@matter/graphics": "workspace:^",
-        "@matter/math": "workspace:^",
-        "@matter/physics": "workspace:^",
-      },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/physics": {
-      "name": "@matter/physics",
+      "name": "@hazumi/physics",
       "version": "0.1.0",
       "dependencies": {
-        "@matter/core": "workspace:^",
-        "@matter/math": "workspace:^",
+        "@hazumi/core": "workspace:^",
+        "@hazumi/math": "workspace:^",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
       },
     },
     "packages/vite-plugin": {
-      "name": "@matter/vite-plugin",
+      "name": "@hazumi/vite-plugin",
       "version": "0.1.0",
       "devDependencies": {
         "@types/bun": "^1.4.0",
+      },
+      "peerDependencies": {
+        "vite": ">=5",
       },
     },
   },
@@ -327,6 +330,32 @@
 
     "@fontsource-variable/bricolage-grotesque": ["@fontsource-variable/bricolage-grotesque@5.3.0", "", {}, "sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA=="],
 
+    "@hazumi/audio": ["@hazumi/audio@workspace:packages/audio"],
+
+    "@hazumi/backend-canvas2d": ["@hazumi/backend-canvas2d@workspace:packages/backend-canvas2d"],
+
+    "@hazumi/backend-headless": ["@hazumi/backend-headless@workspace:packages/backend-headless"],
+
+    "@hazumi/backend-svg": ["@hazumi/backend-svg@workspace:packages/backend-svg"],
+
+    "@hazumi/backend-webgl2": ["@hazumi/backend-webgl2@workspace:packages/backend-webgl2"],
+
+    "@hazumi/color": ["@hazumi/color@workspace:packages/color"],
+
+    "@hazumi/core": ["@hazumi/core@workspace:packages/core"],
+
+    "@hazumi/docs": ["@hazumi/docs@workspace:apps/docs"],
+
+    "@hazumi/graphics": ["@hazumi/graphics@workspace:packages/graphics"],
+
+    "@hazumi/math": ["@hazumi/math@workspace:packages/math"],
+
+    "@hazumi/physics": ["@hazumi/physics@workspace:packages/physics"],
+
+    "@hazumi/playground": ["@hazumi/playground@workspace:apps/playground"],
+
+    "@hazumi/vite-plugin": ["@hazumi/vite-plugin@workspace:packages/vite-plugin"],
+
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
     "@jridgewell/remapping": ["@jridgewell/remapping@2.3.5", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-LI9u/+laYG4Ds1TDKSJW2YPrIlcVYOwi2fUC6xB43lueCjgxV4lffOCZCtYFiH6TNOX+tQKXx97T4IKHbhyHEQ=="],
@@ -352,32 +381,6 @@
     "@manypkg/tools": ["@manypkg/tools@2.1.2", "", { "dependencies": { "jju": "^1.4.0", "tinyglobby": "^0.2.13", "yaml": "^2.9.0" } }, "sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ=="],
 
     "@marijn/find-cluster-break": ["@marijn/find-cluster-break@1.0.3", "", {}, "sha512-FY+MKLBoTsLNJF/eLWaOsXGdz6uh3Iu1axjPf6TUq92IYumcTcXWHoS747JARLkcdlJ/Waiaxc5wQfFO8jC6NA=="],
-
-    "@matter/audio": ["@matter/audio@workspace:packages/audio"],
-
-    "@matter/backend-canvas2d": ["@matter/backend-canvas2d@workspace:packages/backend-canvas2d"],
-
-    "@matter/backend-headless": ["@matter/backend-headless@workspace:packages/backend-headless"],
-
-    "@matter/backend-svg": ["@matter/backend-svg@workspace:packages/backend-svg"],
-
-    "@matter/backend-webgl2": ["@matter/backend-webgl2@workspace:packages/backend-webgl2"],
-
-    "@matter/color": ["@matter/color@workspace:packages/color"],
-
-    "@matter/core": ["@matter/core@workspace:packages/core"],
-
-    "@matter/docs": ["@matter/docs@workspace:apps/docs"],
-
-    "@matter/graphics": ["@matter/graphics@workspace:packages/graphics"],
-
-    "@matter/math": ["@matter/math@workspace:packages/math"],
-
-    "@matter/physics": ["@matter/physics@workspace:packages/physics"],
-
-    "@matter/playground": ["@matter/playground@workspace:apps/playground"],
-
-    "@matter/vite-plugin": ["@matter/vite-plugin@workspace:packages/vite-plugin"],
 
     "@oxc-project/types": ["@oxc-project/types@0.146.0", "", {}, "sha512-XC0QsnnhVe7sLIWmYmdPw7x5P0h4W8vUU3Nv1ySgWXtvCz8NizoAEpGXA0sOYoJQV2Rl13LgURAHQ5cI5ILCSA=="],
 
@@ -789,7 +792,7 @@
 
     "cosmiconfig-typescript-loader": ["cosmiconfig-typescript-loader@6.3.0", "", { "dependencies": { "jiti": "2.6.1" }, "peerDependencies": { "@types/node": "*", "cosmiconfig": ">=9", "typescript": ">=5" } }, "sha512-Akr82WH1Wfqatyiqpj8HDkO2o2KmJRu1FhKfSNJP3K4IdXwHfEyL7MOb62i1AGQVLtIQM+iCE9CGOtrfhR+mmA=="],
 
-    "create-matter": ["create-matter@workspace:packages/create-matter"],
+    "create-hazumi": ["create-hazumi@workspace:packages/create-hazumi"],
 
     "crelt": ["crelt@1.0.7", "", {}, "sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA=="],
 
@@ -850,6 +853,8 @@
     "global-directory": ["global-directory@5.0.0", "", { "dependencies": { "ini": "6.0.0" } }, "sha512-1pgFdhK3J2LeM+dVf2Pd424yHx2ou338lC0ErNP2hPx4j8eW1Sp0XqSjNxtk6Tc4Kr5wlWtSvz8cn2yb7/SG/w=="],
 
     "graceful-fs": ["graceful-fs@4.2.11", "", {}, "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="],
+
+    "hazumi": ["hazumi@workspace:packages/hazumi"],
 
     "hookable": ["hookable@6.1.1", "", {}, "sha512-U9LYDy1CwhMCnprUfeAZWZGByVbhd54hwepegYTK7Pi5NvqEj63ifz5z+xukznehT7i6NIZRu89Ay1AZmRsLEQ=="],
 
@@ -920,8 +925,6 @@
     "lucide-react": ["lucide-react@1.33.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-MTRwMy0ZlL8Ur/vOAiJ9XGHE+kFPC7brq6MxAm0GiGXEBj0qy0jA/pG4N675oSzciO/UCdX8T+5yUQdmDeTLxg=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
-
-    "matter": ["matter@workspace:packages/matter"],
 
     "micromatch": ["micromatch@4.0.8", "", { "dependencies": { "braces": "^3.0.3", "picomatch": "^2.3.1" } }, "sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA=="],
 
@@ -1061,31 +1064,31 @@
 
     "yuku-parser": ["yuku-parser@0.8.7", "", { "dependencies": { "@yuku-toolchain/types": "^0.8.7", "yuku-ast": "^0.8.7" }, "optionalDependencies": { "@yuku-parser/binding-android-arm64": "0.8.7", "@yuku-parser/binding-darwin-arm64": "0.8.7", "@yuku-parser/binding-darwin-x64": "0.8.7", "@yuku-parser/binding-freebsd-x64": "0.8.7", "@yuku-parser/binding-linux-arm-gnu": "0.8.7", "@yuku-parser/binding-linux-arm-musl": "0.8.7", "@yuku-parser/binding-linux-arm64-gnu": "0.8.7", "@yuku-parser/binding-linux-arm64-musl": "0.8.7", "@yuku-parser/binding-linux-x64-gnu": "0.8.7", "@yuku-parser/binding-linux-x64-musl": "0.8.7", "@yuku-parser/binding-win32-arm64": "0.8.7", "@yuku-parser/binding-win32-x64": "0.8.7" } }, "sha512-vRD9nwt4L3aYpxNqeSC4WqLv58xrXef0Ong1Mc45CTXTIpvLafx7JO05sczmQZwdLEZvywrLOGdNC5+Rp5N1BQ=="],
 
-    "@matter/audio/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/audio/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/backend-canvas2d/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/backend-canvas2d/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/backend-headless/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/backend-headless/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/backend-svg/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/backend-svg/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/backend-webgl2/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/backend-webgl2/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/color/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/color/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/core/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/core/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/docs/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/docs/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/graphics/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/graphics/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/math/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/math/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/physics/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/physics/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/playground/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/playground/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
-    "@matter/vite-plugin/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "@hazumi/vite-plugin/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
     "@parcel/watcher/detect-libc": ["detect-libc@1.0.3", "", { "bin": { "detect-libc": "./bin/detect-libc.js" } }, "sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg=="],
 
@@ -1107,41 +1110,41 @@
 
     "cosmiconfig-typescript-loader/jiti": ["jiti@2.6.1", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ=="],
 
-    "create-matter/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+    "create-hazumi/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+
+    "hazumi/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
     "import-fresh/resolve-from": ["resolve-from@4.0.0", "", {}, "sha512-pb/MYmXstAkysRFx8piNI1tGFNQIFA3vkE3Gq4EuA1dF6gHp/+vgZqsCGJapvy8N3Q+4o7FwvquPJcnZ7RYy4g=="],
-
-    "matter/@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
     "micromatch/picomatch": ["picomatch@2.3.2", "", {}, "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="],
 
     "wrap-ansi/string-width": ["string-width@7.2.0", "", { "dependencies": { "emoji-regex": "^10.3.0", "get-east-asian-width": "^1.0.0", "strip-ansi": "^7.1.0" } }, "sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ=="],
 
-    "@matter/audio/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/audio/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/backend-canvas2d/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/backend-canvas2d/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/backend-headless/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/backend-headless/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/backend-svg/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/backend-svg/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/backend-webgl2/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/backend-webgl2/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/color/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/color/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/core/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/core/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/docs/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/docs/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/graphics/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/graphics/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/math/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/math/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/physics/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/physics/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/playground/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/playground/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "@matter/vite-plugin/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "@hazumi/vite-plugin/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
     "@tailwindcss/node/lightningcss/lightningcss-android-arm64": ["lightningcss-android-arm64@1.32.0", "", { "os": "android", "cpu": "arm64" }, "sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg=="],
 
@@ -1165,8 +1168,8 @@
 
     "@tailwindcss/node/lightningcss/lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.32.0", "", { "os": "win32", "cpu": "x64" }, "sha512-Amq9B/SoZYdDi1kFrojnoqPLxYhQ4Wo5XiL8EVJrVsB8ARoC1PWW6VGtT0WKCemjy8aC+louJnjS7U18x3b06Q=="],
 
-    "create-matter/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "create-hazumi/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
-    "matter/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
+    "hazumi/@types/bun/bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
   }
 }

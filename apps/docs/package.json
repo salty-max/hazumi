@@ -1,5 +1,5 @@
 {
-  "name": "@matter/docs",
+  "name": "@hazumi/docs",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "@lezer/javascript": "^1.5.4",
     "@tailwindcss/cli": "^4.3.3",
     "@types/bun": "^1.4.0",
-    "matter": "workspace:*",
+    "hazumi": "workspace:*",
     "tailwindcss": "^4.3.3"
   }
 }

@@ -10,16 +10,16 @@
  * Interleaving them would cost one draw call per sprite instead of one per
  * sheet, because batching only merges adjacent instances.
  */
-import { ClipEnd, loadImage, spritesheet } from "matter/assets";
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, fill, image, text, textSize } from "matter/draw";
-import { screen, time } from "matter/scene";
+import { ClipEnd, loadImage, spritesheet } from "hazumi/assets";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, fill, image, text, textSize } from "hazumi/draw";
+import { screen, time } from "hazumi/scene";
 
 const COUNT = 40;
 const TILE = 40;
 
-export function characters(parent: HTMLElement): MatterApp {
+export function characters(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 21 }, async (scene) => {
     const { random, width, height } = scene;
     const [tilesImage, heroImage] = await Promise.all([

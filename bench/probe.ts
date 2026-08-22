@@ -9,8 +9,8 @@
  * The main comparison harness cannot cover this: it checks the GPU against
  * Canvas2D, which has no shader stage, so the combination only exists here.
  */
-import { CommandBuffer } from "@matter/graphics";
-import { Webgl2Renderer } from "@matter/backend-webgl2";
+import { CommandBuffer } from "@hazumi/graphics";
+import { Webgl2Renderer } from "@hazumi/backend-webgl2";
 
 const W = 200;
 const H = 200;

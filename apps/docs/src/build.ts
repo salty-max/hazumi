@@ -18,73 +18,73 @@ const FONT_FILES = [
 /** Order matters: the reference reads top-down as the layer stack. */
 const PACKAGES: ReadonlyArray<[string, string, string, boolean?]> = [
   [
-    "matter/app",
-    "packages/matter/dist/app.d.ts",
+    "hazumi/app",
+    "packages/hazumi/dist/app.d.ts",
     "Application lifecycle and scene switching.",
     true,
   ],
   [
-    "matter/draw",
-    "packages/matter/dist/draw.d.ts",
+    "hazumi/draw",
+    "packages/hazumi/dist/draw.d.ts",
     "Drawing, style, paths, text and transforms.",
     true,
   ],
   [
-    "matter/input",
-    "packages/matter/dist/input.d.ts",
+    "hazumi/input",
+    "packages/hazumi/dist/input.d.ts",
     "Keyboard, pointer, wheel and gamepad input.",
     true,
   ],
   [
-    "matter/scene",
-    "packages/matter/dist/scene.d.ts",
+    "hazumi/scene",
+    "packages/hazumi/dist/scene.d.ts",
     "Live viewport, time, camera and randomness.",
     true,
   ],
   [
-    "matter/assets",
-    "packages/matter/dist/assets.d.ts",
+    "hazumi/assets",
+    "packages/hazumi/dist/assets.d.ts",
     "Images, sprites, animations and tilemaps.",
     true,
   ],
   [
-    "matter/debug",
-    "packages/matter/dist/debug.d.ts",
+    "hazumi/debug",
+    "packages/hazumi/dist/debug.d.ts",
     "Debug overlay: stats HUD and rigid-body outlines.",
     true,
   ],
   [
-    "matter/physics",
-    "packages/matter/dist/physics.d.ts",
-    "Rigid-body plugin host. The solver is still @matter/math.",
+    "hazumi/physics",
+    "packages/hazumi/dist/physics.d.ts",
+    "Rigid-body plugin host. The solver is still @hazumi/math.",
     true,
   ],
   [
-    "@matter/audio",
+    "@hazumi/audio",
     "packages/audio/dist/index.d.ts",
     "Audio loading, playback, gain, and pooled voices.",
   ],
-  ["@matter/core", "packages/core/dist/index.d.ts", "L0 — lifecycle, clock, plugins."],
+  ["@hazumi/core", "packages/core/dist/index.d.ts", "L0 — lifecycle, clock, plugins."],
   [
-    "@matter/math",
+    "@hazumi/math",
     "packages/math/dist/index.d.ts",
     "L1 — vectors, collision, pathfinding, rigid bodies, randomness, noise.",
   ],
-  ["@matter/color", "packages/color/dist/index.d.ts", "L2 — OKLCH colour."],
-  ["@matter/graphics", "packages/graphics/dist/index.d.ts", "L3 — the command buffer."],
+  ["@hazumi/color", "packages/color/dist/index.d.ts", "L2 — OKLCH colour."],
+  ["@hazumi/graphics", "packages/graphics/dist/index.d.ts", "L3 — the command buffer."],
   [
-    "@matter/backend-webgl2",
+    "@hazumi/backend-webgl2",
     "packages/backend-webgl2/dist/index.d.ts",
     "L4 — the primary renderer.",
   ],
   [
-    "@matter/backend-canvas2d",
+    "@hazumi/backend-canvas2d",
     "packages/backend-canvas2d/dist/index.d.ts",
     "L4 — reference renderer.",
   ],
-  ["@matter/backend-svg", "packages/backend-svg/dist/index.d.ts", "L4 — vector export."],
+  ["@hazumi/backend-svg", "packages/backend-svg/dist/index.d.ts", "L4 — vector export."],
   [
-    "@matter/backend-headless",
+    "@hazumi/backend-headless",
     "packages/backend-headless/dist/index.d.ts",
     "L4 — command recorder.",
   ],
@@ -170,23 +170,23 @@ function renderNav(modules: ReadonlyArray<[DocModule, string]>): string {
     .join("");
 }
 
-const matterDeclarations = await Array.fromAsync(
-  new Bun.Glob("*.d.ts").scan({ cwd: ROOT + "packages/matter/dist", onlyFiles: true }),
-  async (path) => Bun.file(ROOT + "packages/matter/dist/" + path).text(),
+const hazumiDeclarations = await Array.fromAsync(
+  new Bun.Glob("*.d.ts").scan({ cwd: ROOT + "packages/hazumi/dist", onlyFiles: true }),
+  async (path) => Bun.file(ROOT + "packages/hazumi/dist/" + path).text(),
 );
 
 // Read every declaration file at once, then assemble in declared order — the
 // reference reads top-down as the layer stack, so order is part of the output.
 const sources = await Promise.all(
-  PACKAGES.map(async ([name, relative, blurb, includeMatterDeclarations]) => {
+  PACKAGES.map(async ([name, relative, blurb, includeHazumiDeclarations]) => {
     const file = Bun.file(ROOT + relative);
     const exists = await file.exists();
     const publicText = exists ? await file.text() : null;
     const text =
       publicText === null
         ? null
-        : includeMatterDeclarations === true
-          ? `${publicText}\n${matterDeclarations.join("\n")}`
+        : includeHazumiDeclarations === true
+          ? `${publicText}\n${hazumiDeclarations.join("\n")}`
           : publicText;
     return { name, relative, blurb, publicText, text };
   }),
@@ -210,12 +210,12 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Matter reference</title>
+<title>Hazumi reference</title>
 <link rel="stylesheet" href="/apps/docs/dist/style.css" />
 </head>
 <body class="docs-shell">
 <aside class="docs-sidebar">
-  <a class="docs-brand" href="/"><span class="brand-mark"></span><span>Matter</span><small>Reference</small></a>
+  <a class="docs-brand" href="/"><span class="brand-mark"></span><span>Hazumi</span><small>Reference</small></a>
   <div class="docs-search-wrap"><input id="filter" type="search" placeholder="Search symbols…" aria-label="Filter reference" /></div>
   <nav id="nav" aria-label="API modules">${renderNav(modules)}</nav>
 </aside>

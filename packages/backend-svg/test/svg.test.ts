@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Blend, CommandBuffer, type Renderer } from "@matter/graphics";
+import { Blend, CommandBuffer, type Renderer } from "@hazumi/graphics";
 import { escapeXml, SvgRenderer, toSvg } from "../src/index";
 
 function render(draw: (b: CommandBuffer) => void, w = 200, h = 200): string {

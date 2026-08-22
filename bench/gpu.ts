@@ -10,8 +10,8 @@
  * Each frame ends with a 1x1 readPixels, which forces the GPU to finish so the
  * timing covers actual rendering rather than just command submission.
  */
-import { CommandBuffer } from "@matter/graphics";
-import { Webgl2Renderer } from "@matter/backend-webgl2";
+import { CommandBuffer } from "@hazumi/graphics";
+import { Webgl2Renderer } from "@hazumi/backend-webgl2";
 
 const SHAPES = 100_000;
 const MEASURE_FRAMES = 120;

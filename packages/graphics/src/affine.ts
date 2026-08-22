@@ -6,7 +6,7 @@
  *
  * A flat six-tuple rather than a Mat4 because this is what both backends want:
  * Canvas2D's setTransform takes exactly these, and the GPU path uploads them as
- * two vec3 instance attributes. The Mat4 in @matter/math stays the transform
+ * two vec3 instance attributes. The Mat4 in @hazumi/math stays the transform
  * type for the 3D path.
  */
 export interface Affine {

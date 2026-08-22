@@ -2,8 +2,8 @@
  * Nested rotating frames.
  * Tests: the transform stack, push/pop nesting, scoped `with`.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
 import {
   background,
   circle,
@@ -14,10 +14,10 @@ import {
   stroke,
   strokeWeight,
   translate,
-} from "matter/draw";
-import { screen, time } from "matter/scene";
+} from "hazumi/draw";
+import { screen, time } from "hazumi/scene";
 
-export function orbits(parent: HTMLElement): MatterApp {
+export function orbits(parent: HTMLElement): HazumiApp {
   return start(
     { backend: webgl2(), width: 600, height: 600, parent },
     {

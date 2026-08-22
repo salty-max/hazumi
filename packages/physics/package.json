@@ -1,7 +1,7 @@
 {
-  "name": "@matter/physics",
+  "name": "@hazumi/physics",
   "version": "0.1.0",
-  "description": "Optional rigid-body plugin host. The solver lives in @matter/math.",
+  "description": "Optional rigid-body plugin host. The solver lives in @hazumi/math.",
   "license": "MIT",
   "files": [
     "dist"
@@ -21,8 +21,8 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
-    "@matter/core": "workspace:^",
-    "@matter/math": "workspace:^"
+    "@hazumi/core": "workspace:^",
+    "@hazumi/math": "workspace:^"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14"

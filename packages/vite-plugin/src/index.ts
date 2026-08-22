@@ -6,12 +6,12 @@
  * This does the same job at build time instead — a scene file gets capability
  * imports for exactly the names it uses, so the source stays terse and
  * everything downstream still sees ordinary typed identifiers from
- * `matter/draw`, `matter/input`, `matter/scene`, and `matter/assets`.
+ * `hazumi/draw`, `hazumi/input`, `hazumi/scene`, and `hazumi/assets`.
  */
 
 import { offsetSourceMap, transform, type TransformOptions } from "./transform";
 
-export interface MatterPluginOptions extends TransformOptions {
+export interface HazumiPluginOptions extends TransformOptions {
   /** Which files to transform. Defaults to `*.scene.ts` and `*.scene.js`. */
   readonly include?: RegExp;
 }
@@ -28,11 +28,11 @@ export interface VitePluginLike {
 
 const DEFAULT_INCLUDE = /\.scene\.[jt]s$/;
 
-export function matterAutoImport(options: MatterPluginOptions = {}): VitePluginLike {
+export function hazumiAutoImport(options: HazumiPluginOptions = {}): VitePluginLike {
   const include = options.include ?? DEFAULT_INCLUDE;
 
   return {
-    name: "matter-auto-import",
+    name: "hazumi-auto-import",
     // Before TypeScript strips types, so the binding is present when the file
     // is checked rather than injected into already-compiled output.
     enforce: "pre",

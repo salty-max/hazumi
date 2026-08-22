@@ -1,4 +1,4 @@
-import { clamp } from "@matter/math";
+import { clamp } from "@hazumi/math";
 import { fromLinear, type LinearRgb, type Srgb, toLinear } from "./srgb";
 
 /**

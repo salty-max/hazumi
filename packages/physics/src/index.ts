@@ -1,7 +1,7 @@
 /**
  * Rigid-body plugin host.
  *
- * The solver is `@matter/math`'s `physics` world — pure `step(dt)`. This plugin
+ * The solver is `@hazumi/math`'s `physics` world — pure `step(dt)`. This plugin
  * owns one world on the scene context and steps it after each fixed update so
  * a scene can spawn and apply impulses without calling `step` itself.
  *
@@ -9,8 +9,8 @@
  * `context.physics.world` once this plugin is installed.
  */
 
-import { definePlugin, type Plugin } from "@matter/core";
-import { physics as solver, type World, type WorldOptions } from "@matter/math";
+import { definePlugin, type Plugin } from "@hazumi/core";
+import { physics as solver, type World, type WorldOptions } from "@hazumi/math";
 
 export const Shape: typeof solver.Shape = solver.Shape;
 export type Shape = (typeof Shape)[keyof typeof Shape];
@@ -21,7 +21,7 @@ export type {
   RigidBody,
   World,
   WorldOptions,
-} from "@matter/math";
+} from "@hazumi/math";
 
 /** Scene-facing rigid-body controls. */
 export interface PhysicsController {
@@ -32,7 +32,7 @@ export interface PhysicsController {
   autoStep: boolean;
 }
 
-/** What the physics plugin adds to a Matter scene context. */
+/** What the physics plugin adds to a Hazumi scene context. */
 export interface PhysicsApi {
   readonly physics: PhysicsController;
 }
@@ -53,7 +53,7 @@ export class PhysicsPluginInUseError extends Error {
 }
 
 /**
- * Create a rigid-body host and install it on a Matter application.
+ * Create a rigid-body host and install it on a Hazumi application.
  *
  * @example
  * const plugins = createPluginHost().use(physics({ gravityY: 1600 }));

@@ -3,13 +3,13 @@
  * Tests: gravity, oriented boxes, bouncing circles, click-to-spawn, rotation,
  * the physics host stepping on the fixed clock, and the debug overlay.
  */
-import { createPluginHost, start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { overlay } from "matter/debug";
-import { background, circle, fill, pop, push, rect, rotate, translate } from "matter/draw";
-import { input, pointerJustPressed } from "matter/input";
-import { physics, Shape, type World } from "matter/physics";
-import { random, screen } from "matter/scene";
+import { createPluginHost, start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { overlay } from "hazumi/debug";
+import { background, circle, fill, pop, push, rect, rotate, translate } from "hazumi/draw";
+import { input, pointerJustPressed } from "hazumi/input";
+import { physics, Shape, type World } from "hazumi/physics";
+import { random, screen } from "hazumi/scene";
 
 const MAX_DYNAMIC = 64;
 
@@ -28,7 +28,7 @@ function cull(world: World): void {
   }
 }
 
-export function rigidBodies(parent: HTMLElement): MatterApp {
+export function rigidBodies(parent: HTMLElement): HazumiApp {
   return start(
     {
       backend: webgl2(),

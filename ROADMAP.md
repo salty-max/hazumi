@@ -40,7 +40,7 @@ The application loop exposes the fixed-step clock through `start()`: a scene
 may implement `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a
 stalled frame can create an unbounded simulation debt.
 
-The Matter context also carries a 2D camera with pan, zoom, deterministic
+The Hazumi context also carries a 2D camera with pan, zoom, deterministic
 following, screen↔world conversion, and an explicit screen-space block for HUD
 drawing. Its identity default keeps existing scenes byte-for-byte unchanged.
 
@@ -88,20 +88,20 @@ frame instead of 5.60 MB; current Chrome medians remain within the pre-change
 8.8–9.2 ms variance, so the bandwidth reduction is claimed without pretending
 it is a separately measurable frame-time win.
 
-`create-matter` is the consumer path: a short wizard (name, sketch vs game)
+`create-hazumi` is the consumer path: a short wizard (name, sketch vs game)
 writes a Vite app, and `vite build` emits a static `dist/` you zip for itch.io
 or GitHub Pages. Until the packages are on npm, run it from this repo with
 `--local` so the generated app depends on `file:` paths.
 
 Plugins now have `preupdate` / `postupdate` on the fixed clock, distinct from
-the frame `predraw` / `postdraw`. `@matter/physics` hosts the math solver on
+the frame `predraw` / `postdraw`. `@hazumi/physics` hosts the math solver on
 that update hook. The debug overlay in L5 draws stats and body outlines after
-the scene. Grid A* lives in `@matter/math` as `pathfind`, beside `collision`.
+the scene. Grid A* lives in `@hazumi/math` as `pathfind`, beside `collision`.
 
 ## Library gaps, independent of games
 
 - **npm publish.** Changesets is configured; nothing has been released.
-  `bun create matter` and the generated `^0.1.0` dependency both wait on this.
+  `bun create hazumi` and the generated `^0.1.0` dependency both wait on this.
 
 ## Deferred by decision
 

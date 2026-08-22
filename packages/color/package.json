@@ -1,5 +1,5 @@
 {
-  "name": "@matter/color",
+  "name": "@hazumi/color",
   "version": "0.1.0",
   "description": "OKLCH-based color type, parsing, and interpolation.",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
-    "@matter/math": "workspace:^"
+    "@hazumi/math": "workspace:^"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14"

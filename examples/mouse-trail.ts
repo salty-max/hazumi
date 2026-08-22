@@ -2,15 +2,15 @@
  * A trail that follows the cursor.
  * Tests: mouse input, per-frame state, ellipse, alpha fade.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, ellipse, fill } from "matter/draw";
-import { input } from "matter/input";
-import { screen } from "matter/scene";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, ellipse, fill } from "hazumi/draw";
+import { input } from "hazumi/input";
+import { screen } from "hazumi/scene";
 
 const TRAIL = 60;
 
-export function mouseTrail(parent: HTMLElement): MatterApp {
+export function mouseTrail(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent }, () => {
     const px = new Float32Array(TRAIL).fill(screen.width / 2);
     const py = new Float32Array(TRAIL).fill(screen.height / 2);

@@ -2,14 +2,14 @@
  * Particles advected through a noise field.
  * Tests: seeded noise, additive blending, per-particle colour, long trails.
  */
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, blendMode, Blend, circle, fill } from "matter/draw";
-import { noise, random, screen, time } from "matter/scene";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, blendMode, Blend, circle, fill } from "hazumi/draw";
+import { noise, random, screen, time } from "hazumi/scene";
 
 const COUNT = 4000;
 
-export function flowField(parent: HTMLElement): MatterApp {
+export function flowField(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 7 }, () => {
     const xs = new Float32Array(COUNT);
     const ys = new Float32Array(COUNT);

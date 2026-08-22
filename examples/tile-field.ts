@@ -6,15 +6,15 @@
  * and batching could not merge them because it only joins adjacent instances —
  * so this same scene cost one call per tile.
  */
-import { loadImage, spritesheet, tilemap } from "matter/assets";
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, fill, text, textSize } from "matter/draw";
-import { screen, time } from "matter/scene";
+import { loadImage, spritesheet, tilemap } from "hazumi/assets";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, fill, text, textSize } from "hazumi/draw";
+import { screen, time } from "hazumi/scene";
 
 const TILE = 34;
 
-export function tileField(parent: HTMLElement): MatterApp {
+export function tileField(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 12 }, async (scene) => {
     const { random, width, height } = scene;
     const image = await loadImage("/examples/assets/tiles.png");

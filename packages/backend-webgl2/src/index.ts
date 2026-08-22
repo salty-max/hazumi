@@ -49,7 +49,7 @@ export {
 } from "./post";
 export type { ShaderPass, CompiledPass } from "./post";
 
-import type { BackendFactory } from "@matter/graphics";
+import type { BackendFactory } from "@hazumi/graphics";
 import { Webgl2Renderer, type Webgl2Options } from "./renderer";
 
 /** Backend factory for `start({ backend: webgl2() }, scene)`. */

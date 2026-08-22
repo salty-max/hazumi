@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createPluginHost } from "@matter/core";
+import { createPluginHost } from "@hazumi/core";
 import {
   audio,
   AudioDisposedError,

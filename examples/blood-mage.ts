@@ -12,11 +12,11 @@
  * drawn grouped by the sheet they currently need rather than one at a time.
  * Interleaving would cost a draw call per mage.
  */
-import { ClipEnd, loadImage, spritesheet, type Spritesheet } from "matter/assets";
-import { start, type MatterApp } from "matter/app";
-import { webgl2 } from "matter/backends/webgl2";
-import { background, fill, image, text, textSize } from "matter/draw";
-import { screen, time } from "matter/scene";
+import { ClipEnd, loadImage, spritesheet, type Spritesheet } from "hazumi/assets";
+import { start, type HazumiApp } from "hazumi/app";
+import { webgl2 } from "hazumi/backends/webgl2";
+import { background, fill, image, text, textSize } from "hazumi/draw";
+import { screen, time } from "hazumi/scene";
 
 const CELL = 32;
 const SCALE = 4;
@@ -50,7 +50,7 @@ function rowFrames(columns: number, row: number): number[] {
   return Array.from({ length: columns }, (_, i) => row * columns + i);
 }
 
-export function bloodMage(parent: HTMLElement): MatterApp {
+export function bloodMage(parent: HTMLElement): HazumiApp {
   return start(
     {
       // Pixel art: linear filtering would blur a 32px sprite drawn at 4x.

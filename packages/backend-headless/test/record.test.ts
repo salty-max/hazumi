@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CommandBuffer } from "@matter/graphics";
+import { CommandBuffer } from "@hazumi/graphics";
 import { record, recordCircles } from "../src/index";
 
 describe("record", () => {

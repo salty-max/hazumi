@@ -14,8 +14,8 @@ import {
   scaleAffine,
   scaleFactor,
   translateAffine,
-} from "@matter/graphics";
-import { mat4 } from "@matter/math";
+} from "@hazumi/graphics";
+import { mat4 } from "@hazumi/math";
 import { BatchList, Pipeline } from "./batch";
 import { GlStateCache } from "./state";
 import {
@@ -33,7 +33,7 @@ import { DEFAULT_TOLERANCE } from "./path/flatten";
 import { fanTriangles, quadTriangles, strokeTriangles } from "./path/geometry";
 import { SdfAtlas } from "./text/atlas";
 import { type ResourceId, ResourceRegistry } from "./resource";
-import type { ImageSource } from "@matter/graphics";
+import type { ImageSource } from "@hazumi/graphics";
 import { PingPongTargets } from "./framebuffer";
 import {
   COPY_PASS_FRAGMENT_BODY,

@@ -1,4 +1,4 @@
-import { definePlugin, type Plugin } from "@matter/core";
+import { definePlugin, type Plugin } from "@hazumi/core";
 
 const DEFAULT_MAX_VOICES = 16;
 
@@ -23,7 +23,7 @@ export interface AudioVoice {
   stop: () => void;
 }
 
-/** Audio controls contributed to a Matter scene context. */
+/** Audio controls contributed to a Hazumi scene context. */
 export interface AudioController {
   /** Decode one audio file. */
   load: (url: string) => Promise<Sound>;
@@ -39,7 +39,7 @@ export interface AudioController {
   readonly activeVoices: number;
 }
 
-/** What the audio plugin adds to a Matter scene context. */
+/** What the audio plugin adds to a Hazumi scene context. */
 export interface AudioApi {
   readonly audio: AudioController;
 }
@@ -49,7 +49,7 @@ export interface AudioPluginOptions {
   readonly gain?: number;
   /** Maximum simultaneous voices. The oldest is replaced when full. Defaults to 16. */
   readonly maxVoices?: number;
-  /** Use an existing context. Matter will not close a context it does not own. */
+  /** Use an existing context. Hazumi will not close a context it does not own. */
   readonly context?: AudioContext;
   /** Custom fetch implementation, primarily for non-browser hosts and tests. */
   readonly fetch?: (url: string) => Promise<Response>;
@@ -304,7 +304,7 @@ function createRuntime(options: AudioPluginOptions): AudioRuntime {
 }
 
 /**
- * Create an audio plugin and install it on a Matter application.
+ * Create an audio plugin and install it on a Hazumi application.
  *
  * @example
  * const plugins = createPluginHost().use(audio({ maxVoices: 12 }));
