@@ -21,6 +21,7 @@
     "ci": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build",
     "changeset": "changeset",
     "release": "turbo run build && changeset publish",
+    "compare": "bun run bench/run-compare.ts",
     "capture:examples": "bun run examples/capture-previews.ts",
     "prepare": "husky"
   },

@@ -55,3 +55,12 @@ jobs:
 
       - name: Quality gate
         run: bun run ci
+
+      # Headless Chromium rasterises WebGL2 through SwiftShader, so the
+      # backend-agreement harness needs no GPU. It ran only by hand until now,
+      # which meant the one check on real rendering gated nothing.
+      - name: Install Chromium
+        run: bunx --bun playwright install --with-deps chromium
+
+      - name: Backend agreement
+        run: bun run compare
