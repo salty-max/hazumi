@@ -184,10 +184,10 @@ function createRuntime(options: AudioPluginOptions): AudioRuntime {
       return slot;
     }
 
-    let oldest = slots[0]!;
-    for (let index = 1; index < slots.length; index++) {
-      if (slots[index]!.startedAt < oldest.startedAt) oldest = slots[index]!;
-    }
+    // reduce without a seed is typed as the element, not element-or-undefined,
+    // so the oldest slot needs no non-null assertion. The early return above
+    // guarantees the pool is non-empty by this point.
+    const oldest = slots.reduce((a, b) => (b.startedAt < a.startedAt ? b : a));
     release(oldest);
     return oldest;
   };

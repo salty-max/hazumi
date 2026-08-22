@@ -1,3 +1,4 @@
+import { toByte } from "@hazumi/color";
 import {
   type Affine,
   Align,
@@ -76,12 +77,8 @@ function defaultStyle(): Style {
   };
 }
 
-function channel(v: number): number {
-  return Math.round(Math.min(Math.max(v, 0), 1) * 255);
-}
-
 function toHex(c: readonly [number, number, number, number]): string {
-  const hex = (v: number): string => channel(v).toString(16).padStart(2, "0");
+  const hex = (v: number): string => toByte(v).toString(16).padStart(2, "0");
   return `#${hex(c[0])}${hex(c[1])}${hex(c[2])}`;
 }
 

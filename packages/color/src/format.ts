@@ -5,11 +5,20 @@ function round(value: number, places: number): number {
   return Math.round(value * f) / f;
 }
 
+/**
+ * A 0-1 component as its 0-255 byte, clamped.
+ *
+ * Exported because every raster backend needs exactly this, and each having its
+ * own copy is how two backends drift apart by a rounding rule — the kind of
+ * divergence that shows up as one renderer being subtly darker than another.
+ */
+export function toByte(value: number): number {
+  return Math.round(Math.min(Math.max(value, 0), 1) * 255);
+}
+
 /** A 0-1 component as a two-digit hex byte. */
 function hexByte(value: number): string {
-  return Math.round(value * 255)
-    .toString(16)
-    .padStart(2, "0");
+  return toByte(value).toString(16).padStart(2, "0");
 }
 
 /** `oklch(...)`, preserving the colour exactly. */
