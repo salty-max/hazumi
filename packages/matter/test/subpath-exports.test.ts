@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as app from "matter/app";
 import * as assets from "matter/assets";
+import * as debug from "matter/debug";
 import * as draw from "matter/draw";
 import * as input from "matter/input";
+import * as physicsPlugin from "matter/physics";
 import * as scene from "matter/scene";
 
 describe("capability subpath exports", () => {
@@ -19,5 +21,8 @@ describe("capability subpath exports", () => {
     expect(typeof scene.time).toBe("object");
     expect(typeof scene.camera).toBe("object");
     expect(typeof scene.random).toBe("object");
+    expect(typeof physicsPlugin.physics).toBe("function");
+    expect(typeof physicsPlugin.Shape).toBe("object");
+    expect(typeof debug.overlay).toBe("function");
   });
 });

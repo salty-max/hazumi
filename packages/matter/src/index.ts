@@ -77,6 +77,10 @@ export type {
   PlayOptions,
   Sound,
 } from "@matter/audio";
+export { physics as physicsHost, PhysicsPluginInUseError } from "@matter/physics";
+export type { PhysicsApi, PhysicsController, PhysicsPluginOptions } from "@matter/physics";
+export { overlay, OverlayPluginInUseError } from "./debug";
+export type { OverlayApi, OverlayController, OverlayOptions } from "./debug";
 
 // --- L0 core ---
 export { AppClock, createPluginHost, definePlugin, DuplicatePluginError } from "@matter/core";
@@ -97,6 +101,7 @@ export {
   mat4,
   easing,
   collision,
+  pathfind,
   physics,
   seeded,
   createNoise,
@@ -112,10 +117,13 @@ export {
 } from "@matter/math";
 export type {
   Aabb,
+  AstarOptions,
   Circle,
   Easing,
+  Grid,
   Mat4,
   Noise,
+  Path,
   RayHit,
   RigidBody,
   Rng,

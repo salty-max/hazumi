@@ -19,6 +19,8 @@ export default defineConfig([
       "src/math.ts",
       "src/color.ts",
       "src/audio.ts",
+      "src/physics.ts",
+      "src/debug.ts",
       "src/backends/webgl2.ts",
       "src/backends/canvas2d.ts",
       "src/backends/svg.ts",

@@ -12,6 +12,10 @@ describe("matter exports", () => {
     expect(typeof matter.AppClock).toBe("function");
     expect(typeof matter.createPluginHost).toBe("function");
     expect(typeof matter.audio).toBe("function");
+    expect(typeof matter.physicsHost).toBe("function");
+    expect(typeof matter.overlay).toBe("function");
+    expect(typeof matter.PhysicsPluginInUseError).toBe("function");
+    expect(typeof matter.OverlayPluginInUseError).toBe("function");
     expect(typeof matter.Pixels).toBe("function");
     expect(typeof matter.PixelAccessUnavailableError).toBe("function");
   });
@@ -29,6 +33,12 @@ describe("matter exports", () => {
     expect(typeof matter.collision.raycastAabb).toBe("function");
     expect(typeof matter.collision.sweepCircle).toBe("function");
     expect(typeof matter.collision.slideAabb).toBe("function");
+  });
+
+  test("exports pathfinding as a runtime namespace", () => {
+    expect(typeof matter.pathfind.grid).toBe("function");
+    expect(typeof matter.pathfind.astar).toBe("function");
+    expect(typeof matter.pathfind.createPath).toBe("function");
   });
 
   test("exports rigid-body physics as a runtime namespace", () => {
