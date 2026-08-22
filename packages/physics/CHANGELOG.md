@@ -1,5 +1,13 @@
 # @hazumi/physics
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [51cf458]
+  - @hazumi/core@0.4.0
+  - @hazumi/math@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
