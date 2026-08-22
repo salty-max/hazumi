@@ -2,7 +2,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
-import { Check, Copy, Download, Play, Sparkles } from "lucide-react";
+import { Check, Copy, ImageIcon, Play, Sparkles, Spline } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { toSvg } from "@hazumi/backend-svg";
@@ -354,12 +354,30 @@ export function PlaygroundPage(): JSX.Element {
         >
           {status.text}
         </span>
-        <Button variant="outline" size="sm" onClick={() => void exportSvg()}>
-          <Download />
+        {/* Distinct glyphs, not two download arrows: below `sm` the labels are
+            hidden and identical icons made these two indistinguishable. A
+            bezier curve for the vector export, a bitmap for the raster one.
+            `aria-label` is on the button because a `display: none` label is
+            absent from the accessibility tree too, so icon-only left these
+            buttons with no accessible name at all. */}
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label="Export SVG"
+          title="Export SVG"
+          onClick={() => void exportSvg()}
+        >
+          <Spline />
           <span className="hidden sm:inline">SVG</span>
         </Button>
-        <Button variant="outline" size="sm" onClick={() => void exportPng()}>
-          <Download />
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label="Export PNG"
+          title="Export PNG"
+          onClick={() => void exportPng()}
+        >
+          <ImageIcon />
           <span className="hidden sm:inline">PNG</span>
         </Button>
         <Button size="sm" onClick={() => void run()}>
