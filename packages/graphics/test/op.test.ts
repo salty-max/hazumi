@@ -37,6 +37,7 @@ describe("Op", () => {
     expect(Op.ClosePath).toBe(26);
     expect(Op.ImageRegion).toBe(27);
     expect(Op.ResetTransform).toBe(28);
+    expect(Op.SetTint).toBe(29);
   });
 
   test("no duplicate opcode values", () => {
@@ -92,6 +93,7 @@ describe("encoder width matches OP_SIZE", () => {
     ["push", Op.Push, (b) => b.push()],
     ["pop", Op.Pop, (b) => b.pop()],
     ["setFill", Op.SetFill, (b) => b.setFill(1, 2, 3, 4)],
+    ["setTint", Op.SetTint, (b) => b.setTint(1, 2, 3, 4)],
     ["setStroke", Op.SetStroke, (b) => b.setStroke(1, 2, 3, 4)],
     ["setStrokeWidth", Op.SetStrokeWidth, (b) => b.setStrokeWidth(2)],
     ["setBlend", Op.SetBlend, (b) => b.setBlend(Blend.Add)],

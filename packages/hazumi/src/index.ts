@@ -39,7 +39,13 @@ export type {
 } from "./context";
 export type { Camera2D, CameraPoint } from "./camera";
 export { ColorCache } from "./color-cache";
-export { spritesheet, isSpriteFrame, UnknownFrameError, UnknownClipError } from "./spritesheet";
+export {
+  spritesheet,
+  isSpriteFrame,
+  sliceFrame,
+  UnknownFrameError,
+  UnknownClipError,
+} from "./spritesheet";
 export { createClip, ClipEnd, EmptyClipError } from "./animation";
 export type { AnimationClip, ClipOptions } from "./animation";
 export { tilemap, EMPTY_TILE } from "./tilemap";

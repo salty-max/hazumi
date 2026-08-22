@@ -12,7 +12,17 @@ class TestCanvas extends EventTarget {
   removed = false;
   displayWidth = 0;
   displayHeight = 0;
-  readonly style = { width: "", maxWidth: "", height: "", aspectRatio: "", touchAction: "" };
+  tabIndex = -1;
+  readonly style = {
+    width: "",
+    maxWidth: "",
+    height: "",
+    aspectRatio: "",
+    touchAction: "",
+    userSelect: "",
+  };
+
+  focus(): void {}
 
   getBoundingClientRect(): DOMRect {
     return {

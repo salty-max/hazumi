@@ -7,6 +7,7 @@ import { type Align, type Baseline, type Blend, Op, OP_SIZE } from "./op";
  */
 export interface CommandVisitor {
   setFill?: (r: number, g: number, b: number, a: number) => void;
+  setTint?: (r: number, g: number, b: number, a: number) => void;
   setStroke?: (r: number, g: number, b: number, a: number) => void;
   setStrokeWidth?: (width: number) => void;
   setBlend?: (mode: Blend) => void;
@@ -82,6 +83,14 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
     switch (op) {
       case Op.SetFill:
         visitor.setFill?.(
+          f32[i + 1] as number,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+        );
+        break;
+      case Op.SetTint:
+        visitor.setTint?.(
           f32[i + 1] as number,
           f32[i + 2] as number,
           f32[i + 3] as number,

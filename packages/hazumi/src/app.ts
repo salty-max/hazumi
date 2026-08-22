@@ -96,9 +96,9 @@ export interface Scene<Api extends object = Record<never, never>> {
 /**
  * Builds a scene, optionally loading assets before it becomes active.
  *
- * Scene-scoped imports are active during synchronous setup. After an `await`,
- * use the supplied context for app-owned services or values needed to finish
- * setup; the returned lifecycle callbacks can use capability imports again.
+ * Scene-scoped imports are active for the whole factory, including code after
+ * an `await`. Plugin services such as `audio` still live on the supplied
+ * context argument. The returned lifecycle callbacks can use the imports too.
  */
 export type SceneFactory<Api extends object = Record<never, never>> = (
   context: HazumiContext & Api,
@@ -253,6 +253,47 @@ function displayPixelRatio(): number {
   return Math.min(positiveFinite(globalThis.devicePixelRatio ?? 1, "pixelRatio"), MAX_PIXEL_RATIO);
 }
 
+/** Keys the browser uses to scroll the page. A sketch that reads them has to swallow the default. */
+const PAGE_SCROLL_KEYS: ReadonlySet<string> = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  " ",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (typeof target !== "object" || target === null || !("tagName" in target)) return false;
+  const element = target as {
+    readonly tagName: string;
+    readonly isContentEditable?: boolean;
+  };
+  if (element.isContentEditable === true) return true;
+  const tag = element.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
+function shouldPreventPageScroll(event: KeyboardEvent): boolean {
+  if (event.metaKey || event.ctrlKey || event.altKey) return false;
+  if (!PAGE_SCROLL_KEYS.has(event.key)) return false;
+  if (isEditableTarget(event.target)) return false;
+  // Space activates a focused button or link; leave that to the browser.
+  if (event.key === " " && typeof event.target === "object" && event.target !== null) {
+    const element = event.target as {
+      readonly tagName?: string;
+      getAttribute?: (name: string) => string | null;
+    };
+    const tag = element.tagName;
+    const role = element.getAttribute?.("role");
+    if (tag === "BUTTON" || tag === "A" || role === "button" || role === "link") return false;
+  }
+  return true;
+}
+
 /**
  * Start a Hazumi application with its initial scene.
  *
@@ -307,6 +348,9 @@ export function start<Api extends object = Record<never, never>>(
   // The canvas owns gestures that begin on it. Without this, a touch drag may
   // scroll or zoom the page instead of producing a stable pointer stream.
   canvas.style.touchAction = "none";
+  canvas.style.userSelect = "none";
+  // Focusable so arrow keys go to the sketch after a click, not the page.
+  canvas.tabIndex = 0;
 
   if (ownsCanvas) {
     (options.parent ?? document.body).append(canvas);
@@ -559,6 +603,7 @@ export function start<Api extends object = Record<never, never>>(
       state.mouseButton = event.button;
     }
     canvas.setPointerCapture?.(event.pointerId);
+    canvas.focus?.({ preventScroll: true });
   };
   const onPointerEnd = (event: PointerEvent): void => {
     // Pointer-up is global so a drag can finish outside the canvas, but events
@@ -582,11 +627,13 @@ export function start<Api extends object = Record<never, never>>(
     if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   };
   const onWheel = (event: WheelEvent): void => {
+    event.preventDefault();
     const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? state.height : 1;
     pendingWheelX += event.deltaX * scale;
     pendingWheelY += event.deltaY * scale;
   };
   const onKeyDown = (event: KeyboardEvent): void => {
+    if (shouldPreventPageScroll(event)) event.preventDefault();
     if (!state.keysDown.has(event.key)) pendingKeysPressed.add(event.key);
     state.keyIsPressed = true;
     state.key = event.key;
@@ -617,7 +664,7 @@ export function start<Api extends object = Record<never, never>>(
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerleave", onPointerLeave);
   canvas.addEventListener("pointerdown", onPointerDown);
-  canvas.addEventListener("wheel", onWheel);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
   globalThis.addEventListener("pointerup", onPointerEnd);
   globalThis.addEventListener("pointercancel", onPointerEnd);
   globalThis.addEventListener("keydown", onKeyDown);
@@ -826,13 +873,11 @@ export function start<Api extends object = Record<never, never>>(
     try {
       if (typeof source === "function") {
         const previousContext = enterContext(sceneContext);
-        let pending: Scene<Api> | Promise<Scene<Api>>;
         try {
-          pending = source(sceneContext);
+          next = await Promise.resolve(source(sceneContext));
         } finally {
           restoreContext(previousContext);
         }
-        next = await pending;
       } else {
         next = source;
       }

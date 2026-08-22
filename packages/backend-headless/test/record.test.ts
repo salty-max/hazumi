@@ -63,6 +63,7 @@ describe("recorder coverage", () => {
     const buf = new CommandBuffer();
     const emitters: ReadonlyArray<[string, () => void]> = [
       ["setFill", () => buf.setFill(1, 1, 1, 1)],
+      ["setTint", () => buf.setTint(1, 1, 1, 1)],
       ["setStroke", () => buf.setStroke(1, 1, 1, 1)],
       ["setStrokeWidth", () => buf.setStrokeWidth(1)],
       ["setBlend", () => buf.setBlend(1)],

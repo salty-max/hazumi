@@ -42,6 +42,13 @@ function makeState(width: number, height: number): ContextState {
  * API is testable in Node without a canvas. Assertions are on the recorded
  * command stream, which is what backend-headless exists for.
  */
+const fakeImage = (w: number, h: number): never => ({ width: w, height: h }) as never;
+
+/** Display-referred sRGB as the GPU sees it — OKLCH round-trips are not bit-exact. */
+function rgba8(args: readonly number[] | undefined): number[] {
+  return (args ?? []).map((channel) => Math.round(channel * 255));
+}
+
 function makeContext(): {
   ctx: HazumiContext;
   buffer: CommandBuffer;
@@ -154,6 +161,37 @@ describe("style", () => {
     expect(record(h.buffer).find((c) => c.op === "setStrokeWidth")?.args).toEqual([0]);
   });
 
+  test("tint is independent of fill, so noFill cannot hide a sprite", () => {
+    const h = makeContext();
+    h.ctx.noFill();
+    h.buffer.reset();
+    h.ctx.tint("#ff0000");
+    h.ctx.image(fakeImage(8, 8), 0, 0);
+
+    const commands = record(h.buffer);
+    expect(rgba8(commands.find((c) => c.op === "setTint")?.args)).toEqual([255, 0, 0, 255]);
+    expect(commands.map((c) => c.op)).toEqual(["setTint", "image"]);
+    expect(commands.some((c) => c.op === "setFill")).toBe(false);
+  });
+
+  test("noTint restores opaque white", () => {
+    const h = makeContext();
+    h.ctx.tint("#00ff00");
+    h.buffer.reset();
+    h.ctx.noTint();
+    expect(rgba8(record(h.buffer).find((c) => c.op === "setTint")?.args)).toEqual([
+      255, 255, 255, 255,
+    ]);
+  });
+
+  test("beginFrame re-emits tint set during setup", () => {
+    const h = makeContext();
+    h.ctx.tint("#0000ff");
+    h.buffer.reset();
+    h.beginFrame();
+    expect(rgba8(record(h.buffer).find((c) => c.op === "setTint")?.args)).toEqual([0, 0, 255, 255]);
+  });
+
   test("colour strings are parsed and cached", () => {
     const colors = new ColorCache();
     const buffer = new CommandBuffer();
@@ -235,6 +273,25 @@ describe("with()", () => {
     // No stroke commands emitted: `with` only touched fill.
     expect(h.ops().filter((o) => o.startsWith("setStroke"))).toHaveLength(0);
   });
+
+  test("tint override restores on exit, and null means noTint", () => {
+    const h = makeContext();
+    h.ctx.tint("#ff0000");
+    h.buffer.reset();
+    h.ctx.with({ tint: "#00ff00" }, () => {
+      h.ctx.image(fakeImage(8, 8), 0, 0);
+    });
+    h.ctx.image(fakeImage(8, 8), 1, 1);
+
+    expect(h.ops()).toEqual(["push", "setTint", "image", "pop", "image"]);
+    expect(rgba8(record(h.buffer).find((c) => c.op === "setTint")?.args)).toEqual([0, 255, 0, 255]);
+
+    h.buffer.reset();
+    h.ctx.with({ tint: null }, () => {});
+    expect(rgba8(record(h.buffer).find((c) => c.op === "setTint")?.args)).toEqual([
+      255, 255, 255, 255,
+    ]);
+  });
 });
 
 describe("frame lifecycle", () => {
@@ -249,6 +306,7 @@ describe("frame lifecycle", () => {
     // Style set during scene creation survives the per-frame buffer reset.
     expect(h.ops()).toEqual([
       "setFill",
+      "setTint",
       "setStroke",
       "setStrokeWidth",
       "setBlend",
@@ -482,8 +540,6 @@ describe("shapes", () => {
   });
 });
 
-const fakeImage = (w: number, h: number): never => ({ width: w, height: h }) as never;
-
 describe("sprites", () => {
   test("a whole image emits image, a frame emits imageRegion", () => {
     const h = makeContext();
@@ -511,5 +567,43 @@ describe("sprites", () => {
     h.buffer.reset();
     h.ctx.image({ source: fakeImage(64, 64), x: 0, y: 0, width: 16, height: 16 }, 0, 0, 64, 64);
     expect(record(h.buffer)[0]?.args.slice(0, 4)).toEqual([0, 0, 64, 64]);
+  });
+
+  test("a source crop on a whole image emits imageRegion", () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.image(fakeImage(64, 64), 2, 3, 8, 16, 4, 8, 8, 16);
+    expect(h.ops()).toEqual(["imageRegion"]);
+    expect(record(h.buffer)[0]?.args).toEqual([2, 3, 8, 16, 4, 8, 8, 16]);
+  });
+
+  test("a source crop on a frame is relative to the frame origin", () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.image(
+      { source: fakeImage(64, 64), x: 16, y: 32, width: 16, height: 16 },
+      0,
+      0,
+      1,
+      16,
+      3,
+      0,
+      1,
+      16,
+    );
+    // sx = frame.x + 3, sy = frame.y + 0
+    expect(record(h.buffer)[0]?.args).toEqual([0, 0, 1, 16, 19, 32, 1, 16]);
+  });
+
+  test("a crop without dest size uses the source size", () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.image(fakeImage(64, 64), 5, 6, undefined, undefined, 4, 8, 8, 16);
+    expect(record(h.buffer)[0]?.args).toEqual([5, 6, 8, 16, 4, 8, 8, 16]);
+  });
+
+  test("a partial source crop throws rather than guessing", () => {
+    const h = makeContext();
+    expect(() => h.ctx.image(fakeImage(8, 8), 0, 0, 8, 8, 1)).toThrow(/sx, sy, sw, and sh/);
   });
 });

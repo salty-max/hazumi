@@ -211,3 +211,43 @@ export function spritesheet(source: ImageSource, options: SpritesheetOptions): S
 export function isSpriteFrame(value: ImageSource | SpriteFrame): value is SpriteFrame {
   return "source" in value;
 }
+
+/**
+ * Crop a frame, relative to the frame origin.
+ *
+ * `sliceFrame(wall, texX, 1)` is a 1px column. Four numbers are a sub-rectangle.
+ * Allocates a new frame — the 8-arg `image()` crop does not, and is the path
+ * a draw loop should take.
+ */
+export function sliceFrame(frame: SpriteFrame, x: number, width: number): SpriteFrame;
+export function sliceFrame(
+  frame: SpriteFrame,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): SpriteFrame;
+export function sliceFrame(
+  frame: SpriteFrame,
+  x: number,
+  yOrWidth: number,
+  width?: number,
+  height?: number,
+): SpriteFrame {
+  if (width === undefined || height === undefined) {
+    return {
+      source: frame.source,
+      x: frame.x + x,
+      y: frame.y,
+      width: yOrWidth,
+      height: frame.height,
+    };
+  }
+  return {
+    source: frame.source,
+    x: frame.x + x,
+    y: frame.y + yOrWidth,
+    width,
+    height,
+  };
+}

@@ -48,6 +48,11 @@ export const Op = {
   ImageRegion: 27,
   /** Replace the current transform with identity without touching style. */
   ResetTransform: 28,
+  /**
+   * Multiplier for images, independent of fill so `noFill()` cannot hide a
+   * sprite. Default is opaque white — a no-op.
+   */
+  SetTint: 29,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -87,6 +92,7 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.ClosePath]: 1,
   [Op.ImageRegion]: 10, // op, imageId, dx, dy, dw, dh, sx, sy, sw, sh
   [Op.ResetTransform]: 1,
+  [Op.SetTint]: 5, // op, r, g, b, a
 };
 
 /** Horizontal text anchor. */

@@ -9,6 +9,8 @@ declare global {
   const rgb: typeof import("hazumi/draw").rgb;
   const fill: typeof import("hazumi/draw").fill;
   const noFill: typeof import("hazumi/draw").noFill;
+  const tint: typeof import("hazumi/draw").tint;
+  const noTint: typeof import("hazumi/draw").noTint;
   const stroke: typeof import("hazumi/draw").stroke;
   const noStroke: typeof import("hazumi/draw").noStroke;
   const strokeWeight: typeof import("hazumi/draw").strokeWeight;
@@ -58,6 +60,7 @@ declare global {
   const loadImage: typeof import("hazumi/assets").loadImage;
   const spritesheet: typeof import("hazumi/assets").spritesheet;
   const isSpriteFrame: typeof import("hazumi/assets").isSpriteFrame;
+  const sliceFrame: typeof import("hazumi/assets").sliceFrame;
   const createClip: typeof import("hazumi/assets").createClip;
   const ClipEnd: typeof import("hazumi/assets").ClipEnd;
   const tilemap: typeof import("hazumi/assets").tilemap;

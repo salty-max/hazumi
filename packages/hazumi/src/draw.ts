@@ -20,6 +20,16 @@ export function noFill(): void {
   getActiveContext().noFill();
 }
 
+/** Multiplier for images. Independent of fill so `noFill()` cannot hide a sprite. */
+export function tint(color: ColorLike): void {
+  getActiveContext().tint(color);
+}
+
+/** Opaque white — a no-op multiply. */
+export function noTint(): void {
+  getActiveContext().noTint();
+}
+
 export function stroke(color: ColorLike): void {
   getActiveContext().stroke(color);
 }
@@ -63,14 +73,25 @@ export function endShape(close?: boolean): void {
   getActiveContext().endShape(close);
 }
 
+/**
+ * Draw an image, or one frame of a spritesheet.
+ *
+ * Optional `sx, sy, sw, sh` crop source pixels; on a frame they are relative
+ * to that frame. Dest size comes first, same as p5 — a crop without an
+ * explicit dest size uses `sw`/`sh`.
+ */
 export function image(
   source: ImageSource | SpriteFrame,
   x: number,
   y: number,
   width?: number,
   height?: number,
+  sx?: number,
+  sy?: number,
+  sw?: number,
+  sh?: number,
 ): void {
-  getActiveContext().image(source, x, y, width, height);
+  getActiveContext().image(source, x, y, width, height, sx, sy, sw, sh);
 }
 
 export function textFont(family: string): void {

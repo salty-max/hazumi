@@ -11,6 +11,7 @@ export interface StyleOverrides {
   stroke?: ColorLike | null;
   strokeWeight?: number;
   blendMode?: Blend;
+  tint?: ColorLike | null;
   textFont?: string;
   textSize?: number;
   textAlign?: Align;
@@ -130,6 +131,12 @@ export interface HazumiContext {
   background: (color: ColorLike) => void;
   fill: (color: ColorLike) => void;
   noFill: () => void;
+  /**
+   * Multiplier for images. Independent of fill so `noFill()` cannot hide a
+   * sprite. Pass `null` via `noTint()` for opaque white, a no-op.
+   */
+  tint: (color: ColorLike) => void;
+  noTint: () => void;
   stroke: (color: ColorLike) => void;
   noStroke: () => void;
   strokeWeight: (weight: number) => void;
@@ -178,7 +185,8 @@ export interface HazumiContext {
    * Draw an image, or one frame of a spritesheet.
    *
    * Defaults to natural size when width and height are omitted — for a frame
-   * that means the frame's size, not the whole sheet's.
+   * that means the frame's size, not the whole sheet's. Optional `sx, sy, sw,
+   * sh` crop source pixels; on a frame they are relative to that frame.
    */
   image: (
     source: ImageSource | SpriteFrame,
@@ -186,6 +194,10 @@ export interface HazumiContext {
     y: number,
     width?: number,
     height?: number,
+    sx?: number,
+    sy?: number,
+    sw?: number,
+    sh?: number,
   ) => void;
 
   // --- text ---
@@ -323,6 +335,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
 
   // Mirrors what has been written to the buffer, so `with()` can restore it.
   let fillColor: ColorLike | null = "#ffffff";
+  let tintColor: ColorLike = "#ffffff";
   let strokeColor: ColorLike | null = null;
   let strokeWidth = 1;
   let blend: Blend = Blend.Normal;
@@ -337,6 +350,11 @@ export function createContext(deps: ContextDeps): ContextBundle {
   const applyFill = (): void => {
     const [r, g, b, a] = fillColor === null ? [0, 0, 0, 0] : colors.resolve(fillColor);
     buffer.setFill(r, g, b, a);
+  };
+
+  const applyTint = (): void => {
+    const [r, g, b, a] = colors.resolve(tintColor);
+    buffer.setTint(r, g, b, a);
   };
 
   const applyStroke = (): void => {
@@ -441,6 +459,14 @@ export function createContext(deps: ContextDeps): ContextBundle {
       fillColor = null;
       applyFill();
     },
+    tint: (color: ColorLike): void => {
+      tintColor = color;
+      applyTint();
+    },
+    noTint: (): void => {
+      tintColor = "#ffffff";
+      applyTint();
+    },
     stroke: (color: ColorLike): void => {
       strokeColor = color;
       applyStroke();
@@ -509,7 +535,33 @@ export function createContext(deps: ContextDeps): ContextBundle {
       y: number,
       width?: number,
       height?: number,
+      sx?: number,
+      sy?: number,
+      sw?: number,
+      sh?: number,
     ): void => {
+      const cropped = sx !== undefined || sy !== undefined || sw !== undefined || sh !== undefined;
+      if (cropped) {
+        if (sx === undefined || sy === undefined || sw === undefined || sh === undefined) {
+          throw new TypeError("image() source crop requires sx, sy, sw, and sh");
+        }
+        if (isSpriteFrame(source)) {
+          buffer.imageRegion(
+            source.source,
+            x,
+            y,
+            width ?? sw,
+            height ?? sh,
+            source.x + sx,
+            source.y + sy,
+            sw,
+            sh,
+          );
+          return;
+        }
+        buffer.imageRegion(source, x, y, width ?? sw, height ?? sh, sx, sy, sw, sh);
+        return;
+      }
       if (isSpriteFrame(source)) {
         buffer.imageRegion(
           source.source,
@@ -573,6 +625,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
 
     with: (overrides: StyleOverrides, body: () => void): void => {
       const savedFill = fillColor;
+      const savedTint = tintColor;
       const savedStroke = strokeColor;
       const savedWidth = strokeWidth;
       const savedBlend = blend;
@@ -586,6 +639,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
         if (overrides.fill !== undefined) {
           fillColor = overrides.fill;
           applyFill();
+        }
+        if (overrides.tint !== undefined) {
+          tintColor = overrides.tint ?? "#ffffff";
+          applyTint();
         }
         if (overrides.stroke !== undefined || overrides.strokeWeight !== undefined) {
           if (overrides.stroke !== undefined) strokeColor = overrides.stroke;
@@ -614,6 +671,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
         // style into everything drawn afterwards.
         buffer.pop();
         fillColor = savedFill;
+        tintColor = savedTint;
         strokeColor = savedStroke;
         strokeWidth = savedWidth;
         blend = savedBlend;
@@ -635,6 +693,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
 
   const beginFrame = (): void => {
     applyFill();
+    applyTint();
     applyStroke();
     buffer.setBlend(blend);
     applyText();

@@ -37,6 +37,7 @@ export interface Canvas2dOptions {
 interface Style {
   fill: readonly [number, number, number, number];
   stroke: readonly [number, number, number, number];
+  tint: readonly [number, number, number, number];
   strokeWidth: number;
   blend: Blend;
   fontFamily: string;
@@ -75,6 +76,9 @@ export class Canvas2dRenderer {
   #visitor: CommandVisitor;
   #drawCalls = 0;
   #viewport: { width: number; height: number };
+  /** Grow-only scratch for non-identity tints. Recreated only when a draw is larger. */
+  #tintScratch: HTMLCanvasElement | null = null;
+  #tintInk: CanvasRenderingContext2D | null = null;
 
   constructor(canvas: HTMLCanvasElement, options: Canvas2dOptions = {}) {
     const ctx = canvas.getContext("2d", {
@@ -99,6 +103,7 @@ export class Canvas2dRenderer {
     return {
       fill: [0, 0, 0, 1],
       stroke: [0, 0, 0, 1],
+      tint: [1, 1, 1, 1],
       strokeWidth: 0,
       blend: Blend.Normal,
       fontFamily: "sans-serif",
@@ -150,6 +155,8 @@ export class Canvas2dRenderer {
   dispose(): void {
     this.#ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.#ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
+    this.#tintScratch = null;
+    this.#tintInk = null;
   }
 
   render(buffer: CommandBuffer): void {
@@ -180,6 +187,71 @@ export class Canvas2dRenderer {
       this.#style.blend === Blend.Add ? "lighter" : "source-over";
   }
 
+  #drawTintedImage(
+    source: HTMLImageElement | HTMLCanvasElement | ImageBitmap,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+  ): void {
+    const ctx = this.#ctx;
+    const tint = this.#style.tint;
+    const tr = tint[0] ?? 1;
+    const tg = tint[1] ?? 1;
+    const tb = tint[2] ?? 1;
+    const ta = tint[3] ?? 1;
+    this.#applyBlend();
+    if (tr === 1 && tg === 1 && tb === 1) {
+      const previousAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = previousAlpha * ta;
+      ctx.drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh);
+      ctx.globalAlpha = previousAlpha;
+      this.#drawCalls++;
+      return;
+    }
+    const width = Math.max(1, Math.round(dw));
+    const height = Math.max(1, Math.round(dh));
+    const ink = this.#ensureTintScratch(width, height);
+    if (ink === null) return;
+    const scratch = this.#tintScratch;
+    if (scratch === null) return;
+    ink.globalCompositeOperation = "source-over";
+    ink.clearRect(0, 0, width, height);
+    ink.drawImage(source, sx, sy, sw, sh, 0, 0, width, height);
+    ink.globalCompositeOperation = "multiply";
+    ink.fillStyle = toCss([tr, tg, tb, 1]);
+    ink.fillRect(0, 0, width, height);
+    ink.globalCompositeOperation = "destination-in";
+    ink.drawImage(source, sx, sy, sw, sh, 0, 0, width, height);
+    const previousAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = previousAlpha * ta;
+    ctx.drawImage(scratch, 0, 0, width, height, dx, dy, dw, dh);
+    ctx.globalAlpha = previousAlpha;
+    this.#drawCalls++;
+  }
+
+  #ensureTintScratch(width: number, height: number): CanvasRenderingContext2D | null {
+    let scratch = this.#tintScratch;
+    let ink = this.#tintInk;
+    if (scratch === null || ink === null || scratch.width < width || scratch.height < height) {
+      scratch = document.createElement("canvas");
+      scratch.width = Math.max(width, this.#tintScratch?.width ?? 0);
+      scratch.height = Math.max(height, this.#tintScratch?.height ?? 0);
+      ink = scratch.getContext("2d");
+      if (ink === null) return null;
+      this.#tintScratch = scratch;
+      this.#tintInk = ink;
+    }
+    ink.setTransform(1, 0, 0, 1, 0, 0);
+    ink.globalAlpha = 1;
+    ink.globalCompositeOperation = "source-over";
+    return ink;
+  }
+
   /** Fill then stroke, matching the order the GPU backend emits instances in. */
   #paint(path: () => void): void {
     const ctx = this.#ctx;
@@ -208,6 +280,9 @@ export class Canvas2dRenderer {
     return {
       setFill: (r: number, g: number, b: number, a: number): void => {
         this.#style = { ...this.#style, fill: [r, g, b, a] };
+      },
+      setTint: (r: number, g: number, b: number, a: number): void => {
+        this.#style = { ...this.#style, tint: [r, g, b, a] };
       },
       setStroke: (r: number, g: number, b: number, a: number): void => {
         this.#style = { ...this.#style, stroke: [r, g, b, a] };
@@ -324,15 +399,10 @@ export class Canvas2dRenderer {
       },
 
       image: (source, x: number, y: number, width: number, height: number): void => {
-        this.#applyBlend();
-        ctx.drawImage(source, x, y, width, height);
-        this.#drawCalls++;
+        this.#drawTintedImage(source, x, y, width, height, 0, 0, source.width, source.height);
       },
       imageRegion: (source, dx, dy, dw, dh, sx, sy, sw, sh): void => {
-        this.#applyBlend();
-        // The nine-argument form takes source pixels directly.
-        ctx.drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh);
-        this.#drawCalls++;
+        this.#drawTintedImage(source, dx, dy, dw, dh, sx, sy, sw, sh);
       },
 
       line: (x1: number, y1: number, x2: number, y2: number): void => {

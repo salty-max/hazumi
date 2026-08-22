@@ -4,7 +4,7 @@ import type { HazumiContext } from "./context";
 export class NoActiveSceneError extends Error {
   constructor() {
     super(
-      "This Hazumi API needs an active scene. Call it from update(), draw(), dispose(), or before the first await in a scene factory.",
+      "This Hazumi API needs an active scene. Call it from update(), draw(), dispose(), or a scene factory.",
     );
     this.name = "NoActiveSceneError";
   }

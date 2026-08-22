@@ -40,6 +40,7 @@ const DEFAULT_PRECISION = 3;
 interface Style {
   fill: readonly [number, number, number, number];
   stroke: readonly [number, number, number, number];
+  tint: readonly [number, number, number, number];
   strokeWidth: number;
   blend: Blend;
   fontFamily: string;
@@ -65,6 +66,7 @@ function defaultStyle(): Style {
   return {
     fill: [0, 0, 0, 1],
     stroke: [0, 0, 0, 1],
+    tint: [1, 1, 1, 1],
     strokeWidth: 0,
     blend: Blend.Normal,
     fontFamily: "sans-serif",
@@ -99,6 +101,9 @@ export class SvgRenderer {
   #pretty: boolean;
 
   #elements: string[] = [];
+  #filters: string[] = [];
+  /** Reused across images that share a tint, so a raycaster does not emit 600 filters. */
+  #tintFilters = new Map<string, string>();
   /** Segments of the path under construction, as SVG `d` commands. */
   #path: string[] = [];
   #style: Style = defaultStyle();
@@ -119,8 +124,10 @@ export class SvgRenderer {
   get svg(): string {
     const separator = this.#pretty ? "\n  " : "";
     const tail = this.#pretty ? "\n" : "";
+    const defs = this.#filters.length === 0 ? [] : [`<defs>${this.#filters.join("")}</defs>`];
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${this.#width}" height="${this.#height}" viewBox="0 0 ${this.#width} ${this.#height}">`,
+      ...defs,
       ...this.#elements,
       `</svg>`,
     ]
@@ -139,6 +146,8 @@ export class SvgRenderer {
 
   render(buffer: CommandBuffer): void {
     this.#elements.length = 0;
+    this.#filters.length = 0;
+    this.#tintFilters.clear();
     this.#style = defaultStyle();
     this.#styleStack.length = 0;
     this.#xform = identityAffine();
@@ -151,6 +160,29 @@ export class SvgRenderer {
   #n(value: number): string {
     // Trim trailing zeros: 10.000 is noise in a vector file.
     return Number.parseFloat(value.toFixed(this.#precision)).toString();
+  }
+
+  #imagePaint(): string {
+    const tint = this.#style.tint;
+    const r = tint[0] ?? 1;
+    const g = tint[1] ?? 1;
+    const b = tint[2] ?? 1;
+    const a = tint[3] ?? 1;
+    let extra = this.#transformAttr();
+    if (a !== 1) extra += ` opacity="${this.#n(a)}"`;
+    if (r !== 1 || g !== 1 || b !== 1) {
+      const key = `${this.#n(r)} ${this.#n(g)} ${this.#n(b)}`;
+      let id = this.#tintFilters.get(key);
+      if (id === undefined) {
+        id = `hazumi-tint-${this.#filters.length}`;
+        this.#tintFilters.set(key, id);
+        this.#filters.push(
+          `<filter id="${id}"><feColorMatrix type="matrix" values="${this.#n(r)} 0 0 0 0 0 ${this.#n(g)} 0 0 0 0 0 ${this.#n(b)} 0 0 0 0 0 1 0"/></filter>`,
+        );
+      }
+      extra += ` filter="url(#${id})"`;
+    }
+    return extra;
   }
 
   /** Baked transform, omitted entirely when it is the identity. */
@@ -206,6 +238,9 @@ export class SvgRenderer {
     return {
       setFill: (r, g, b, a): void => {
         this.#style = { ...this.#style, fill: [r, g, b, a] };
+      },
+      setTint: (r, g, b, a): void => {
+        this.#style = { ...this.#style, tint: [r, g, b, a] };
       },
       setStroke: (r, g, b, a): void => {
         this.#style = { ...this.#style, stroke: [r, g, b, a] };
@@ -310,7 +345,7 @@ export class SvgRenderer {
         if (ctx === null) return;
         ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         this.#elements.push(
-          `<image x="${this.#n(dx)}" y="${this.#n(dy)}" width="${this.#n(dw)}" height="${this.#n(dh)}" href="${canvas.toDataURL()}"${this.#transformAttr()}/>`,
+          `<image x="${this.#n(dx)}" y="${this.#n(dy)}" width="${this.#n(dw)}" height="${this.#n(dh)}" href="${canvas.toDataURL()}"${this.#imagePaint()}/>`,
         );
       },
 
@@ -324,7 +359,7 @@ export class SvgRenderer {
         if (ctx === null) return;
         ctx.drawImage(source, 0, 0);
         this.#elements.push(
-          `<image x="${this.#n(x)}" y="${this.#n(y)}" width="${this.#n(width)}" height="${this.#n(height)}" href="${canvas.toDataURL()}"${this.#transformAttr()}/>`,
+          `<image x="${this.#n(x)}" y="${this.#n(y)}" width="${this.#n(width)}" height="${this.#n(height)}" href="${canvas.toDataURL()}"${this.#imagePaint()}/>`,
         );
       },
 
