@@ -1,6 +1,10 @@
 import type { SceneFactory } from "matter/app";
 import type { AudioApi } from "matter/audio";
+import type { OverlayApi } from "matter/debug";
+import type { PhysicsApi } from "matter/physics";
 import type { Starter, StarterFile } from "./scenes";
+
+export type PlaygroundApi = AudioApi & PhysicsApi & OverlayApi;
 
 export interface EditableFile {
   readonly name: string;
@@ -13,9 +17,11 @@ const MATTER_MODULES = new Set([
   "matter/assets",
   "matter/audio",
   "matter/color",
+  "matter/debug",
   "matter/draw",
   "matter/input",
   "matter/math",
+  "matter/physics",
   "matter/scene",
 ]);
 
@@ -38,7 +44,7 @@ export function copyStarterFiles(starter: Starter): EditableFile[] {
 
 export async function compileWorkspace(
   files: readonly EditableFile[],
-): Promise<SceneFactory<AudioApi>> {
+): Promise<SceneFactory<PlaygroundApi>> {
   const sources = new Map(files.map((file) => [file.name, file.code]));
   const urls = new Map<string, string>();
   const building = new Set<string>();
@@ -80,7 +86,7 @@ export async function compileWorkspace(
   try {
     const entryUrl = buildModule("scene.js");
     const loaded = (await import(/* @vite-ignore */ entryUrl)) as {
-      default: SceneFactory<AudioApi>;
+      default: SceneFactory<PlaygroundApi>;
     };
     return loaded.default;
   } finally {

@@ -2,20 +2,24 @@ import { javascript } from "@codemirror/lang-javascript";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
-import { Download, Play, Sparkles } from "lucide-react";
+import { Check, Copy, Download, Play, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { toSvg } from "@matter/backend-svg";
 import * as assetsApi from "matter/assets";
 import * as audioApi from "matter/audio";
 import * as colorApi from "matter/color";
+import * as debugApi from "matter/debug";
 import * as drawApi from "matter/draw";
 import * as inputApi from "matter/input";
 import * as mathApi from "matter/math";
+import * as physicsApi from "matter/physics";
 import * as sceneApi from "matter/scene";
-import { createPluginHost, start, type MatterApp } from "matter/app";
-import { audio, type AudioApi } from "matter/audio";
+import { createPluginHost, start, type MatterApp, type PluginBuilder } from "matter/app";
+import { audio } from "matter/audio";
 import { webgl2 } from "matter/backends/webgl2";
+import { overlay } from "matter/debug";
+import { physics } from "matter/physics";
 import { Button } from "./components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./components/ui/resizable";
 import {
@@ -27,7 +31,12 @@ import {
 } from "./components/ui/select";
 import { STARTERS, type Starter } from "./scenes";
 import { matterSyntaxHighlighting } from "./syntax-theme";
-import { compileWorkspace, copyStarterFiles, type EditableFile } from "./workspace";
+import {
+  compileWorkspace,
+  copyStarterFiles,
+  type EditableFile,
+  type PlaygroundApi,
+} from "./workspace";
 
 const SIZE = 520;
 const INITIAL_STARTER: Starter = STARTERS[0] ?? { name: "Empty", code: "return {};" };
@@ -36,11 +45,20 @@ const PLAYGROUND_MODULES = Object.freeze({
   "matter/assets": assetsApi,
   "matter/audio": audioApi,
   "matter/color": colorApi,
+  "matter/debug": debugApi,
   "matter/draw": drawApi,
   "matter/input": inputApi,
   "matter/math": mathApi,
+  "matter/physics": physicsApi,
   "matter/scene": sceneApi,
 });
+
+function playgroundPlugins(): PluginBuilder<PlaygroundApi> {
+  return createPluginHost()
+    .use(audio({ gain: 0.8, maxVoices: 12 }))
+    .use(physics())
+    .use(overlay({ visible: false, toggleKey: "F1" }));
+}
 Object.defineProperty(globalThis, "__matterPlaygroundModules", {
   configurable: true,
   value: PLAYGROUND_MODULES,
@@ -138,13 +156,15 @@ function PanelHeading({
 
 export function App(): JSX.Element {
   const stageRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<MatterApp<AudioApi> | null>(null);
+  const appRef = useRef<MatterApp<PlaygroundApi> | null>(null);
   const runIdRef = useRef(0);
   const filesRef = useRef<EditableFile[]>(copyStarterFiles(INITIAL_STARTER));
   const [editorReady, setEditorReady] = useState(false);
   const [starterIndex, setStarterIndex] = useState("0");
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [editorRevision, setEditorRevision] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [status, setStatus] = useState<PlaygroundStatus>({
     text: "Preparing editor",
     kind: "idle",
@@ -171,7 +191,7 @@ export function App(): JSX.Element {
           height: SIZE,
           parent: stageRef.current,
           seed: 1,
-          plugins: createPluginHost().use(audio({ gain: 0.8, maxVoices: 12 })),
+          plugins: playgroundPlugins(),
           onError: (error): void => {
             if (runId === runIdRef.current) {
               setStatus({ text: describeError(error), kind: "error" });
@@ -198,7 +218,7 @@ export function App(): JSX.Element {
   const exportSvg = useCallback(async (): Promise<void> => {
     if (!editorReady) return;
     setStatus({ text: "Exporting", kind: "idle" });
-    let exporter: MatterApp<AudioApi> | null = null;
+    let exporter: MatterApp<PlaygroundApi> | null = null;
 
     try {
       const scene = await compileWorkspace(filesRef.current);
@@ -216,7 +236,7 @@ export function App(): JSX.Element {
           height: SIZE,
           canvas: document.createElement("canvas"),
           seed: 1,
-          plugins: createPluginHost().use(audio({ gain: 0.8, maxVoices: 12 })),
+          plugins: playgroundPlugins(),
         },
         scene,
       );
@@ -272,6 +292,29 @@ export function App(): JSX.Element {
     globalThis.addEventListener("keydown", onKeyDown);
     return (): void => globalThis.removeEventListener("keydown", onKeyDown);
   }, [run]);
+
+  const copyCode = useCallback(async (): Promise<void> => {
+    const files = filesRef.current;
+    const text =
+      files.length === 1
+        ? (files[0]?.code ?? "")
+        : files.map((file) => `// ${file.name}\n${file.code}`).join("\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      if (copiedTimer.current !== undefined) globalThis.clearTimeout(copiedTimer.current);
+      copiedTimer.current = globalThis.setTimeout(() => setCopied(false), 1600);
+    } catch (error) {
+      setCopied(false);
+      setStatus({ text: describeError(error), kind: "error" });
+    }
+  }, []);
+
+  useEffect(() => {
+    return (): void => {
+      if (copiedTimer.current !== undefined) globalThis.clearTimeout(copiedTimer.current);
+    };
+  }, []);
 
   const chooseStarter = (value: string): void => {
     setStarterIndex(value);
@@ -372,6 +415,16 @@ export function App(): JSX.Element {
                         ))}
                       </div>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={copied ? "ml-auto h-7 px-2 text-primary" : "ml-auto h-7 px-2"}
+                      onClick={() => void copyCode()}
+                      aria-label={copied ? "Copied to clipboard" : "Copy code"}
+                    >
+                      {copied ? <Check /> : <Copy />}
+                      <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+                    </Button>
                   </PanelHeading>
                   <CodeEditor
                     key={`${editorRevision}:${activeFileIndex}`}

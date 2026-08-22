@@ -145,10 +145,14 @@ return {
     name: "Rigid bodies",
     code: `import { background, circle, fill, pop, push, rect, rotate, translate } from 'matter/draw';
 import { input, pointerJustPressed } from 'matter/input';
-import { physics } from 'matter/math';
+import { Shape } from 'matter/physics';
 import { random, screen } from 'matter/scene';
 
-const world = physics.world({ gravityY: 1600 });
+const { physics, overlay } = s;
+overlay.visible = true;
+const world = physics.world;
+world.gravityY = 1600;
+
 world.addBox({
   x: screen.width / 2,
   y: screen.height - 12,
@@ -179,7 +183,7 @@ for (let i = 0; i < 8; i++) {
 }
 
 return {
-  update(dt) {
+  update() {
     if (pointerJustPressed()) {
       world.addCircle({
         x: input.mouseX,
@@ -188,15 +192,14 @@ return {
         restitution: 0.6,
       });
     }
-    world.step(dt);
   },
   draw() {
     background('oklch(0.14 0.03 250)');
     for (const body of world.bodies) {
-      fill(body.isStatic ? 'oklch(0.28 0.03 250)' : body.shape === physics.Shape.Circle
+      fill(body.isStatic ? 'oklch(0.28 0.03 250)' : body.shape === Shape.Circle
         ? 'oklch(0.78 0.16 230)'
         : 'oklch(0.74 0.14 55)');
-      if (body.shape === physics.Shape.Circle) {
+      if (body.shape === Shape.Circle) {
         circle(body.x, body.y, body.radius * 2);
       } else {
         push();
@@ -206,6 +209,63 @@ return {
         pop();
       }
     }
+  },
+};`,
+  },
+  {
+    name: "Pathfind",
+    code: `import { background, circle, fill, noStroke, rect } from 'matter/draw';
+import { input, pointerJustPressed } from 'matter/input';
+import { pathfind } from 'matter/math';
+import { screen } from 'matter/scene';
+
+const COLS = 20;
+const ROWS = 20;
+const tile = screen.width / COLS;
+const map = pathfind.grid(COLS, ROWS);
+const walls = [
+  [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [4, 8],
+  [8, 11], [9, 11], [10, 11], [11, 11], [12, 11], [12, 10], [12, 9],
+  [15, 3], [15, 4], [15, 5], [16, 5], [17, 5],
+];
+for (const [c, r] of walls) map.set(c, r, 0);
+
+let startC = 1;
+let startR = 1;
+let goalC = 18;
+let goalR = 16;
+const route = pathfind.createPath();
+pathfind.astar(map, startC, startR, goalC, goalR, { out: route });
+
+return {
+  update() {
+    if (!pointerJustPressed()) return;
+    const c = Math.floor(input.mouseX / tile);
+    const r = Math.floor(input.mouseY / tile);
+    if (map.cost(c, r) <= 0) return;
+    goalC = c;
+    goalR = r;
+    pathfind.astar(map, startC, startR, goalC, goalR, { out: route });
+  },
+  draw() {
+    background('oklch(0.16 0.02 250)');
+    noStroke();
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        fill(map.cost(c, r) <= 0 ? 'oklch(0.30 0.03 250)' : 'oklch(0.22 0.02 250)');
+        rect(c * tile + 1, r * tile + 1, tile - 2, tile - 2);
+      }
+    }
+    fill('oklch(0.72 0.16 145 / 0.55)');
+    for (let i = 0; i < route.length; i++) {
+      const c = route.points[i * 2];
+      const r = route.points[i * 2 + 1];
+      rect(c * tile + 6, r * tile + 6, tile - 12, tile - 12);
+    }
+    fill('oklch(0.78 0.16 230)');
+    circle((startC + 0.5) * tile, (startR + 0.5) * tile, tile * 0.7);
+    fill('oklch(0.78 0.16 40)');
+    circle((goalC + 0.5) * tile, (goalR + 0.5) * tile, tile * 0.7);
   },
 };`,
   },
