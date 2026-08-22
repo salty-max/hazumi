@@ -79,6 +79,8 @@ export class SdfAtlas {
   /** Ascender height as a fraction of font size, for baseline alignment. */
   readonly ascent: number;
   readonly descent: number;
+  /** Baseline-to-baseline distance, as a fraction of font size. */
+  readonly lineHeight: number;
 
   #glyphs = new Map<string, Glyph>();
 
@@ -111,6 +113,15 @@ export class SdfAtlas {
     const metrics = ctx.measureText("Hg");
     this.ascent = (metrics.actualBoundingBoxAscent || this.fontSize * 0.8) / this.fontSize;
     this.descent = (metrics.actualBoundingBoxDescent || this.fontSize * 0.2) / this.fontSize;
+    // The font's own line box, not the ink box of "Hg": stacked lines should
+    // sit the distance apart the typeface intends, which is taller than the
+    // glyphs that happen to be in the sample.
+    const boxAscent = metrics.fontBoundingBoxAscent;
+    const boxDescent = metrics.fontBoundingBoxDescent;
+    this.lineHeight =
+      boxAscent !== undefined && boxDescent !== undefined && boxAscent + boxDescent > 0
+        ? (boxAscent + boxDescent) / this.fontSize
+        : 1.2;
 
     const baseline = pad + this.fontSize * this.ascent;
 

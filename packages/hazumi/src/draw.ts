@@ -1,4 +1,4 @@
-import { Align, Baseline, Blend, type ImageSource } from "@hazumi/graphics";
+import { Align, Baseline, Blend, type ImageSource, type TextMetrics } from "@hazumi/graphics";
 import { getActiveContext, NoActiveSceneError } from "./active-context";
 import type { ColorLike } from "./color-cache";
 import type { SpriteFrame } from "./spritesheet";
@@ -118,6 +118,21 @@ export function textAlign(horizontal: Align, vertical?: Baseline): void {
 
 export function text(content: string, x: number, y: number): void {
   getActiveContext().text(content, x, y);
+}
+
+/** Measure one line at the current font and size. */
+export function measureText(content: string): TextMetrics {
+  return getActiveContext().measureText(content);
+}
+
+/** Advance width of one line at the current font and size. */
+export function textWidth(content: string): number {
+  return getActiveContext().textWidth(content);
+}
+
+/** Break text into lines that each fit `maxWidth`, keeping existing newlines. */
+export function wrapText(content: string, maxWidth: number): readonly string[] {
+  return getActiveContext().wrapText(content, maxWidth);
 }
 
 export function circle(x: number, y: number, diameter: number): void {

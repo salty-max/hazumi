@@ -225,6 +225,27 @@ text("hello", 16, 32);
 Uses fonts already on the system. Size and font persist across frames until
 you change them.
 
+Laying text out needs to know how wide it is, and only the renderer knows the
+font — so measurement goes through the backend:
+
+```ts
+const { width, ascent, descent, lineHeight } = measureText("Hello");
+
+for (const [i, line] of wrapText(speech, 380).entries()) {
+  text(line, 20, 40 + i * lineHeight);
+}
+```
+
+`wrapText` breaks on spaces, keeps the newlines you wrote, and gives a word
+wider than the box its own line rather than cutting characters off it.
+
+The GPU path sums advances from the same SDF atlas it draws with, so the number
+you lay out against is the number that gets drawn. Measured against Canvas2D's
+native `measureText` at 20px: both report a 45.6px "Hello" and wrap a sentence
+at the same word. The backends without a font context — the headless recorder —
+throw `TextMeasurementUnavailableError` rather than guessing a width that would
+silently misplace everything built on it.
+
 ## Shaders
 
 A pass is a `main()`. The runtime provides `v_uv`, `fragColor`, `u_texture`,

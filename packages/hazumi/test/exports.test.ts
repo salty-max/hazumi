@@ -18,6 +18,7 @@ describe("hazumi exports", () => {
     expect(typeof hazumi.OverlayPluginInUseError).toBe("function");
     expect(typeof hazumi.Pixels).toBe("function");
     expect(typeof hazumi.PixelAccessUnavailableError).toBe("function");
+    expect(typeof hazumi.TextMeasurementUnavailableError).toBe("function");
     expect(typeof hazumi.DuplicatePluginError).toBe("function");
     expect(typeof hazumi.DuplicateContributionError).toBe("function");
     expect(typeof hazumi.ReservedContributionError).toBe("function");

@@ -106,6 +106,17 @@ export type SceneSource<Api extends object = Record<never, never>> = Scene<Api> 
 // that backends and the runtime cannot disagree about their shape.
 export type { FrameStats, ShaderPass } from "@hazumi/graphics";
 
+/** Thrown when a scene measures text on a backend with no font context. */
+export class TextMeasurementUnavailableError extends Error {
+  constructor(
+    message: string = "This backend cannot measure text. The headless recorder has no " +
+      "font to measure against; render through WebGL2, Canvas2D or SVG to lay text out.",
+  ) {
+    super(message);
+    this.name = "TextMeasurementUnavailableError";
+  }
+}
+
 /** Thrown when a scene asks for shader passes on a backend without a shader stage. */
 export class ShaderPassesUnavailableError extends Error {
   constructor(
@@ -130,6 +141,7 @@ export class ShaderPassesUnavailableError extends Error {
 type PostCapableRenderer = Renderer & Required<Pick<Renderer, "setPasses" | "setTime">>;
 type StatsCapableRenderer = Renderer & Required<Pick<Renderer, "stats">>;
 type PixelCapableRenderer = Renderer & Required<Pick<Renderer, "readPixels" | "writePixels">>;
+type MeasureCapableRenderer = Renderer & Required<Pick<Renderer, "measureText">>;
 
 function reportsStats(renderer: Renderer): renderer is StatsCapableRenderer {
   return renderer.stats !== undefined;
@@ -137,6 +149,10 @@ function reportsStats(renderer: Renderer): renderer is StatsCapableRenderer {
 
 function supportsPasses(renderer: Renderer): renderer is PostCapableRenderer {
   return typeof renderer.setPasses === "function" && typeof renderer.setTime === "function";
+}
+
+function measuresText(renderer: Renderer): renderer is MeasureCapableRenderer {
+  return typeof renderer.measureText === "function";
 }
 
 function supportsPixels(renderer: Renderer): renderer is PixelCapableRenderer {
@@ -319,6 +335,10 @@ export function start<Api extends object = Record<never, never>>(
     state,
     seed: options.seed ?? 1,
     setPasses: applyPasses,
+    measureText: (content, font, size) => {
+      if (!measuresText(renderer)) throw new TextMeasurementUnavailableError();
+      return renderer.measureText(content, font, size);
+    },
   });
   const pluginHost = (() => {
     try {

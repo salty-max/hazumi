@@ -13,6 +13,7 @@ import {
   rotateAffine,
   scaleAffine,
   translateAffine,
+  type TextMetrics,
 } from "@hazumi/graphics";
 
 /**
@@ -133,6 +134,39 @@ export class SvgRenderer {
     ]
       .join(separator === "" ? "" : separator)
       .replace("</svg>", `${tail}</svg>`);
+  }
+
+  /**
+   * Measure through an offscreen 2D context.
+   *
+   * Exported SVG uses native `<text>`, so there is no atlas to sum here — but a
+   * scene that wraps text still calls this while rendering to SVG, and leaving
+   * it unimplemented would break layout for the duration of an export. Same
+   * "Hg" convention as the other backends so the numbers agree.
+   */
+  measureText(content: string, font: string, size: number): TextMetrics {
+    const ctx = SvgRenderer.#measureContext();
+    if (ctx === null) return { width: 0, ascent: 0, descent: 0, lineHeight: size };
+
+    ctx.font = `${size}px ${font}`;
+    const run = ctx.measureText(content);
+    const sample = ctx.measureText("Hg");
+    const box = (sample.fontBoundingBoxAscent ?? 0) + (sample.fontBoundingBoxDescent ?? 0);
+    return {
+      width: run.width,
+      ascent: sample.actualBoundingBoxAscent || size * 0.8,
+      descent: sample.actualBoundingBoxDescent || size * 0.2,
+      lineHeight: box > 0 ? box : size * 1.2,
+    };
+  }
+
+  /** One 1x1 canvas for every measurement, rather than one per call. */
+  static #measure: CanvasRenderingContext2D | null = null;
+  static #measureContext(): CanvasRenderingContext2D | null {
+    if (SvgRenderer.#measure === null) {
+      SvgRenderer.#measure = document.createElement("canvas").getContext("2d");
+    }
+    return SvgRenderer.#measure;
   }
 
   setViewport(width: number, height: number): void {
