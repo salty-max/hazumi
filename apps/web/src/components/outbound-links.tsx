@@ -11,7 +11,7 @@ const LINKS = [
 
 export function OutboundLinks({ className }: { readonly className?: string }): JSX.Element {
   return (
-    <nav aria-label="Project links" className={cn("flex items-center gap-0.5", className)}>
+    <nav aria-label="Project links" className={cn("flex items-center gap-2", className)}>
       {LINKS.map((link) => (
         <Button
           key={link.href}
