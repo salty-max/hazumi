@@ -397,7 +397,13 @@ export function PlaygroundPage(): JSX.Element {
           <Button size="sm" onClick={() => void run()}>
             <Play className="fill-current" />
             Run
-            <KbdGroup data-icon="inline-end" className="hidden translate-x-0.5 lg:inline-flex">
+            {/* Not tagged `data-icon="inline-end"`: that rule trims the button's
+              right padding to 6px for a bare trailing glyph, but a key-cap
+              group carries its own bounds, and `has-*` matches on presence in
+              the DOM rather than visibility — so below `lg`, where this is
+              `display: none`, the button still lost half its right padding and
+              sat visibly off-centre. */}
+            <KbdGroup className="hidden lg:inline-flex">
               <Kbd>⌘</Kbd>
               <Kbd>↵</Kbd>
             </KbdGroup>
