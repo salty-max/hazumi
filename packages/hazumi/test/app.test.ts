@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { record, type RecordedCommand } from "@hazumi/backend-headless";
 import { createPluginHost, definePlugin } from "@hazumi/core";
-import type { CommandBuffer, Renderer } from "@hazumi/graphics";
-import { start } from "../src/app";
+import type { CommandBuffer, Renderer, ShaderPass } from "@hazumi/graphics";
+import { ShaderPassesUnavailableError, start } from "../src/app";
 import { PixelAccessUnavailableError, Pixels } from "../src/pixels";
 import { background, circle, fill } from "../src/draw";
 import {
@@ -10,7 +10,7 @@ import {
   keyIsDown as activeKeyIsDown,
   keyJustPressed as activeKeyJustPressed,
 } from "../src/input";
-import { camera, random, screen, time } from "../src/scene";
+import { camera, random, screen, setPasses, time } from "../src/scene";
 
 class TestCanvas extends EventTarget {
   width = 0;
@@ -1406,5 +1406,65 @@ describe("scene switching", () => {
 
     expect(disposals).toBe(1);
     expect(app.scene).toBeNull();
+  });
+});
+
+describe("backend capability contract", () => {
+  // The optional members of `Renderer` are the whole capability contract. These
+  // pin both halves: a backend that declares nothing degrades predictably, and
+  // one that declares a capability actually has it wired through.
+  test("a renderer with no optional members reports no stats", async () => {
+    const h = harness();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, () => ({ draw: () => {} }));
+    await app.ready;
+    expect(app.stats).toBeNull();
+    app.stop();
+  });
+
+  test("asking for shader passes on a backend without a shader stage names the reason", async () => {
+    const h = harness();
+    let thrown: unknown;
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, () => {
+      try {
+        setPasses([{ fragment: "void main() { fragColor = vec4(1.0); }" }]);
+      } catch (error) {
+        thrown = error;
+      }
+      return { draw: () => {} };
+    });
+    await app.ready;
+    expect(thrown).toBeInstanceOf(ShaderPassesUnavailableError);
+    expect((thrown as Error).name).toBe("ShaderPassesUnavailableError");
+    app.stop();
+  });
+
+  test("a renderer declaring stats has them read straight off the contract", async () => {
+    const h = harness();
+    const reporting: Renderer = { ...h.renderer, stats: { drawCalls: 3, instances: 42 } };
+    const app = start({ backend: () => reporting, canvas: h.canvas }, () => ({ draw: () => {} }));
+    await app.ready;
+    expect(app.stats).toEqual({ drawCalls: 3, instances: 42 });
+    app.stop();
+  });
+
+  test("a renderer declaring setPasses receives the chain and the clock", async () => {
+    const h = harness();
+    const installed: Array<readonly ShaderPass[]> = [];
+    const times: number[] = [];
+    const capable: Renderer = {
+      ...h.renderer,
+      setPasses: (passes): void => void installed.push(passes),
+      setTime: (seconds): void => void times.push(seconds),
+    };
+    const pass = { fragment: "void main() { fragColor = vec4(1.0); }" };
+    const app = start({ backend: () => capable, canvas: h.canvas }, () => {
+      setPasses([pass]);
+      return { draw: () => {} };
+    });
+    await app.ready;
+    h.runFrame(0);
+    expect(installed).toEqual([[pass]]);
+    expect(times.length).toBeGreaterThan(0);
+    app.stop();
   });
 });

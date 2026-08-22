@@ -2,8 +2,9 @@ import { AppClock, createPluginHost, type ClockOptions, type PluginBuilder } fro
 import {
   type BackendFactory,
   CommandBuffer,
-  type PixelData,
+  type FrameStats,
   type Renderer,
+  type ShaderPass,
 } from "@hazumi/graphics";
 import { ColorCache } from "./color-cache";
 import {
@@ -107,39 +108,34 @@ export type SceneFactory<Api extends object = Record<never, never>> = (
 /** A ready scene or a factory that creates one. */
 export type SceneSource<Api extends object = Record<never, never>> = Scene<Api> | SceneFactory<Api>;
 
+// Part of Hazumi's public surface, but owned by the backend contract at L3 so
+// that backends and the runtime cannot disagree about their shape.
+export type { FrameStats, ShaderPass } from "@hazumi/graphics";
+
+/** Thrown when a scene asks for shader passes on a backend without a shader stage. */
+export class ShaderPassesUnavailableError extends Error {
+  constructor(
+    message: string = "This backend cannot run shader passes. Only the WebGL2 backend " +
+      "has a shader stage; Canvas2D and SVG do not.",
+  ) {
+    super(message);
+    this.name = "ShaderPassesUnavailableError";
+  }
+}
+
 /**
- * A post-processing pass.
+ * The capability sub-contracts, derived from `Renderer` instead of restated.
  *
- * `fragment` is only a `main()`. The runtime supplies `v_uv`, `fragColor`,
- * `u_texture` (the previous pass, or the scene), `u_resolution`, `u_time` and
- * a `texelSize()` helper, so the smallest useful effect is three lines.
+ * `Required<Pick<...>>` is what keeps these honest: they cannot drift from the
+ * interface they narrow, and dropping a capability from the contract breaks
+ * here at compile time rather than silently disabling a feature at runtime.
+ * These were once hand-written interfaces listing members `Renderer` did not
+ * declare at all, which made the capability contract invisible to anyone
+ * writing a backend.
  */
-export interface ShaderPass {
-  readonly fragment: string;
-  readonly uniforms?: Readonly<Record<string, number | readonly number[]>>;
-}
-
-/** What the last frame cost, where the backend can report it. */
-export interface FrameStats {
-  readonly drawCalls: number;
-  /** Instances across every instanced pipeline — shapes, glyphs and images. */
-  readonly instances: number;
-}
-
-/** A renderer that can run a post-processing chain. */
-interface PostCapableRenderer extends Renderer {
-  setPasses: (passes: readonly ShaderPass[]) => void;
-  setTime: (seconds: number) => void;
-}
-
-interface StatsCapableRenderer extends Renderer {
-  readonly stats: FrameStats;
-}
-
-interface PixelCapableRenderer extends Renderer {
-  readPixels: () => PixelData;
-  writePixels: (pixels: PixelData) => void;
-}
+type PostCapableRenderer = Renderer & Required<Pick<Renderer, "setPasses" | "setTime">>;
+type StatsCapableRenderer = Renderer & Required<Pick<Renderer, "stats">>;
+type PixelCapableRenderer = Renderer & Required<Pick<Renderer, "readPixels" | "writePixels">>;
 
 interface MutablePointerInput extends PointerInput {
   id: number;
@@ -178,21 +174,15 @@ function addGamepadEdge(edges: Map<number, Set<number>>, index: number, button: 
 }
 
 function reportsStats(renderer: Renderer): renderer is StatsCapableRenderer {
-  return "stats" in renderer;
+  return renderer.stats !== undefined;
 }
 
 function supportsPasses(renderer: Renderer): renderer is PostCapableRenderer {
-  return (
-    typeof (renderer as PostCapableRenderer).setPasses === "function" &&
-    typeof (renderer as PostCapableRenderer).setTime === "function"
-  );
+  return typeof renderer.setPasses === "function" && typeof renderer.setTime === "function";
 }
 
 function supportsPixels(renderer: Renderer): renderer is PixelCapableRenderer {
-  return (
-    typeof (renderer as PixelCapableRenderer).readPixels === "function" &&
-    typeof (renderer as PixelCapableRenderer).writePixels === "function"
-  );
+  return typeof renderer.readPixels === "function" && typeof renderer.writePixels === "function";
 }
 
 export interface HazumiApp<Api extends object = Record<never, never>> {
@@ -489,12 +479,7 @@ export function start<Api extends object = Record<never, never>>(
   };
 
   const applyPasses = (passes: readonly ShaderPass[]): void => {
-    if (!supportsPasses(renderer)) {
-      throw new Error(
-        "This backend cannot run shader passes. Only the WebGL2 backend has a " +
-          "shader stage; Canvas2D and SVG do not.",
-      );
-    }
+    if (!supportsPasses(renderer)) throw new ShaderPassesUnavailableError();
     renderer.setPasses(passes);
   };
 

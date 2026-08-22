@@ -1,4 +1,11 @@
-import { Align, Baseline, Blend, CommandBuffer, type ImageSource } from "@hazumi/graphics";
+import {
+  Align,
+  Baseline,
+  Blend,
+  CommandBuffer,
+  type ImageSource,
+  type ShaderPass,
+} from "@hazumi/graphics";
 import { isSpriteFrame, type SpriteFrame } from "./spritesheet";
 import { createNoise, type Noise, type Rng, seeded } from "@hazumi/math";
 import { type ColorCache, type ColorLike } from "./color-cache";
@@ -177,7 +184,7 @@ export interface HazumiContext {
    * Set it while creating the scene: it is configuration, not per-frame drawing, and calling
    * it every frame would recompile nothing but still churn.
    */
-  setPasses: (passes: readonly ShaderPassLike[]) => void;
+  setPasses: (passes: readonly ShaderPass[]) => void;
 
   // --- images ---
   /**
@@ -281,19 +288,7 @@ export interface ContextDeps {
   readonly state: ContextState;
   readonly seed: number;
   /** Injected by the runtime; the context does not know about renderers. */
-  readonly setPasses: (passes: readonly ShaderPassLike[]) => void;
-}
-
-/**
- * A post-processing pass.
- *
- * `fragment` is only a `main()`. The runtime supplies `v_uv`, `fragColor`,
- * `u_texture` (the previous pass, or the scene), `u_resolution`, `u_time` and
- * a `texelSize()` helper, so the smallest useful effect is three lines.
- */
-export interface ShaderPassLike {
-  readonly fragment: string;
-  readonly uniforms?: Readonly<Record<string, number | readonly number[]>>;
+  readonly setPasses: (passes: readonly ShaderPass[]) => void;
 }
 
 /**
