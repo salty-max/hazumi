@@ -92,7 +92,7 @@ describe("run", () => {
       install: async () => 0,
     });
     expect(code).toBe(0);
-    expect(io.stdoutText()).toContain("/T/create-hazumi-abs-");
+    expect(io.stdoutText()).toMatch(/Wrote 7 files to \//);
     expect(io.stdoutText()).not.toMatch(/\.\.\//);
   });
 
