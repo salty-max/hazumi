@@ -298,6 +298,25 @@ at the same word. The backends without a font context — the headless recorder 
 throw `TextMeasurementUnavailableError` rather than guessing a width that would
 silently misplace everything built on it.
 
+## Tweening
+
+Interpolation is sampled, not ticked — `at(seconds)` is a pure function of
+elapsed time, exactly like an animation clip:
+
+```ts
+const fade = tween({ from: 0, to: 1, duration: 0.4, ease: easing.quadOut });
+fill(withAlpha(colour, fade.at(time.elapsed - startedAt)));
+```
+
+That is the whole design. A tween that advances itself has to be owned, updated
+once a frame, and cleaned up when whatever it animated goes away. A function of
+time can be shared by any number of entities, read out of order, and rewound by
+passing a smaller number — and it costs nothing while nothing is looking at it.
+
+`sequence()` chains tweens into one, and the result is a `Tween` like any other,
+so sequences nest. Both end by holding, looping or ping-ponging, using the same
+`ClipEnd` vocabulary as clips.
+
 ## Depth
 
 Draw order is call order, which is the simplest rule and the right default.

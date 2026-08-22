@@ -34,6 +34,8 @@ describe("capability subpath exports", () => {
     expect(typeof scene.time).toBe("object");
     expect(typeof scene.camera).toBe("object");
     expect(typeof scene.random).toBe("object");
+    expect(typeof scene.tween).toBe("function");
+    expect(typeof scene.sequence).toBe("function");
     expect(typeof physicsPlugin.physics).toBe("function");
     expect(typeof physicsPlugin.Shape).toBe("object");
     expect(typeof debug.overlay).toBe("function");

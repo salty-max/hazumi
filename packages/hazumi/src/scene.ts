@@ -4,6 +4,8 @@ import type { Camera2D, CameraPoint } from "./camera";
 import type { ShaderPass } from "./app";
 
 export { NoActiveSceneError };
+export { tween, sequence, InvalidTweenError } from "./tween";
+export type { Tween, TweenOptions } from "./tween";
 export type { Camera2D, CameraPoint };
 
 /** Live logical and physical dimensions for the active scene. */

@@ -59,6 +59,8 @@ export type {
   ParticleSystemOptions,
 } from "./particles";
 export { createClip, ClipEnd, EmptyClipError } from "./animation";
+export { tween, sequence, InvalidTweenError } from "./tween";
+export type { Tween, TweenOptions } from "./tween";
 export type { AnimationClip, ClipOptions } from "./animation";
 export { tilemap, EMPTY_TILE } from "./tilemap";
 export type {
