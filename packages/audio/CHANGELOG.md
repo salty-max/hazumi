@@ -1,5 +1,13 @@
 # @hazumi/audio
 
+## 0.1.1
+
+### Patch Changes
+
+- 21e6c3d: Point package homepage at the live site.
+- Updated dependencies [21e6c3d]
+  - @hazumi/core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

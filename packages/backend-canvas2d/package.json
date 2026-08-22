@@ -1,6 +1,6 @@
 {
   "name": "@hazumi/backend-canvas2d",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Canvas2D reference renderer and text fallback.",
   "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",

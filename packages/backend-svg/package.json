@@ -1,6 +1,6 @@
 {
   "name": "@hazumi/backend-svg",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vector export backend.",
   "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",

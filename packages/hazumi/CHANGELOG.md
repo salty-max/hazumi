@@ -1,5 +1,22 @@
 # hazumi
 
+## 0.1.1
+
+### Patch Changes
+
+- 21e6c3d: Point package homepage at the live site.
+- Updated dependencies [21e6c3d]
+  - @hazumi/audio@0.1.1
+  - @hazumi/backend-canvas2d@0.1.1
+  - @hazumi/backend-headless@0.1.1
+  - @hazumi/backend-svg@0.1.1
+  - @hazumi/backend-webgl2@0.1.1
+  - @hazumi/color@0.1.1
+  - @hazumi/core@0.1.1
+  - @hazumi/graphics@0.1.1
+  - @hazumi/math@0.1.1
+  - @hazumi/physics@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
