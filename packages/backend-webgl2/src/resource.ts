@@ -129,6 +129,7 @@ export interface GlLike {
   readonly NEAREST: number;
   readonly CLAMP_TO_EDGE: number;
   readonly UNPACK_ALIGNMENT: number;
+  readonly UNPACK_PREMULTIPLY_ALPHA_WEBGL: number;
   readonly RGBA: number;
 }
 
@@ -387,7 +388,9 @@ function createImageTexture(gl: GlLike, desc: ImageTextureDescriptor): WebGLText
   // out upside down while the same picture drawn from a canvas did not.
   // Uploading rows in source order makes v=0 the image's top row for every
   // source type, and the renderer's UVs run top-down to match.
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, desc.source);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
   const filter = desc.smoothing ? gl.LINEAR : gl.NEAREST;
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);

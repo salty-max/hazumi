@@ -50,6 +50,7 @@ function fakeGl(options: { failCompile?: boolean; failLink?: boolean } = {}): Gl
     NEAREST: 9728,
     CLAMP_TO_EDGE: 33071,
     UNPACK_ALIGNMENT: 3317,
+    UNPACK_PREMULTIPLY_ALPHA_WEBGL: 37441,
     RGBA: 6408,
     createTexture: () => {
       created.textures++;
@@ -361,6 +362,24 @@ describe("image texture filtering", () => {
     expect(gl.filters).toEqual([9728, 9728]);
   });
 
+  test("restore rebuilds an image texture without growing the registry", () => {
+    const gl = fakeGl();
+    const registry = new ResourceRegistry();
+    const id = registry.add(gl, {
+      kind: "image-texture",
+      source: {} as never,
+      smoothing: false,
+    });
+    expect(registry.size).toBe(1);
+
+    registry.invalidate();
+    registry.realize(gl);
+
+    expect(registry.size).toBe(1);
+    expect(registry.texture(id)).toBeDefined();
+    expect(gl.created.textures).toBe(2);
+  });
+
   test("image textures upload unflipped", () => {
     // UNPACK_FLIP_Y_WEBGL is honoured for canvas and <img> but IGNORED for
     // ImageBitmap, so a flip on upload makes a texture's orientation depend on
@@ -376,7 +395,10 @@ describe("image texture filtering", () => {
       smoothing: false,
     });
     registry.realize(gl);
-    expect(gl.unpacks).toEqual([]);
+    expect(gl.unpacks).toEqual([
+      [37441, 1],
+      [37441, 0],
+    ]);
   });
 
   test("the SDF atlas stays linear either way", () => {

@@ -12,6 +12,7 @@ import {
   resetAffine,
   rotateAffine,
   scaleAffine,
+  scaleFactor,
   translateAffine,
 } from "@matter/graphics";
 import { mat4 } from "@matter/math";
@@ -28,6 +29,7 @@ import {
   POST_VERTEX_SHADER,
 } from "./shaders";
 import { PathBuilder } from "./path/builder";
+import { DEFAULT_TOLERANCE } from "./path/flatten";
 import { fanTriangles, quadTriangles, strokeTriangles } from "./path/geometry";
 import { SdfAtlas } from "./text/atlas";
 import { type ResourceId, ResourceRegistry } from "./resource";
@@ -245,7 +247,9 @@ export class Webgl2Renderer {
   #imageAtlasLocation: WebGLUniformLocation | null = null;
   #imageViewProjLocation: WebGLUniformLocation | null = null;
   // Keyed by the source object, so the same image uploads once no matter how
-  // many times a scene draws it. Weak, so unloading an image frees the entry.
+  // many times a scene draws it. The map is weak, but the registry descriptor
+  // holds a strong `source` so context restore can rebuild the texture — an
+  // unloaded image therefore stays on the GPU until `dispose()`.
   #imageTextures = new WeakMap<ImageSource, ResourceId>();
   #smoothing: boolean;
 
@@ -412,6 +416,16 @@ export class Webgl2Renderer {
   /** Times GPU resources have been built. Increments on each context restore. */
   get realizations(): number {
     return this.#registry.realizations;
+  }
+
+  /**
+   * Registered GPU resources, including images and font atlases.
+   *
+   * Context restore rebuilds the same ids; this must not grow across a
+   * lost/restored cycle.
+   */
+  get resourceCount(): number {
+    return this.#registry.size;
   }
 
   /**
@@ -760,6 +774,7 @@ export class Webgl2Renderer {
     this.#pathVao = null;
     this.#gl = null;
     this.#atlases.clear();
+    this.#imageTextures = new WeakMap<ImageSource, ResourceId>();
   }
 
   // --- instance building ---
@@ -878,7 +893,11 @@ export class Webgl2Renderer {
         this.#emitImage(source, dx, dy, dw, dh, sx / iw, sy / ih, (sx + sw) / iw, (sy + sh) / ih);
       },
 
-      beginPath: (): void => this.#builder.reset(),
+      beginPath: (): void => {
+        this.#builder.reset();
+        const scale = Math.max(scaleFactor(this.#xform), 1e-6);
+        this.#builder.setTolerance(DEFAULT_TOLERANCE / scale);
+      },
       moveTo: (x: number, y: number): void => this.#builder.moveTo(x, y),
       lineTo: (x: number, y: number): void => this.#builder.lineTo(x, y),
       quadraticTo: (cx: number, cy: number, x: number, y: number): void =>
@@ -1157,8 +1176,9 @@ export class Webgl2Renderer {
     arr[i + 7] = v0;
     arr[i + 8] = u1;
     arr[i + 9] = v1;
-    // Tint: white fill leaves the image untouched.
-    this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = rgba8Word(255, 255, 255, style.fillA8);
+    // Images ignore fill. `noFill()` must not hide a sprite, and a later tint
+    // opcode is the place for colour — not the shape fill channel.
+    this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = rgba8Word(255, 255, 255, 255);
 
     this.#batches.push(style.blend, pipeline, textureId);
     this.#glyphCount++;
@@ -1344,10 +1364,10 @@ export class Webgl2Renderer {
     this.#buildVao(gl);
     this.#buildGlyphVao(gl);
     this.#buildPathVao(gl);
-    // Atlases and image textures died with the context; drop the caches so the
-    // next draw re-uploads them.
-    this.#atlases.clear();
-    this.#imageTextures = new WeakMap<ImageSource, ResourceId>();
+    // CPU caches keep the existing ResourceIds. realize() already rebuilt the
+    // GPU objects behind those ids from their descriptors; dropping the maps
+    // here would make the next draw registry.add() duplicates and leak on
+    // every lost/restored cycle.
     this.#passes.invalidate();
     this.#targets = null;
   }

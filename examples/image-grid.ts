@@ -1,6 +1,6 @@
 /**
  * Images and input.
- * Tests: async scene creation, image upload and reuse, tint, keyboard and pmouse.
+ * Tests: async scene creation, image upload and reuse, keyboard and pmouse.
  */
 import { loadImage } from "matter/assets";
 import { start, type MatterApp } from "matter/app";

@@ -50,6 +50,24 @@ describe("PathBuilder", () => {
     expect((b.contours[0] as readonly number[]).slice(0, 2)).toEqual([0, 0]);
   });
 
+  test("tighter tolerance produces more segments", () => {
+    const loose = new PathBuilder(4);
+    loose.moveTo(0, 0);
+    loose.cubicTo(0, 100, 100, 100, 100, 0);
+    const tight = new PathBuilder(0.05);
+    tight.moveTo(0, 0);
+    tight.cubicTo(0, 100, 100, 100, 100, 0);
+    expect((tight.contours[0] as number[]).length).toBeGreaterThan(
+      (loose.contours[0] as number[]).length,
+    );
+
+    const scaled = new PathBuilder(4);
+    scaled.setTolerance(0.05);
+    scaled.moveTo(0, 0);
+    scaled.cubicTo(0, 100, 100, 100, 100, 0);
+    expect((scaled.contours[0] as number[]).length).toBe((tight.contours[0] as number[]).length);
+  });
+
   test("curves are flattened into the current contour", () => {
     const b = new PathBuilder();
     b.moveTo(0, 0);

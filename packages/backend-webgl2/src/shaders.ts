@@ -189,10 +189,11 @@ out vec4 fragColor;
 
 void main() {
   vec4 texel = texture(u_image, v_uv);
+  // Texture is uploaded premultiplied. Multiplying rgb by a second coverage
+  // after filtering pulled black from transparent neighbours (a dark fringe).
   float a = texel.a * v_color.a;
   if (a <= 0.0) discard;
-  // Premultiplied, matching the blend functions the renderer sets.
-  fragColor = vec4(texel.rgb * v_color.rgb * a, a);
+  fragColor = vec4(texel.rgb * v_color.rgb, texel.a) * v_color.a;
 }
 `;
 

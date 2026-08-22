@@ -29,6 +29,11 @@ export class PathBuilder {
     this.#tolerance = tolerance;
   }
 
+  /** Flattening tolerance in the path's current units. */
+  setTolerance(tolerance: number): void {
+    this.#tolerance = tolerance > 0 ? tolerance : DEFAULT_TOLERANCE;
+  }
+
   /**
    * Flattened contours, each a flat [x, y, x, y, …] list.
    *
