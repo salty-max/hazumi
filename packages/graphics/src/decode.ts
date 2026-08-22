@@ -239,9 +239,8 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
         break;
       }
       default: {
-        const size = OP_SIZE[op] as number | undefined;
-        if (size === undefined) throw new UnknownOpcodeError(op, i);
-        break;
+        const unexpected: never = op;
+        throw new UnknownOpcodeError(unexpected, i);
       }
     }
 

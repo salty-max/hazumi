@@ -53,6 +53,39 @@ describe("decode", () => {
     expect(calls).toBe(0);
   });
 
+  test("every known opcode has a decode case", () => {
+    const buf = new CommandBuffer();
+    buf.setFill(1, 0, 0, 1);
+    buf.setStroke(0, 1, 0, 1);
+    buf.setStrokeWidth(2);
+    buf.setBlend(0);
+    buf.push();
+    buf.translate(1, 2);
+    buf.rotate(0.1);
+    buf.scale(2, 2);
+    buf.resetTransform();
+    buf.background(0, 0, 0, 1);
+    buf.circle(0, 0, 1);
+    buf.ellipse(0, 0, 1, 2);
+    buf.rect(0, 0, 1, 1);
+    buf.line(0, 0, 1, 1);
+    buf.setTextSize(12);
+    buf.setTextAlign(0, 0);
+    buf.setFont("sans-serif");
+    buf.text(0, 0, "x");
+    buf.beginPath();
+    buf.moveTo(0, 0);
+    buf.lineTo(1, 0);
+    buf.quadraticTo(1, 1, 0, 1);
+    buf.cubicTo(0, 1, 1, 1, 1, 0);
+    buf.closePath();
+    buf.fillPath();
+    buf.strokePath();
+    buf.pop();
+
+    expect(() => decode(buf, {})).not.toThrow();
+  });
+
   test("rejects an opcode this build does not know", () => {
     const buf = new CommandBuffer();
     buf.circle(1, 2, 3);
