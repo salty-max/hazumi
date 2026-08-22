@@ -1,15 +1,21 @@
 ---
+"@matter/audio": minor
 "@matter/backend-canvas2d": minor
 "@matter/backend-headless": minor
+"@matter/backend-svg": minor
 "@matter/backend-webgl2": minor
-"@matter/graphics": minor
 "@matter/color": minor
 "@matter/core": minor
+"@matter/graphics": minor
 "@matter/math": minor
+"@matter/physics": minor
+"@matter/vite-plugin": minor
+"create-matter": minor
 "matter": minor
 ---
 
-First vertical slice: `sketch()`, the destructured context, and the drawing
-surface. Circles, ellipses, rects, squares, lines and points; fill, stroke,
-stroke weight and blend mode; the transform stack plus a scoped `with()`;
-seeded random and noise; mouse input and loop control.
+First public release: a typed command buffer, WebGL2 as the primary renderer, Canvas2D as the pixel oracle, SVG export, and a headless recorder.
+
+`start()` runs scenes with a fixed-step clock, capability imports (`matter/draw`, `matter/input`, `matter/scene`, `matter/assets`), a 2D camera, and typed plugins. Colour is OKLCH: `fill(oklch(0.7, 0.18, 250))` or `fill(rgb(255, 40, 20))`. CSS strings still parse.
+
+Also in 0.1.0: SDF text, images and sprites, bezier paths, shader passes, pixel access, PNG capture, Web Audio, a rigid-body host, grid A\*, a debug overlay, `create-matter`, and an optional Vite auto-import for `*.scene.ts` files.
