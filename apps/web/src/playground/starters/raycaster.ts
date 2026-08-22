@@ -127,10 +127,16 @@ export function createRaycaster(assets) {
     planeX: 0,
     planeY: 0.66,
   };
-  const depth = new Float32Array(screen.width);
-  const sideHit = new Uint8Array(screen.width);
+  let depth = new Float32Array(0);
+  let sideHit = new Uint8Array(0);
   const slice = { source: assets.walls[0][0].source, x: 0, y: 0, width: 1, height: 16 };
   let fps = 0;
+
+  function resizeBuffers(width) {
+    if (depth.length === width) return;
+    depth = new Float32Array(width);
+    sideHit = new Uint8Array(width);
+  }
 
   function cell(x, y) {
     const cx = Math.floor(x);
@@ -294,6 +300,7 @@ export function createRaycaster(assets) {
     draw() {
       const width = screen.width;
       const height = screen.height;
+      resizeBuffers(width);
       background('oklch(0.16 0.03 265)');
       noStroke();
       fill('oklch(0.22 0.03 80)');
