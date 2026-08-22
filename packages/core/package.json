@@ -2,6 +2,7 @@
   "name": "@hazumi/core",
   "version": "0.1.0",
   "description": "Application lifecycle, clock, and the typed plugin registry.",
+  "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",
   "repository": {
     "type": "git",

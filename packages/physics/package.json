@@ -2,6 +2,7 @@
   "name": "@hazumi/physics",
   "version": "0.1.0",
   "description": "Optional rigid-body plugin host. The solver lives in @hazumi/math.",
+  "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",
   "repository": {
     "type": "git",

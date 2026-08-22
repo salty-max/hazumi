@@ -2,6 +2,7 @@
   "name": "hazumi",
   "version": "0.1.0",
   "description": "A typed 2D graphics library built on a retained command buffer.",
+  "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",
   "repository": {
     "type": "git",

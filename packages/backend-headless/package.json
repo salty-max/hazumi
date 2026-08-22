@@ -2,6 +2,7 @@
   "name": "@hazumi/backend-headless",
   "version": "0.1.0",
   "description": "Headless backend that records commands for assertions.",
+  "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",
   "repository": {
     "type": "git",

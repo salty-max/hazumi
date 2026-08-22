@@ -10,6 +10,8 @@ paths, text, physics, and audio are all there.
 
 ## Start a project
 
+Site: [hazumi-eta.vercel.app](https://hazumi-eta.vercel.app)
+
 ```bash
 bun create hazumi
 ```
