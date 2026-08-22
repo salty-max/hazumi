@@ -1,5 +1,21 @@
 # @hazumi/backend-webgl2
 
+## 0.2.0
+
+### Minor Changes
+
+- a921c4c: Add image tint and source-rect crops.
+
+  `tint()` / `noTint()` multiply images independently of fill, so distance fog
+  no longer needs a second shape pass. `image()` accepts an optional source
+  rectangle, and `sliceFrame()` crops a sprite without fabricating a fake frame.
+  Scene factories keep the capability-import context across `await`.
+
+### Patch Changes
+
+- Updated dependencies [a921c4c]
+  - @hazumi/graphics@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes
