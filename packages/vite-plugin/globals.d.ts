@@ -5,6 +5,8 @@ declare global {
   const Baseline: typeof import("matter/draw").Baseline;
   const Blend: typeof import("matter/draw").Blend;
   const background: typeof import("matter/draw").background;
+  const oklch: typeof import("matter/draw").oklch;
+  const rgb: typeof import("matter/draw").rgb;
   const fill: typeof import("matter/draw").fill;
   const noFill: typeof import("matter/draw").noFill;
   const stroke: typeof import("matter/draw").stroke;

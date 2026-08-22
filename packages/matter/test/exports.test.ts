@@ -24,6 +24,8 @@ describe("matter exports", () => {
   });
 
   test("exports the command buffer API as values, not just types", () => {
+    expect(typeof matter.oklch).toBe("function");
+    expect(typeof matter.rgb).toBe("function");
     expect(typeof matter.CommandBuffer).toBe("function");
     expect(typeof matter.decode).toBe("function");
     expect(typeof matter.UnknownOpcodeError).toBe("function");

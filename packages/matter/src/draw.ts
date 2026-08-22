@@ -5,6 +5,7 @@ import type { SpriteFrame } from "./spritesheet";
 import type { StyleOverrides } from "./context";
 
 export { Align, Baseline, Blend, NoActiveSceneError };
+export { oklch, rgb } from "@matter/color";
 export type { ColorLike, StyleOverrides };
 
 export function background(color: ColorLike): void {

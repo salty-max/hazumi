@@ -26,6 +26,8 @@ export const CAPABILITY_MODULES: readonly CapabilityModule[] = [
       "Baseline",
       "Blend",
       "background",
+      "oklch",
+      "rgb",
       "fill",
       "noFill",
       "stroke",

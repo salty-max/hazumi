@@ -8,6 +8,8 @@ describe("sceneSource", () => {
     const source = sceneSource(TemplateKind.Sketch, false);
     expect(source).toContain('from "matter/app"');
     expect(source).toContain('from "matter/draw"');
+    expect(source).toContain("oklch(0.16, 0.02, 250)");
+    expect(source).not.toContain('"oklch(');
     expect(source).toContain('from "matter/scene"');
     expect(source).toContain("time.elapsed");
     expect(source).not.toContain("update(");

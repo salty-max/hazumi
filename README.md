@@ -26,19 +26,21 @@ browser involved. Shaders are a normal feature rather than an escape hatch.
 ```ts
 import { start } from "matter/app";
 import { webgl2 } from "matter/backends/webgl2";
-import { background, circle, fill } from "matter/draw";
+import { background, circle, fill, oklch } from "matter/draw";
 import { screen, time } from "matter/scene";
 
 start({ backend: webgl2(), width: 600, height: 600 }, () => {
   return {
     draw() {
-      background("oklch(0.15 0.02 260)");
-      fill("oklch(0.7 0.18 250)");
+      background(oklch(0.15, 0.02, 260));
+      fill(oklch(0.7, 0.18, 250));
       circle(screen.width / 2, screen.height / 2, 200 + Math.sin(time.elapsed) * 80);
     },
   };
 });
 ```
+
+Colours are values, not format strings: `oklch(l, c, h)` or `rgb(r, g, b)` from `matter/draw`. A CSS string still parses if you paste one.
 
 The API is split by capability: drawing, input, scene state, assets, audio,
 math, colour, and backends can be imported independently. Actions are regular
@@ -59,7 +61,7 @@ invent aliases for the old p5 names (`width`, `t`, `with`).
 Style can be scoped instead of pushed and popped:
 
 ```ts
-scoped({ fill: "red", stroke: null }, () => {
+scoped({ fill: oklch(0.65, 0.22, 20), stroke: null }, () => {
   drawPetals();
 });
 ```

@@ -6,9 +6,37 @@ import {
   linearize,
   delinearize,
   oklch,
+  rgb,
   toLinearRgb,
   toSrgb,
 } from "../src/index";
+
+describe("rgb()", () => {
+  test("takes 0-255 channels and returns OKLCH", () => {
+    const red = rgb(255, 0, 0);
+    const back = toSrgb(red);
+    expect(back.r).toBeCloseTo(1, 5);
+    expect(back.g).toBeCloseTo(0, 5);
+    expect(back.b).toBeCloseTo(0, 5);
+    expect(back.alpha).toBe(1);
+  });
+
+  test("alpha is 0-1", () => {
+    expect(rgb(0, 0, 0, 0.4).alpha).toBeCloseTo(0.4);
+  });
+
+  test("clamps out-of-range channels", () => {
+    const bright = toSrgb(rgb(400, -10, 128));
+    expect(bright.r).toBeCloseTo(1, 5);
+    expect(bright.g).toBeCloseTo(0, 5);
+    expect(bright.b).toBeCloseTo(128 / 255, 5);
+  });
+
+  test("rejects non-finite components", () => {
+    expect(() => rgb(Number.NaN, 0, 0)).toThrow(RangeError);
+    expect(() => rgb(0, 0, 0, Number.POSITIVE_INFINITY)).toThrow(RangeError);
+  });
+});
 
 describe("sRGB transfer function", () => {
   test("round-trips", () => {
@@ -152,7 +180,9 @@ describe("gamut mapping", () => {
 
   test("toLinearRgb is deliberately unclamped", () => {
     // The GPU path wants the raw value; clamping is the display step's job.
-    const rgb = toLinearRgb(oklch(0.7, 0.4, 250));
-    expect(rgb.r < 0 || rgb.g < 0 || rgb.b < 0 || rgb.r > 1 || rgb.g > 1 || rgb.b > 1).toBe(true);
+    const linear = toLinearRgb(oklch(0.7, 0.4, 250));
+    expect(
+      linear.r < 0 || linear.g < 0 || linear.b < 0 || linear.r > 1 || linear.g > 1 || linear.b > 1,
+    ).toBe(true);
   });
 });

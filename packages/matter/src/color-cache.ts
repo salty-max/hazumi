@@ -1,6 +1,11 @@
 import { type Oklch, parse, toSrgb } from "@matter/color";
 
-/** Anything the drawing API accepts as a colour. */
+/**
+ * Anything the drawing API accepts as a colour.
+ *
+ * Prefer `oklch()` / `rgb()` — those are the typed constructors. Strings are
+ * still parsed so a named colour or a pasted hex does not bounce.
+ */
 export type ColorLike = string | Oklch;
 
 /**

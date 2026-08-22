@@ -259,7 +259,7 @@ function displayPixelRatio(): number {
  * ```ts
  * import { start } from 'matter/app';
  * import { webgl2 } from 'matter/backends/webgl2';
- * import { background, circle, fill } from 'matter/draw';
+ * import { background, circle, fill, oklch } from 'matter/draw';
  * import { camera } from 'matter/scene';
  *
  * start({ backend: webgl2(), width: 600, height: 600 }, () => {
@@ -271,8 +271,8 @@ function displayPixelRatio(): number {
  *       camera.follow(player.x, player.y, 0.12);
  *     },
  *     draw() {
- *       background('#090d16');
- *       fill('oklch(.74 .18 160)');
+ *       background(oklch(0.12, 0.02, 260));
+ *       fill(oklch(0.74, 0.18, 160));
  *       circle(player.x, player.y, 48);
  *     },
  *   };

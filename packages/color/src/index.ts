@@ -21,6 +21,7 @@ export {
 } from "./oklch";
 export type { Oklch, Oklab } from "./oklch";
 
+export { rgb } from "./rgb";
 export { linearize, delinearize, toLinear, fromLinear } from "./srgb";
 export type { Srgb, LinearRgb } from "./srgb";
 

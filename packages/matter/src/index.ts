@@ -145,6 +145,7 @@ export type {
 // --- L2 color ---
 export {
   oklch,
+  rgb,
   parse as parseColor,
   tryParse as tryParseColor,
   ColorParseError,

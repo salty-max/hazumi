@@ -176,10 +176,10 @@ function sceneImports(template: TemplateKind, autoImport: boolean): string {
   }
   if (!autoImport) {
     if (template === TemplateKind.Sketch) {
-      lines.push(`import { background, circle, fill } from "matter/draw";`);
+      lines.push(`import { background, circle, fill, oklch } from "matter/draw";`);
       lines.push(`import { screen, time } from "matter/scene";`);
     } else {
-      lines.push(`import { background, circle, fill, rect } from "matter/draw";`);
+      lines.push(`import { background, circle, fill, oklch, rect } from "matter/draw";`);
       lines.push(`import { keyIsDown } from "matter/input";`);
       lines.push(`import { screen } from "matter/scene";`);
     }
@@ -190,8 +190,8 @@ function sceneImports(template: TemplateKind, autoImport: boolean): string {
 const SKETCH_BODY = `start({ backend: webgl2(), width: 800, height: 450 }, () => {
   return {
     draw(): void {
-      background("oklch(0.16 0.02 250)");
-      fill("oklch(0.72 0.16 250)");
+      background(oklch(0.16, 0.02, 250));
+      fill(oklch(0.72, 0.16, 250));
       circle(screen.width / 2, screen.height / 2, 140 + Math.sin(time.elapsed) * 36);
     },
   };
@@ -235,14 +235,14 @@ start({ backend: webgl2(), width: 800, height: 450, clock: { fixedStep: 1 / 60 }
       player.y = Math.min(Math.max(player.y, 0), screen.height - SIZE);
     },
     draw(alpha: number): void {
-      background("oklch(0.16 0.02 250)");
-      fill("oklch(0.28 0.03 250)");
+      background(oklch(0.16, 0.02, 250));
+      fill(oklch(0.28, 0.03, 250));
       for (const wall of walls) {
         rect(wall.minX, wall.minY, wall.maxX - wall.minX, wall.maxY - wall.minY);
       }
       const x = player.prevX + (player.x - player.prevX) * alpha;
       const y = player.prevY + (player.y - player.prevY) * alpha;
-      fill("oklch(0.72 0.16 145)");
+      fill(oklch(0.72, 0.16, 145));
       circle(x + SIZE / 2, y + SIZE / 2, SIZE);
     },
   };
