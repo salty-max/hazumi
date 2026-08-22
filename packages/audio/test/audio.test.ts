@@ -52,8 +52,11 @@ class FakeSource {
     this.starts++;
   }
 
+  stopThrows = false;
+
   stop(): void {
     this.stops++;
+    if (this.stopThrows) throw new DOMException("already stopped", "InvalidStateError");
   }
 
   finish(): void {
@@ -208,6 +211,16 @@ describe("audio playback", () => {
 
     expect(current.playing).toBe(true);
     expect(context.sources[1]?.stops).toBe(0);
+    dispose();
+  });
+
+  test("release survives stop() throwing after the source has ended", async () => {
+    const { controller, context, dispose } = createHarness();
+    const sound = await controller.load("/sound.wav");
+    controller.play(sound);
+    context.sources[0]!.stopThrows = true;
+    expect(() => controller.stopAll()).not.toThrow();
+    expect(context.sources[0]?.disconnections).toBe(1);
     dispose();
   });
 

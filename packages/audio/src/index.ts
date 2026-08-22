@@ -99,8 +99,17 @@ function release(slot: VoiceSlot): void {
   const source = slot.source;
   if (source === null) return;
   slot.source = null;
-  source.stop();
-  source.disconnect();
+  // WebKit throws InvalidStateError if the node has already ended.
+  try {
+    source.stop();
+  } catch {
+    /* already finished */
+  }
+  try {
+    source.disconnect();
+  } catch {
+    /* already disconnected */
+  }
 }
 
 function assertGain(value: number, name: string): void {
