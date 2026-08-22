@@ -77,9 +77,12 @@ function defaultStyle(): Style {
   };
 }
 
+function hexByte(v: number): string {
+  return toByte(v).toString(16).padStart(2, "0");
+}
+
 function toHex(c: readonly [number, number, number, number]): string {
-  const hex = (v: number): string => toByte(v).toString(16).padStart(2, "0");
-  return `#${hex(c[0])}${hex(c[1])}${hex(c[2])}`;
+  return `#${hexByte(c[0])}${hexByte(c[1])}${hexByte(c[2])}`;
 }
 
 /** SVG is XML, so anything interpolated into it has to be escaped. */
