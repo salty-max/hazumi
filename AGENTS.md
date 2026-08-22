@@ -301,20 +301,28 @@ Publishing is GitHub Actions OIDC (trusted publishing). There is no `NPM_TOKEN`.
 The workflow is `.github/workflows/release.yml`. On push to `main` it either
 opens a version PR or, after that PR is merged, packs and publishes.
 
-npm must list this workflow as the trusted publisher on **each** package:
+Trusted publishers are configured with `npm trust`, not the website form.
+The package must already exist on the registry (`npm trust` 404s otherwise).
+2FA is required on the first call; tick the 5-minute skip for the rest.
 
-- Organization or user: `salty-max`
-- Repository: `hazumi`
-- Workflow filename: `release.yml` (the filename only)
-- Environment: leave empty
-- Allowed action: `npm publish`
+```bash
+bun run build
+for dir in packages/*/; do
+  name=$(node -p "require('./${dir}package.json').name")
+  private=$(node -p "Boolean(require('./${dir}package.json').private)")
+  [ "$private" = "true" ] && continue
+  (cd "$dir" && npm publish --access public)
+  npm trust github "$name" --file release.yml --repo salty-max/hazumi --allow-publish -y
+  sleep 2
+done
+```
 
-A name that does not yet exist on the registry cannot receive a trusted
-publisher. Bootstrap it once with a 2FA `npm publish` from a laptop, then
-attach the publisher. Every later version goes through the workflow.
+The `@hazumi` org cannot be created from the CLI. Create it once at
+https://www.npmjs.com/org/create (name `hazumi`) before the first scoped
+publish.
 
 Provenance is automatic. `repository.url` on each package must stay
-`https://github.com/salty-max/hazumi.git`.
+`git+https://github.com/salty-max/hazumi.git`.
 
 In the GitHub repo: Settings → Actions → General → allow GitHub Actions to
 create and approve pull requests. The version job needs that to open the

@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/salty-max/hazumi.git",
+    "url": "git+https://github.com/salty-max/hazumi.git",
     "directory": "packages/create-hazumi"
   },
   "bin": {
