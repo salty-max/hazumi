@@ -16,6 +16,7 @@ import { Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Container } from "../components/container";
 import { PageHeader } from "../components/page-header";
+import { AspectRatio } from "../components/ui/aspect-ratio";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { cn } from "../lib/utils";
@@ -101,34 +102,37 @@ function SceneCard({
         />
         <CardTitle>{error === null ? name : `${name} — failed`}</CardTitle>
       </CardHeader>
-      <CardContent className="relative min-h-[300px] overflow-hidden p-0">
-        {!running && preview !== undefined ? (
-          <img
-            src={preview}
-            alt=""
-            width={600}
-            height={600}
-            decoding="async"
-            aria-hidden="true"
-            className="absolute inset-0 size-full object-cover"
+      <CardContent className="overflow-hidden p-0">
+        <AspectRatio ratio={1}>
+          {!running && preview !== undefined ? (
+            <img
+              src={preview}
+              alt=""
+              width={600}
+              height={600}
+              decoding="async"
+              aria-hidden="true"
+              className="absolute inset-0 size-full object-cover"
+            />
+          ) : null}
+          <div
+            ref={hostRef}
+            className={cn(
+              "absolute inset-0 grid place-items-center",
+              running
+                ? "bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px]"
+                : undefined,
+            )}
           />
-        ) : null}
-        <div
-          ref={hostRef}
-          className={
-            running
-              ? "grid min-h-[300px] place-items-center bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px] p-3"
-              : "grid min-h-[300px] place-items-center p-3"
-          }
-        />
-        {!running && error === null ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-md">
-            <Button type="button" onClick={() => setRunning(true)} aria-label={`Run ${name}`}>
-              <Play className="fill-current" />
-              Run
-            </Button>
-          </div>
-        ) : null}
+          {!running && error === null ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-md">
+              <Button type="button" onClick={() => setRunning(true)} aria-label={`Run ${name}`}>
+                <Play className="fill-current" />
+                Run
+              </Button>
+            </div>
+          ) : null}
+        </AspectRatio>
       </CardContent>
     </Card>
   );
