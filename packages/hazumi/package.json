@@ -1,6 +1,6 @@
 {
   "name": "hazumi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A typed 2D graphics library built on a retained command buffer.",
   "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",

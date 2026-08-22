@@ -1,5 +1,19 @@
 # @hazumi/physics
 
+## 0.2.1
+
+### Patch Changes
+
+- d49907a: Version the runtime packages together.
+
+  `hazumi` and `@hazumi/*` now share a version via the changesets `fixed`
+  group, so a bump in one package releases the whole library at the same
+  number. `create-hazumi` stays independent.
+
+- Updated dependencies [d49907a]
+  - @hazumi/core@0.2.1
+  - @hazumi/math@0.2.1
+
 ## 0.1.1
 
 ### Patch Changes
