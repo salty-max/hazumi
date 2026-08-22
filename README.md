@@ -1,25 +1,28 @@
 # Matter
 
-A typed 2D graphics library for interactive scenes, generative work and games. The
-drawing API does not rasterise — it encodes a command stream that WebGL2,
-Canvas2D, SVG and a headless recorder each consume on their own terms.
+A typed 2D graphics library for sketches, generative work, and games.
 
-> **Status: 0.1.0, pre-alpha.** The drawing API, bezier paths, SDF text,
-> images, sprites, shader passes, SVG/PNG export and pixel access all work,
-> with thirteen example scenes running on them. Not published to npm.
+Draw with ordinary functions. The same scene can run on WebGL2, export as SVG,
+or record commands in a unit test. Colour is OKLCH. Input, a camera, sprites,
+paths, text, physics, and audio are all there.
 
-## Why
+> **0.1.0, pre-alpha.** Not on npm yet.
 
-Drawing APIs usually rasterise as you call them, which welds what you drew to
-how it was drawn: the output cannot be exported as vectors, re-rendered at
-another resolution, or tested without a browser and a pixel diff. Renderers
-built for GPU throughput avoid that by handing you buffers and pipelines
-instead — at which point a circle stops being one line of code.
+## Start a project
 
-Matter keeps the short API and puts a typed command buffer behind it. One
-scene can therefore run a hundred thousand shapes in a single draw call,
-export as an SVG with real curve commands, and assert in a unit test with no
-browser involved. Shaders are a normal feature rather than an escape hatch.
+```bash
+bun create matter
+```
+
+The wizard asks for a name and whether you want a sketch (`draw`) or a game
+(`update` + `draw`). `vite build` writes a static `dist/` you can zip for
+itch.io or GitHub Pages.
+
+Until the packages are on npm, scaffold from this repo:
+
+```bash
+bun packages/create-matter/src/index.ts my-scene --local
+```
 
 ## A scene
 
@@ -40,25 +43,24 @@ start({ backend: webgl2(), width: 600, height: 600 }, () => {
 });
 ```
 
-Colours are values, not format strings: `oklch(l, c, h)` or `rgb(r, g, b)` from `matter/draw`. A CSS string still parses if you paste one.
+Import by capability: `matter/draw`, `matter/input`, `matter/scene`,
+`matter/assets`, `matter/audio`, `matter/math`, `matter/color`. Functions do
+the work; live values sit on objects (`screen.width`, `time.elapsed`,
+`input.mouseX`). They resolve to the application that is currently running.
 
-The API is split by capability: drawing, input, scene state, assets, audio,
-math, colour, and backends can be imported independently. Actions are regular
-functions; changing values live behind typed getters such as `screen.width`,
-`time.elapsed`, and `input.mouseX`. They resolve to the application whose
-lifecycle callback is currently running, without writing anything to `window`.
+The scene factory still receives the context, which is where plugin APIs such
+as `audio` live. After an `await` in the factory, capability imports are
+inactive until the returned callbacks run — finish async setup from the
+context argument.
 
-The scene factory still receives the application context once. That is where
-app-owned plugin services such as audio belong; `update()` and `draw()` import
-capabilities instead of unpacking the context every frame. After an `await` in
-the factory, those imports are inactive until the returned callbacks run — use
-the context argument to finish setup.
+Pass `--auto-import` to `create-matter` for `*.scene.ts` files that skip the
+capability imports. The Vite plugin inserts them at build time.
 
-Global-style `*.scene.ts` files can omit the capability imports: the Vite plugin
-inserts them at build time. It does not destructure the context and it does not
-invent aliases for the old p5 names (`width`, `t`, `with`).
+Colours are values: `oklch(l, c, h)` or `rgb(r, g, b)`. A CSS string still
+parses if you paste one.
 
-Style can be scoped instead of pushed and popped:
+Style can be scoped instead of pushed and popped. It restores even if the body
+throws:
 
 ```ts
 scoped({ fill: oklch(0.65, 0.22, 20), stroke: null }, () => {
@@ -66,17 +68,13 @@ scoped({ fill: oklch(0.65, 0.22, 20), stroke: null }, () => {
 });
 ```
 
-It restores on exit _including when the body throws_, which is the failure
-`push()`/`pop()` cannot protect you from.
+## A game
 
-## A fixed-step game
-
-A scene can implement separate `update` and `draw` callbacks. Simulation
-runs at the configured fixed rate; rendering still follows the display and
-receives an interpolation alpha:
+Split simulation from drawing. `update` runs at a fixed step; `draw` follows
+the display and receives an interpolation alpha:
 
 ```ts
-import { background, circle, fill } from "matter/draw";
+import { background, circle, fill, oklch } from "matter/draw";
 import { keyIsDown, keyJustPressed } from "matter/input";
 
 start({ backend: webgl2(), clock: { fixedStep: 1 / 60 } }, () => {
@@ -90,94 +88,215 @@ start({ backend: webgl2(), clock: { fixedStep: 1 / 60 } }, () => {
       if (keyJustPressed(" ")) jump();
     },
     draw(alpha) {
-      background("#111827");
-      fill("#60a5fa");
+      background(oklch(0.12, 0.02, 260));
+      fill(oklch(0.7, 0.12, 250));
       circle(previousX + (x - previousX) * alpha, 300, 32);
     },
   };
 });
 ```
 
-Catch-up is capped by default, so returning to a backgrounded tab cannot trap
-the simulation in an ever-growing backlog. `maxDelta` and `maxFixedSteps` are
-available under `clock` when a game needs different limits.
+Catch-up is capped, so a backgrounded tab cannot pile up unbounded simulation
+steps. Override `clock.maxDelta` and `clock.maxFixedSteps` if you need
+different limits.
 
-`keyJustPressed`, `keyJustReleased`, `pointerJustPressed` and
-`pointerJustReleased` are visible for exactly one fixed update. A complete tap
-between two updates still reports both edges, while browser key repeat does
-not create extra presses. `pointers` exposes mouse, pen, and every simultaneous
-touch in logical canvas coordinates; a released contact remains in the list
-for its release update so its final position is available. `wheelX` and
-`wheelY` similarly accumulate once per update in CSS pixels.
+## Input
 
-The existing `mouseX`, `mouseY`, `mouseIsPressed`, `mouseJustPressed`, and
-`mouseJustReleased` fields remain as convenient aliases for the primary
-pointer.
+`keyJustPressed`, `keyJustReleased`, `pointerJustPressed`, and
+`pointerJustReleased` last for one fixed update. A tap that finishes between
+updates still reports both edges; key repeat does not. `pointers` is mouse,
+pen, and every current touch, in logical canvas coordinates. A released
+contact stays in the list for that update so its last position is available.
+`wheelX` / `wheelY` accumulate once per update, in CSS pixels.
 
-Gamepads are polled at the start of each fixed update. `gamepads` exposes axes
-and analog button values, while `gamepadButtonIsDown`,
-`gamepadButtonJustPressed`, and `gamepadButtonJustReleased` provide the usual
-button state. Disconnecting a held controller reports release edges before it
-leaves the list. Unlike DOM events, polling cannot observe a complete press and
-release that happens between two updates.
+`mouseX`, `mouseY`, `mouseIsPressed`, `mouseJustPressed`, and
+`mouseJustReleased` alias the primary pointer.
 
-## Start a project
+Gamepads are polled at the start of each fixed update: `gamepads` for axes and
+analog buttons, plus `gamepadButtonIsDown` / `JustPressed` / `JustReleased`.
+Disconnecting a held pad reports release edges before it leaves the list.
 
-```bash
-bun create matter
-```
+## Camera
 
-The wizard asks for a name and whether you want a sketch (`draw`) or a game
-(`update` + `draw`). Explicit capability imports are the default; pass
-`--auto-import` if you want `*.scene.ts` plus the Vite plugin.
-
-`vite build` writes a static `dist/`. Zip that folder to ship the scene —
-itch.io, GitHub Pages, Netlify, a USB stick. There is no custom packager.
-
-Until the packages are on npm, scaffold from this repo so the app can depend
-on local `file:` paths:
-
-```bash
-bun packages/create-matter/src/index.ts my-scene --local
-```
-
-## Collision queries
-
-`collision` groups allocation-optional 2D queries in `@matter/math`. Static
-overlaps include touching edges; sweeps return the earliest safe fraction of a
-tick, so a fast object cannot tunnel through a thin wall:
+Every scene has a camera. Its position is the world point shown at the centre
+of the canvas:
 
 ```ts
-const reusableHit = collision.createSweepHit();
-const player = collision.aabb(x, y, 24, 24);
-const movement = vec2.vec2(velocity.x * dt, velocity.y * dt);
-const hit = collision.sweepAabb(player, movement, wall, reusableHit);
+import { background, circle, oklch, text } from "matter/draw";
+import { camera } from "matter/scene";
+
+return {
+  update(dt) {
+    movePlayer(dt);
+    camera.follow(player.x, player.y, 0.12);
+    camera.setZoom(2);
+  },
+  draw(alpha) {
+    background(oklch(0.12, 0.02, 260));
+    circle(player.x, player.y, 32);
+
+    camera.screen(() => {
+      text("HP 100", 16, 24);
+    });
+  },
+};
+```
+
+`background` always covers the screen. `camera.screen()` draws HUD in canvas
+coordinates. `screenToWorld()` and `worldToScreen()` convert pointer and world
+points; both take an optional output object.
+
+## Sprites
+
+```ts
+const sheet = spritesheet(await loadImage("tiles.png"), { frame: [16, 16] });
+image(sheet.at(3, 1), x, y);
+```
+
+`image()` takes a frame wherever it takes an image. Frames are reused by
+reference, so asking for the same cell every frame allocates nothing. Indices
+wrap, so `frame(t)` loops.
+
+Clips live on the sheet:
+
+```ts
+const hero = spritesheet(await loadImage("hero.png"), {
+  frame: [16, 24],
+  clips: {
+    idle: { frames: [0, 1, 2, 3], fps: 6 },
+    run: { frames: [8, 9, 10, 11, 12, 13], fps: 14 },
+    jump: { frames: [16], end: ClipEnd.Hold },
+  },
+});
+
+image(hero.clip("run").at(time.elapsed), x, y);
+```
+
+`at(seconds)` is a pure function of time. Several entities can share a clip.
+Clips loop, hold, or ping-pong; repeat a frame index to hold it longer.
+
+Batching follows draw order. Sprites from one sheet drawn together are one
+draw call; mixing sheets costs one call per switch. `app.stats.drawCalls`
+reports the last frame.
+
+## Tilemaps
+
+```ts
+const world = tilemap({
+  columns: 64,
+  rows: 32,
+  tileWidth: 16,
+  tileHeight: 16,
+  layers: [
+    { name: "ground", sheet, tiles: groundTiles },
+    { name: "detail", sheet, tiles: detailTiles },
+  ],
+});
+
+return {
+  update() {
+    camera.follow(player.x, player.y, 0.12);
+  },
+  draw() {
+    world.draw();
+  },
+};
+```
+
+Use `EMPTY_TILE` for gaps. `world.layer("detail").set(x, y, frame)` edits a
+cell in place. Invalid frame indices throw.
+
+## Paths
+
+```ts
+beginShape();
+vertex(0, 0);
+bezierVertex(70, -40, 140, -60, 200, 0);
+bezierVertex(140, 60, 70, 40, 0, 0);
+endShape(true);
+```
+
+SVG export keeps the curves as curve commands.
+
+## Text
+
+```ts
+textFont("Georgia");
+textSize(24);
+text("hello", 16, 32);
+```
+
+Uses fonts already on the system. Size and font persist across frames until
+you change them.
+
+## Shaders
+
+A pass is a `main()`. The runtime provides `v_uv`, `fragColor`, `u_texture`,
+`u_resolution`, `u_time`, and `texelSize()`:
+
+```ts
+setPasses([
+  {
+    fragment: `void main() {
+      vec4 c = texture(u_texture, v_uv);
+      fragColor = vec4(1.0 - c.rgb, c.a);
+    }`,
+  },
+]);
+```
+
+Passes run in order. A scene that never sets any allocates nothing for them.
+
+## Canvas size and pixels
+
+`resize()` changes the logical size and the backing store together. `width`,
+`height`, and `pixelRatio` are on the context. If you do not pin a ratio in
+`start()`, moving between displays updates the backing store.
+
+```ts
+const app = start({ backend: webgl2(), width: 320, height: 180 }, scene);
+await app.ready;
+
+app.resize(640, 360);
+const pixels = app.loadPixels();
+pixels.set(0, 0, [255, 0, 255, 255]);
+app.updatePixels(pixels);
+
+const png = await app.capturePng();
+```
+
+`Pixels.get()` and `set()` address physical pixels. SVG and headless throw
+`PixelAccessUnavailableError`.
+
+## Collision
+
+```ts
+import { collision, vec2 } from "matter/math";
+
+const hit = collision.sweepAabb(collision.aabb(x, y, 24, 24), vec2.vec2(vx * dt, vy * dt), wall);
 
 if (hit) {
-  x += movement.x * hit.time;
-  y += movement.y * hit.time;
+  x += vx * dt * hit.time;
+  y += vy * dt * hit.time;
 }
 ```
 
-Point containment, AABB/circle overlap, raycasts, and circle sweeps follow the
-same shape-first naming. `createRayHit()` and `createSweepHit()` produce reusable
-outputs for hot loops.
+Point containment, AABB/circle overlap, raycasts, and circle sweeps use the
+same names. `createRayHit()` and `createSweepHit()` give reusable results.
 
-`slideAabb()` is the movement helper a tile mover needs: it resolves X then Y
-against a list of solid AABBs so a blocked axis does not cancel the other, and
-it skips `null` holes in a sparse collider array.
+`slideAabb` moves against a list of solid AABBs one axis at a time, and skips
+`null` holes:
 
 ```ts
 const out = { x: 0, y: 0 };
-collision.slideAabb(player, velocity.x * dt, velocity.y * dt, walls, out);
+collision.slideAabb(player, vx * dt, vy * dt, walls, out);
 player.x += out.x;
 player.y += out.y;
 ```
 
 ## Pathfinding
 
-`pathfind` is a cost grid, not a tilemap. `EMPTY_TILE` means "do not draw";
-walkability is a separate array of costs — 0 is blocked, 1 is a normal step:
+A cost grid, separate from a tilemap. `0` is blocked, `1` is a normal step:
 
 ```ts
 import { pathfind } from "matter/math";
@@ -188,17 +307,14 @@ const path = pathfind.createPath();
 pathfind.astar(map, 1, 1, 30, 16, { out: path });
 ```
 
-`astar` returns cell coordinates, start through goal, or `null`. Pass
-`{ diagonal: true }` for 8-direction movement; diagonals will not cut a
-blocked corner. Reuse the path and the grid — scratch lives on the grid, so a
-second search after the first allocates nothing.
+Returns cell coordinates from start through goal, or `null`. `{ diagonal: true }`
+allows 8-direction movement without cutting a blocked corner. Reuse the grid
+and the path.
 
-## Rigid bodies
+## Physics
 
-`physics` is a separate world, not a replacement for those queries. Platformers
-keep `slideAabb`. The solver lives in `@matter/math` as a pure `step(dt)`. The
-usual way to run it is the plugin host, which owns a world on the context and
-steps it after each **fixed** update:
+Circles and oriented boxes, with restitution and friction. The usual way to
+run it is the plugin, which steps after each fixed update:
 
 ```ts
 import { createPluginHost, start } from "matter/app";
@@ -224,403 +340,37 @@ start(
 );
 ```
 
-Do not also call `world.step` — the host already did. `overlay()` draws a
-screen-space HUD and body outlines after the scene; pass `toggleKey: "F1"` if
-you want it dismissible.
+Do not also call `world.step` — the host already did. `overlay()` draws stats
+and body outlines after the scene; `toggleKey: "F1"` makes it dismissible.
 
-Circles and oriented boxes. Sequential impulses with restitution and friction.
-An offset `applyImpulse` produces spin. `import { physics } from "matter/math"`
-still works when a scene wants to step the solver itself.
+`import { physics } from "matter/math"` is the solver on its own, if you want
+to step it yourself. Platformers that slide on tiles still use `slideAabb`.
 
-## World and screen space
+## Backends
 
-Every context carries a camera. Its position is the world coordinate shown at
-the centre of the canvas; the default preserves the original canvas coordinate
-system exactly:
+| Import                     | Role                              |
+| -------------------------- | --------------------------------- |
+| `matter/backends/webgl2`   | Default renderer                  |
+| `matter/backends/canvas2d` | 2D canvas                         |
+| `matter/backends/svg`      | Vector export                     |
+| `matter/backends/headless` | Recorded command stream for tests |
 
-```ts
-import { background, circle, text } from "matter/draw";
-import { camera } from "matter/scene";
-
-return {
-  update(dt) {
-    movePlayer(dt);
-    camera.follow(player.x, player.y, 0.12);
-    camera.setZoom(2);
-  },
-  draw(alpha) {
-    background("#111827"); // always covers the screen
-    circle(player.x, player.y, 32); // world space
-
-    camera.screen(() => {
-      text("HP 100", 16, 24); // HUD, unaffected by pan or zoom
-    });
-  },
-};
-```
-
-`screenToWorld()` maps pointer coordinates into the world, and
-`worldToScreen()` does the reverse. Both accept an optional reusable output
-point for allocation-free use in a hot loop.
-
-## Canvas size and pixels
-
-`resize()` changes the logical surface and its physical backing store together.
-The context exposes the current `width`, `height`, and `pixelRatio`; when no
-ratio is forced in `start()`, moving the canvas between displays updates the
-backing resolution automatically.
-
-Raster backends also expose a top-down, straight-alpha RGBA snapshot at physical
-resolution:
-
-```ts
-const app = start({ backend: webgl2(), width: 320, height: 180 }, scene);
-await app.ready;
-
-app.resize(640, 360);
-const pixels = app.loadPixels();
-pixels.set(0, 0, [255, 0, 255, 255]);
-app.updatePixels(pixels);
-
-const png = await app.capturePng();
-```
-
-`Pixels.get()` and `set()` address physical pixels; `pixels.pixelRatio` makes
-the relationship to scene coordinates explicit. SVG and headless backends throw
-`PixelAccessUnavailableError` because they have no raster surface to read.
-
-Run `bun run dev` and open
-http://localhost:5199/examples to see the thirteen scenes in
-`examples/`.
-
-## Design in one page
-
-The user's `draw()` does not paint. It encodes high-level commands — _circle at
-xy, radius r_ — into a struct-of-arrays typed-array buffer, which a backend then
-consumes. Immediate-mode ergonomics on the outside, retained-mode data inside.
-
-Four things fall out of that:
-
-- **Vector export.** SVG is just another buffer consumer.
-- **Real unit tests.** The headless backend records the command stream, so tests
-  assert on what was drawn instead of pixel-diffing a browser.
-- **Deterministic recording.** Seeded RNG plus a decoupled clock means a scene
-  re-runs frame-by-frame at any resolution and produces identical output.
-- **A tractable GPU path.** Backends batch by sorting commands rather than
-  re-implementing the drawing API.
-
-The WebGL2 backend draws circles, rounded rects, arcs and lines as instanced
-quads with the shape evaluated analytically in the fragment shader — perfect
-antialiasing at any zoom, no tessellator, and ten thousand circles in one draw
-call.
-
-## Layers
-
-```
-L0 core  →  L1 math  →  L2 color  →  L3 graphics  →  L4 backends  →  L5 matter
-```
-
-Imports only ever go left to right. See [AGENTS.md](AGENTS.md) for the rules.
-
-## Build order
-
-All ten phases are delivered. [ROADMAP.md](ROADMAP.md) has the current
-state, remaining library gaps, and deferred work.
-
-| Phase  | Work                                                         | Done when                                                       |
-| ------ | ------------------------------------------------------------ | --------------------------------------------------------------- |
-| P1 ✅  | Command buffer + minimal instanced WebGL2 path               | **Met** — see measurements below                                |
-| P2 ✅  | core, math, color                                            | **Met** — 253 tests; plugin types verified at compile time      |
-| P3 ✅  | Renderer subsystems + Canvas2D oracle                        | **Met** — 10/10 scenes agree, mean diff ≤ 1.8/255               |
-| P4 ✅  | First vertical slice, `0.1.0`                                | **Met** — five scenes in `examples/`, no escape hatches         |
-| P5 ✅  | Text, then SVG backend                                       | **Met** — 12 scenes export and rasterise to within 0.31/255     |
-| P6 ✅  | Docs + playground                                            | **Met** — landing page, live editor, 184-symbol reference       |
-| P7 ✅  | Breadth: images, sprites, paths, shaders, input, auto-import | **Met** — WebGPU deferred by decision, see below                |
-| P8 ✅  | Typed runtime plugins + audio                                | **Met** — load, play, loop, gain, lifecycle, bounded voice pool |
-| P9 ✅  | Canvas resize, pixels + PNG capture                          | **Met** — DPR-aware Canvas2D/WebGL2, top-down RGBA round-trip   |
-| P10 ✅ | Packed WebGL colour uploads                                  | **Met** — 5.60 → 4.40 MB/frame for 100k shapes (−21.4%)         |
-
-## P1 measurements
-
-Encode path, Bun, 100k circles per frame over 200 frames. Two workloads, because
-a single shared fill and a fill per shape are different amounts of work — the GPU
-bench below uses the second:
-
-| Metric                         | Flat fill       | Fill per shape  |
-| ------------------------------ | --------------- | --------------- |
-| Encode time per frame          | 0.97 ms (5.8%)  | 1.84 ms (11.0%) |
-| Throughput                     | 103M shapes/sec | 54M shapes/sec  |
-| Buffer growths in steady state | 0               | 0               |
-| Heap delta over 200 frames     | 0.0 KB          | 0.0 KB          |
-
-GPU path, Chrome, 100k circles per frame over 120 frames, each frame forced to
-complete with a 1×1 `readPixels`:
-
-| Metric                                 | Result                                              |
-| -------------------------------------- | --------------------------------------------------- |
-| Frame time (median)                    | 10.00 ms (60% of the 16.67 ms budget)               |
-| Frame time (p95)                       | 11.50 ms                                            |
-| Draw calls per frame                   | 1                                                   |
-| Instance-array growths in steady state | 0                                                   |
-| Forced context loss                    | Recovered without reload, 1 draw call after restore |
-
-P3 grew instances from 7 floats to 14 to carry transform, extents and stroke,
-moving the median from 7.50 ms to 10.00 ms. P10 packs the four colour floats
-into normalized RGBA8: shape and textured instances are now 44 rather than 56
-bytes, and the benchmark uploads 4.40 rather than 5.60 MB per frame (−21.4%).
-Current Chrome medians remain inside the pre-change 8.8–9.2 ms variance, so the
-measured claim is the bandwidth reduction, not a synthetic frame-time speedup.
-
-## Backend agreement
-
-Canvas2D is the reference renderer. Twenty scenes render through both backends
-and are compared pixel by pixel — mean per-channel difference over the frame,
-out of 255. The worst is 1.81; the image scenes are exact:
-
-| Scene                                  | Mean diff | Draw calls |
-| -------------------------------------- | --------- | ---------- |
-| filled circles                         | 0.42      | 1          |
-| filled rects                           | 0.68      | 1          |
-| non-square rect strokes                | 1.75      | 1          |
-| circle strokes                         | 0.93      | 1          |
-| lines                                  | 1.81      | 1          |
-| overlapping transparency               | 0.34      | 1          |
-| interleaved blend modes                | 0.56      | 10         |
-| transform stack                        | 0.61      | 1          |
-| camera world and screen space          | 0.42      | 1          |
-| uniform scale with stroke              | 0.62      | 1          |
-| ellipses                               | 1.69      | 1          |
-| translucent background over content    | 0.42      | 1          |
-| filled bezier path                     | 0.25      | 2          |
-| path with a hole                       | 0.00      | 2          |
-| stroked path                           | 0.35      | 1          |
-| spritesheet frames                     | 0.00      | 1          |
-| spritesheet frames from an ImageBitmap | 0.00      | 1          |
-| whole image                            | 0.00      | 2          |
-| push/pop restores style                | 0.43      | 1          |
-
-Two independent rasterisers never match bit-for-bit on antialiased edges, so
-the bar is "no visible difference", not "identical". The interleaved-blend
-scene takes ten draw calls by design: merging non-adjacent instances would
-reorder overlapping transparent shapes.
-
-Run it with `bun run dev` and open
-http://localhost:5199/bench/compare.html.
-
-SVG is rasterised through the browser and diffed against Canvas2D as well.
-Several scenes come out pixel-identical and the worst is 1.22, because both go
-through the same engine — so that tolerance is set _tighter_ than the GPU one.
-
-## WebGPU
-
-Deferred, deliberately. A WebGPU backend at parity with WebGL2 — shapes,
-glyphs, images, post-processing — is about the size of the WebGL2 backend
-itself, roughly 2,400 lines, so it is a phase rather than a task. It also sits
-near 70% browser support against WebGL2's 97%.
-
-The architecture is ready for it: a backend implements three methods, and the
-SVG and headless backends already demonstrate that the command buffer is
-genuinely renderer-neutral. WebGPU arrives as a fourth consumer, not a rewrite.
-
-**Known divergences.** Stroke width under anisotropic scale: both backends
-scale stroke with the transform but distribute it differently, so the
-comparison scenes use uniform scale only. And text is outside the comparison
-entirely — the GPU path renders glyphs from a signed distance field while
-Canvas2D and SVG use native text, which cannot match pixel for pixel by
-construction.
-
-## Sprites
-
-`spritesheet()` slices an image into frames, and `image()` takes a frame
-wherever it takes an image:
-
-```ts
-const sheet = spritesheet(await loadImage("tiles.png"), { frame: [16, 16] });
-image(sheet.at(3, 1), x, y);
-```
-
-This is what makes 2D games viable. Batching merges only _adjacent_ instances —
-which is what keeps transparency correct — so separate images never merge and
-sprites always interleave. Measured: 400 draws across 8 images cost **400 draw
-calls**; 400 sprites across 16 frames of one sheet cost **one**.
-
-Frames are precomputed and returned by reference, so a draw loop asking for the
-same frame every frame allocates nothing. Indices wrap, so `frame(t)` loops.
-
-Image textures upload _unflipped_, and the quad's UVs run top-down to match.
-This is deliberate: WebGL honours `UNPACK_FLIP_Y_WEBGL` for a canvas or `<img>`
-but silently ignores it for an `ImageBitmap`, which is exactly what
-`loadImage()` returns — so flipping on upload makes a texture's orientation
-depend on how the caller happened to decode the picture. Two comparison scenes
-draw the same frames from both source types for this reason.
-
-### Animations
-
-A sheet can declare its own clips, so a scene asks for an animation rather than
-tracking frame indices:
-
-```ts
-const hero = spritesheet(await loadImage("hero.png"), {
-  frame: [16, 24],
-  clips: {
-    idle: { frames: [0, 1, 2, 3], fps: 6 },
-    run: { frames: [8, 9, 10, 11, 12, 13], fps: 14 },
-    jump: { frames: [16], end: ClipEnd.Hold },
-  },
-});
-
-image(hero.clip("run").at(time.elapsed), x, y);
-```
-
-Sampling is stateless — `at(seconds)` is a pure function of time — so any
-number of entities can share one clip without advancing each other, and the
-same elapsed time always gives the same frame. Clips end by looping, holding
-(what a one-shot needs) or ping-ponging, and a frame held longer is expressed
-by repeating it: `[0, 0, 1]` gives frame 0 twice the screen time.
-
-### Tilemaps
-
-`tilemap()` keeps row-major layer data, skips empty cells, and visits only the
-part of the grid visible through the camera. Each layer owns one spritesheet,
-so its visible tiles remain adjacent in the command stream and render as one
-texture batch:
-
-```ts
-const world = tilemap({
-  columns: 64,
-  rows: 32,
-  tileWidth: 16,
-  tileHeight: 16,
-  layers: [
-    { name: "ground", sheet, tiles: groundTiles },
-    { name: "detail", sheet, tiles: detailTiles },
-  ],
-});
-
-return {
-  update() {
-    camera.follow(player.x, player.y, 0.12);
-  },
-  draw() {
-    world.draw();
-  },
-};
-```
-
-Use `EMPTY_TILE` for gaps. `world.layer('detail').set(x, y, frame)` updates a
-cell without rebuilding the map; layers can also be hidden or filled in place.
-Invalid frame indices throw instead of wrapping to a different tile.
-
-### Several sheets
-
-Loading more than one is normal — tiles, a character, effects. They cannot
-share a texture, so **draw order decides the cost**. Measured with three sheets
-and 300 sprites:
-
-| Draw order       | Draw calls |
-| ---------------- | ---------- |
-| Grouped by sheet | 3          |
-| Interleaved      | 300        |
-
-Group draws by sheet where you can. `app.stats.drawCalls` reports the number
-for the last frame.
-
-## Paths
-
-Shapes are built from bezier segments, and the buffer stores the control
-points — never a flattened polyline:
-
-```ts
-beginShape();
-vertex(0, 0);
-bezierVertex(70, -40, 140, -60, 200, 0);
-bezierVertex(140, 60, 70, 40, 0, 0);
-endShape(true);
-```
-
-That is what lets SVG export a real `<path d="…">` with curve commands while
-the GPU flattens at whatever resolution it is actually drawing. Flattening is
-adaptive, derived from a bound on the curve's second derivative.
-
-Fills use the stencil buffer rather than a triangulator: each contour is drawn
-as a fan with separate front/back winding, leaving the winding number in the
-stencil, and a cover quad paints where it is non-zero. That is the nonzero rule
-Canvas2D uses, it handles self-intersection and holes, and it needs no
-dependency. The hole scene in the comparison comes out pixel-identical.
-
-## Shaders
-
-Post-processing is a normal feature, not an escape hatch. A pass is only a
-`main()` — the runtime supplies `v_uv`, `fragColor`, `u_texture`,
-`u_resolution`, `u_time` and a `texelSize()` helper:
-
-```ts
-setPasses([
-  {
-    fragment: `void main() {
-      vec4 c = texture(u_texture, v_uv);
-      fragColor = vec4(1.0 - c.rgb, c.a);
-    }`,
-  },
-]);
-```
-
-Passes run in order, each reading the previous one's output, ping-ponging
-between two render targets so an N-pass chain still needs only two textures. An
-empty chain allocates no targets at all, so a scene that never asks for effects
-pays nothing for them.
-
-## Text
-
-Text is rendered from a signed distance field built at runtime from any font
-already on the system — no build step, no atlas file to ship. SDF rather than
-MSDF: MSDF holds corners sharp at extreme scale but needs an offline generator,
-and the trade is that corners soften well above the atlas resolution.
-
-Reproduce with:
-
-```bash
-bun run bench/encode.ts
-```
-
-For the GPU bench, run `bun run dev` and open
-http://localhost:5199/bench/gpu.html.
-
-## Development
-
-Requires [Bun](https://bun.sh) 1.3+.
+## Try it
 
 ```bash
 bun install
 bun run build
-bun run test
-```
-
-Build the packages, then start the Vite development server:
-
-```bash
 bun run dev
 ```
 
-| Page                    | What it is                                                            |
-| ----------------------- | --------------------------------------------------------------------- |
-| `/`                     | Landing page                                                          |
-| `/playground`           | Live editor, eight starters, SVG export                               |
-| `/reference`            | Generated API reference                                               |
-| `/examples`             | The thirteen example scenes                                           |
-| `/bench/compare.html`   | Backend agreement across WebGL2, Canvas2D and SVG                     |
-| `/bench/gpu.html`       | 100k-shape GPU benchmark                                              |
-| `/bench/probe.html`     | Stencil-through-a-render-pass regression check                        |
-| `/bench/sprites.html`   | Sprite orientation, across both image source types                    |
-| `/bench/sheetinfo.html` | Blood Mage facing rows: frontLeft / frontRight / backLeft / backRight |
+| Page          |                |
+| ------------- | -------------- |
+| `/`           | Landing page   |
+| `/playground` | Live editor    |
+| `/reference`  | API reference  |
+| `/examples`   | Example scenes |
 
-The reference is generated from the emitted `.d.ts` files rather than by
-TypeDoc, which runs on the TypeScript compiler API that TS 7.0 does not
-stabilise until 7.1 — the same constraint that keeps linting on oxlint. Rebuild
-it with `bun run apps/docs/src/build.ts`.
-
-See [AGENTS.md](AGENTS.md) for conventions, the toolchain rationale, and the
-rules that matter.
+Requires [Bun](https://bun.sh) 1.3+.
 
 ## License
 
