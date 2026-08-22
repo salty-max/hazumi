@@ -131,6 +131,57 @@ describe("style", () => {
   });
 });
 
+describe("paths", () => {
+  test("a cubic exports as a C command, not a polyline", () => {
+    const svg = render((b) => {
+      b.beginPath();
+      b.moveTo(0, 0);
+      b.cubicTo(0, 100, 100, 100, 100, 0);
+      b.fillPath();
+    });
+    expect(svg).toContain("<path");
+    expect(svg).toMatch(/C0 100 100 100 100 0/);
+    expect(svg).not.toContain("<polygon");
+  });
+
+  test("fillPath does not stroke even when a stroke is live", () => {
+    const svg = render((b) => {
+      b.setFill(1, 0, 0, 1);
+      b.setStroke(0, 1, 0, 1);
+      b.setStrokeWidth(4);
+      b.beginPath();
+      b.moveTo(0, 0);
+      b.lineTo(10, 0);
+      b.lineTo(10, 10);
+      b.closePath();
+      b.fillPath();
+    });
+    const pathTag = svg.split("\n").find((line) => line.includes("<path")) ?? "";
+    expect(pathTag).toContain('fill="#ff0000"');
+    expect(pathTag).not.toContain("stroke=");
+  });
+
+  test("strokePath is a separate element from fillPath", () => {
+    const svg = render((b) => {
+      b.setFill(1, 0, 0, 1);
+      b.setStroke(0, 0, 1, 1);
+      b.setStrokeWidth(2);
+      b.beginPath();
+      b.moveTo(0, 0);
+      b.lineTo(10, 0);
+      b.lineTo(10, 10);
+      b.closePath();
+      b.fillPath();
+      b.strokePath();
+    });
+    const paths = svg.split("\n").filter((line) => line.includes("<path"));
+    expect(paths).toHaveLength(2);
+    expect(paths[0]).not.toContain("stroke=");
+    expect(paths[1]).toContain('fill="none"');
+    expect(paths[1]).toContain('stroke="#0000ff"');
+  });
+});
+
 describe("transforms", () => {
   test("identity emits no transform attribute", () => {
     expect(render((b) => b.circle(1, 1, 1))).not.toContain("transform=");

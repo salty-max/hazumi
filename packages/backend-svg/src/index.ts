@@ -162,17 +162,17 @@ export class SvgRenderer {
     return ` transform="matrix(${this.#n(m.a)} ${this.#n(m.b)} ${this.#n(m.c)} ${this.#n(m.d)} ${this.#n(m.tx)} ${this.#n(m.ty)})"`;
   }
 
-  #paintAttrs(strokeOnly = false): string {
+  #paintAttrs(mode: "both" | "fill" | "stroke" = "both"): string {
     const s = this.#style;
     const parts: string[] = [];
 
-    if (strokeOnly || s.fill[3] <= 0) parts.push('fill="none"');
+    if (mode === "stroke" || s.fill[3] <= 0) parts.push('fill="none"');
     else {
       parts.push(`fill="${toHex(s.fill)}"`);
       if (s.fill[3] < 1) parts.push(`fill-opacity="${this.#n(s.fill[3])}"`);
     }
 
-    if (s.strokeWidth > 0 && s.stroke[3] > 0) {
+    if (mode !== "fill" && s.strokeWidth > 0 && s.stroke[3] > 0) {
       parts.push(`stroke="${toHex(s.stroke)}"`);
       parts.push(`stroke-width="${this.#n(s.strokeWidth)}"`);
       if (s.stroke[3] < 1) parts.push(`stroke-opacity="${this.#n(s.stroke[3])}"`);
@@ -198,7 +198,7 @@ export class SvgRenderer {
     if (!strokeOnly && s.fill[3] <= 0) return;
 
     this.#elements.push(
-      `<path d="${this.#path.join(" ")}"${this.#paintAttrs(strokeOnly)}${this.#transformAttr()}/>`,
+      `<path d="${this.#path.join(" ")}"${this.#paintAttrs(strokeOnly ? "stroke" : "fill")}${this.#transformAttr()}/>`,
     );
   }
 
@@ -332,7 +332,7 @@ export class SvgRenderer {
         const s = this.#style;
         if (s.strokeWidth <= 0 || s.stroke[3] <= 0) return;
         this.#elements.push(
-          `<line x1="${this.#n(x1)}" y1="${this.#n(y1)}" x2="${this.#n(x2)}" y2="${this.#n(y2)}"${this.#paintAttrs(true)}${this.#transformAttr()}/>`,
+          `<line x1="${this.#n(x1)}" y1="${this.#n(y1)}" x2="${this.#n(x2)}" y2="${this.#n(y2)}"${this.#paintAttrs("stroke")}${this.#transformAttr()}/>`,
         );
       },
     };
