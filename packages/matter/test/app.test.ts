@@ -245,6 +245,64 @@ describe("plugins", () => {
     expect(rendererDisposed).toBe(true);
     expect((h.canvas as unknown as TestCanvas).removed).toBe(true);
   });
+
+  test("stop during ready skips postsetup", async () => {
+    const h = harness();
+    let postsetup = 0;
+    let release!: () => void;
+    let started!: () => void;
+    const began = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const plugin = definePlugin({
+      name: "slow",
+      presetup: () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+          started();
+        }),
+      postsetup: () => {
+        postsetup++;
+      },
+    });
+    const app = start(
+      {
+        backend: () => h.renderer,
+        canvas: h.canvas,
+        plugins: createPluginHost().use(plugin),
+      },
+      { draw: (): void => {} },
+    );
+    await began;
+    app.stop();
+    release();
+    await app.ready;
+    expect(postsetup).toBe(0);
+    expect(app.stopped).toBe(true);
+  });
+
+  test("stop from draw does not render after dispose", async () => {
+    const h = harness();
+    let renders = 0;
+    const renderer: Renderer = {
+      ...h.renderer,
+      render: (): void => {
+        renders++;
+      },
+    };
+    const app = start(
+      { backend: () => renderer, canvas: h.canvas },
+      {
+        draw: (): void => {
+          app.stop();
+        },
+      },
+    );
+    await app.ready;
+    h.runFrame(0);
+    expect(renders).toBe(0);
+    expect(app.stopped).toBe(true);
+  });
 });
 
 describe("capability imports", () => {

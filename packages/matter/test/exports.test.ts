@@ -18,6 +18,9 @@ describe("matter exports", () => {
     expect(typeof matter.OverlayPluginInUseError).toBe("function");
     expect(typeof matter.Pixels).toBe("function");
     expect(typeof matter.PixelAccessUnavailableError).toBe("function");
+    expect(typeof matter.DuplicatePluginError).toBe("function");
+    expect(typeof matter.DuplicateContributionError).toBe("function");
+    expect(typeof matter.ReservedContributionError).toBe("function");
   });
 
   test("exports the command buffer API as values, not just types", () => {

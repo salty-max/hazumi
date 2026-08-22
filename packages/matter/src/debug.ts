@@ -106,30 +106,33 @@ function createRuntime(options: OverlayOptions): OverlayRuntime {
 
 function drawOverlay(runtime: OverlayRuntime, context: MatterContext): void {
   context.push();
-  if (runtime.controller.physics) {
-    const world = physicsWorld(context);
-    if (world !== undefined) drawPhysics(context, world);
-  }
-  if (runtime.controller.stats) {
-    if (context.dt > 0) {
-      const instant = 1 / context.dt;
-      runtime.fps += (instant - runtime.fps) * 0.15;
+  try {
+    if (runtime.controller.physics) {
+      const world = physicsWorld(context);
+      if (world !== undefined) drawPhysics(context, world);
     }
-    const world = physicsWorld(context);
-    const bodies = world === undefined ? 0 : world.bodies.length;
-    const fps = runtime.fps > 0 ? String(Math.round(runtime.fps)) : "—";
-    const ms = (context.dt * 1000).toFixed(1);
-    context.camera.screen(() => {
-      context.noStroke();
-      context.fill(HUD_FILL);
-      context.textSize(13);
-      context.textAlign(Align.Left, Baseline.Top);
-      context.text(`${fps} fps`, 10, 10);
-      context.text(`${ms} ms`, 10, 26);
-      context.text(`${bodies} bodies`, 10, 42);
-    });
+    if (runtime.controller.stats) {
+      if (context.dt > 0) {
+        const instant = 1 / context.dt;
+        runtime.fps += (instant - runtime.fps) * 0.15;
+      }
+      const world = physicsWorld(context);
+      const bodies = world === undefined ? 0 : world.bodies.length;
+      const fps = runtime.fps > 0 ? String(Math.round(runtime.fps)) : "—";
+      const ms = (context.dt * 1000).toFixed(1);
+      context.camera.screen(() => {
+        context.noStroke();
+        context.fill(HUD_FILL);
+        context.textSize(13);
+        context.textAlign(Align.Left, Baseline.Top);
+        context.text(`${fps} fps`, 10, 10);
+        context.text(`${ms} ms`, 10, 26);
+        context.text(`${bodies} bodies`, 10, 42);
+      });
+    }
+  } finally {
+    context.pop();
   }
-  context.pop();
 }
 
 function drawPhysics(context: MatterContext, world: World): void {
@@ -148,18 +151,24 @@ function drawBody(context: MatterContext, body: RigidBody): void {
   if (body.shape === Shape.Circle) {
     context.circle(body.x, body.y, body.radius * 2);
     context.push();
-    context.translate(body.x, body.y);
-    context.rotate(body.angle);
-    context.line(0, 0, body.radius, 0);
-    context.pop();
+    try {
+      context.translate(body.x, body.y);
+      context.rotate(body.angle);
+      context.line(0, 0, body.radius, 0);
+    } finally {
+      context.pop();
+    }
     return;
   }
   context.push();
-  context.translate(body.x, body.y);
-  context.rotate(body.angle);
-  context.rect(-body.width / 2, -body.height / 2, body.width, body.height);
-  context.line(0, 0, body.width / 2, 0);
-  context.pop();
+  try {
+    context.translate(body.x, body.y);
+    context.rotate(body.angle);
+    context.rect(-body.width / 2, -body.height / 2, body.width, body.height);
+    context.line(0, 0, body.width / 2, 0);
+  } finally {
+    context.pop();
+  }
 }
 
 function physicsWorld(context: MatterContext): World | undefined {

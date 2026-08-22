@@ -17,7 +17,13 @@ import {
 import { PixelAccessUnavailableError, Pixels } from "./pixels";
 import { enterContext, restoreContext } from "./active-context";
 
-export { createPluginHost, definePlugin, DuplicatePluginError } from "@matter/core";
+export {
+  createPluginHost,
+  definePlugin,
+  DuplicatePluginError,
+  DuplicateContributionError,
+  ReservedContributionError,
+} from "@matter/core";
 export type {
   Plugin,
   PluginBuilder,
@@ -709,11 +715,14 @@ export function start<Api extends object = Record<never, never>>(
   // Stable callback: stepFixed may call it several times per frame, so do not
   // allocate a closure in the per-frame path.
   const runSceneUpdate = (fixedDt: number): void => {
+    if (stopped) return;
     beginInputStep();
     const previousContext = enterContext(sceneContext);
     try {
       pluginHost.preupdate(fixedDt);
+      if (stopped) return;
       activeScene?.update?.(fixedDt, sceneContext);
+      if (stopped) return;
       pluginHost.postupdate(fixedDt);
     } finally {
       restoreContext(previousContext);
@@ -722,6 +731,7 @@ export function start<Api extends object = Record<never, never>>(
   };
 
   const renderFrame = (nowMs: number): void => {
+    if (stopped) return;
     clock.advance(nowMs / 1000);
     state.frameCount = clock.frame;
     state.t = clock.elapsed;
@@ -733,6 +743,7 @@ export function start<Api extends object = Record<never, never>>(
       // Always drain the accumulator. Otherwise a scene without update() would
       // hand all its elapsed time to the next scene that has one.
       clock.stepFixed(runSceneUpdate);
+      if (stopped) return;
 
       buffer.reset();
       // The buffer is a fresh stream each frame, so the current style has to be
@@ -742,11 +753,12 @@ export function start<Api extends object = Record<never, never>>(
       const previousContext = enterContext(sceneContext);
       try {
         pluginHost.predraw(state.dt);
-        activeScene?.draw(clock.alpha(), sceneContext);
-        pluginHost.postdraw(state.dt);
+        if (!stopped) activeScene?.draw(clock.alpha(), sceneContext);
+        if (!stopped) pluginHost.postdraw(state.dt);
       } finally {
         restoreContext(previousContext);
       }
+      if (stopped) return;
       if (supportsPasses(renderer)) renderer.setTime(state.t);
       renderer.render(buffer);
     } catch (error) {
@@ -773,6 +785,7 @@ export function start<Api extends object = Record<never, never>>(
   const disposeRuntime = (): void => {
     if (stopped) return;
     stopped = true;
+    state.looping = false;
     sceneRevision++;
     cancelAnimationFrame(frameHandle);
     canvas.removeEventListener("pointermove", onPointerMove);
@@ -857,7 +870,10 @@ export function start<Api extends object = Record<never, never>>(
   const ready = pluginHost
     .presetup()
     .then(() => loadScene(initialScene))
-    .then(() => pluginHost.postsetup())
+    .then(() => {
+      if (stopped) return;
+      return pluginHost.postsetup();
+    })
     .then(() => {
       if (!stopped) frameHandle = requestAnimationFrame(tick);
     })

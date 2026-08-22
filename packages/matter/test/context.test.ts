@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { Blend, CommandBuffer } from "@matter/graphics";
+import { Align, Baseline, Blend, CommandBuffer } from "@matter/graphics";
 import { record } from "@matter/backend-headless";
 import { ColorCache } from "../src/color-cache";
 import { type ContextState, createContext, type MatterContext } from "../src/context";
@@ -247,8 +247,34 @@ describe("frame lifecycle", () => {
     h.beginFrame();
 
     // Style set during scene creation survives the per-frame buffer reset.
-    expect(h.ops()).toEqual(["setFill", "setStroke", "setStrokeWidth", "setBlend"]);
+    expect(h.ops()).toEqual([
+      "setFill",
+      "setStroke",
+      "setStrokeWidth",
+      "setBlend",
+      "setFont",
+      "setTextSize",
+      "setTextAlign",
+    ]);
     expect(record(h.buffer).find((c) => c.op === "setBlend")?.args).toEqual([Blend.Add]);
+  });
+
+  test("beginFrame re-emits text style set before the buffer reset", () => {
+    const h = makeContext();
+    h.ctx.textFont("Georgia");
+    h.ctx.textSize(24);
+    h.ctx.textAlign(Align.Center, Baseline.Middle);
+
+    h.buffer.reset();
+    h.beginFrame();
+
+    const commands = record(h.buffer);
+    expect(commands.find((c) => c.op === "setFont")?.text).toBe("Georgia");
+    expect(commands.find((c) => c.op === "setTextSize")?.args).toEqual([24]);
+    expect(commands.find((c) => c.op === "setTextAlign")?.args).toEqual([
+      Align.Center,
+      Baseline.Middle,
+    ]);
   });
 });
 

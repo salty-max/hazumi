@@ -83,7 +83,14 @@ export { overlay, OverlayPluginInUseError } from "./debug";
 export type { OverlayApi, OverlayController, OverlayOptions } from "./debug";
 
 // --- L0 core ---
-export { AppClock, createPluginHost, definePlugin, DuplicatePluginError } from "@matter/core";
+export {
+  AppClock,
+  createPluginHost,
+  definePlugin,
+  DuplicatePluginError,
+  DuplicateContributionError,
+  ReservedContributionError,
+} from "@matter/core";
 export type {
   Clock,
   ClockOptions,

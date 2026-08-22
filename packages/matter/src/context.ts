@@ -11,6 +11,10 @@ export interface StyleOverrides {
   stroke?: ColorLike | null;
   strokeWeight?: number;
   blendMode?: Blend;
+  textFont?: string;
+  textSize?: number;
+  textAlign?: Align;
+  textBaseline?: Baseline;
 }
 
 /** One mouse, pen, or touch contact in logical canvas coordinates. */
@@ -322,6 +326,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
   let strokeColor: ColorLike | null = null;
   let strokeWidth = 1;
   let blend: Blend = Blend.Normal;
+  let fontFamily = "sans-serif";
+  let fontSize = 16;
+  let textHorizontal: Align = Align.Left;
+  let textVertical: Baseline = Baseline.Alphabetic;
   // Whether the current shape has an open contour, so the first vertex knows
   // to move rather than draw a line from wherever the pen happened to be.
   let pathStarted = false;
@@ -335,6 +343,12 @@ export function createContext(deps: ContextDeps): ContextBundle {
     const [r, g, b, a] = strokeColor === null ? [0, 0, 0, 0] : colors.resolve(strokeColor);
     buffer.setStroke(r, g, b, a);
     buffer.setStrokeWidth(strokeColor === null ? 0 : strokeWidth);
+  };
+
+  const applyText = (): void => {
+    buffer.setFont(fontFamily);
+    buffer.setTextSize(fontSize);
+    buffer.setTextAlign(textHorizontal, textVertical);
   };
 
   const context: MatterContext = {
@@ -513,10 +527,19 @@ export function createContext(deps: ContextDeps): ContextBundle {
       buffer.image(source, x, y, width ?? source.width, height ?? source.height);
     },
 
-    textFont: (family: string): void => buffer.setFont(family),
-    textSize: (size: number): void => buffer.setTextSize(size),
-    textAlign: (horizontal: Align, vertical: Baseline = Baseline.Alphabetic): void =>
-      buffer.setTextAlign(horizontal, vertical),
+    textFont: (family: string): void => {
+      fontFamily = family;
+      buffer.setFont(family);
+    },
+    textSize: (size: number): void => {
+      fontSize = size;
+      buffer.setTextSize(size);
+    },
+    textAlign: (horizontal: Align, vertical: Baseline = Baseline.Alphabetic): void => {
+      textHorizontal = horizontal;
+      textVertical = vertical;
+      buffer.setTextAlign(horizontal, vertical);
+    },
     // Content first, then position — the buffer stores it the other way round,
     // like every other primitive.
     text: (content: string, x: number, y: number): void => buffer.text(x, y, content),
@@ -553,6 +576,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
       const savedStroke = strokeColor;
       const savedWidth = strokeWidth;
       const savedBlend = blend;
+      const savedFont = fontFamily;
+      const savedSize = fontSize;
+      const savedAlign = textHorizontal;
+      const savedBaseline = textVertical;
 
       buffer.push();
       try {
@@ -569,6 +596,18 @@ export function createContext(deps: ContextDeps): ContextBundle {
           blend = overrides.blendMode;
           buffer.setBlend(blend);
         }
+        if (
+          overrides.textFont !== undefined ||
+          overrides.textSize !== undefined ||
+          overrides.textAlign !== undefined ||
+          overrides.textBaseline !== undefined
+        ) {
+          if (overrides.textFont !== undefined) fontFamily = overrides.textFont;
+          if (overrides.textSize !== undefined) fontSize = overrides.textSize;
+          if (overrides.textAlign !== undefined) textHorizontal = overrides.textAlign;
+          if (overrides.textBaseline !== undefined) textVertical = overrides.textBaseline;
+          applyText();
+        }
         body();
       } finally {
         // finally, not a trailing call: a throw inside the body must not leak
@@ -578,6 +617,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
         strokeColor = savedStroke;
         strokeWidth = savedWidth;
         blend = savedBlend;
+        fontFamily = savedFont;
+        fontSize = savedSize;
+        textHorizontal = savedAlign;
+        textVertical = savedBaseline;
       }
     },
 
@@ -594,6 +637,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
     applyFill();
     applyStroke();
     buffer.setBlend(blend);
+    applyText();
     beginCameraFrame();
   };
 
