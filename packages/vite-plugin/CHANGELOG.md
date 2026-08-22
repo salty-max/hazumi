@@ -1,5 +1,11 @@
 # @hazumi/vite-plugin
 
+## 0.1.1
+
+### Patch Changes
+
+- 21e6c3d: Point package homepage at the live site.
+
 ## 0.1.0
 
 ### Minor Changes
