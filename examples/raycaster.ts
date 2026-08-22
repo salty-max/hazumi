@@ -1,9 +1,10 @@
 /**
  * Wolfenstein-style DDA on the 2D command buffer.
  *
- * Tests: one image-region strip per column (the image pipeline's batch), a
- * second shape pass for distance fog, billboard sprites occluded by a z-buffer,
- * async asset loading, and input. Not a 3D API — walls are 1px-wide images.
+ * One image-region strip per column (the image pipeline's batch), distance
+ * fog as a per-instance tint rather than a second shape pass, billboard
+ * sprites occluded by a z-buffer, async asset loading, and input. Not a 3D
+ * API — walls are 1px-wide crops of a tile.
  */
 import { loadImage, spritesheet, type AnimationClip, type SpriteFrame } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
@@ -15,12 +16,13 @@ import {
   image,
   line,
   noStroke,
-  oklch,
+  noTint,
   rect,
   stroke,
   strokeWeight,
   text,
   textSize,
+  tint,
 } from "hazumi/draw";
 import { input, keyIsDown } from "hazumi/input";
 import { camera, screen, time } from "hazumi/scene";
@@ -30,7 +32,12 @@ const TURN = 2.2;
 const RADIUS = 0.18;
 const FOG = 14;
 const WALL_TILES = [42, 43, 52] as const;
-const FOG_COLORS = Array.from({ length: 16 }, (_, i) => oklch(0.07, 0.02, 265, (i / 15) * 0.72));
+const FOG_TINTS: readonly string[] = Array.from({ length: 16 }, (_, i) => {
+  const byte = Math.round((1 - (i / 15) * 0.72) * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `#${byte}${byte}${byte}`;
+});
 
 const LAYOUT: readonly string[] = [
   "########################",
@@ -75,18 +82,9 @@ interface Level {
 }
 
 interface Assets {
-  readonly walls: readonly (readonly SpriteFrame[])[];
+  readonly walls: readonly SpriteFrame[];
   readonly slime: AnimationClip;
   readonly beacon: AnimationClip;
-}
-
-/** Mutable because the command buffer copies the numbers immediately. */
-interface ScratchFrame {
-  source: SpriteFrame["source"];
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 function wallId(ch: string): number {
@@ -126,18 +124,9 @@ function parseMap(rows: readonly string[]): Level {
   };
 }
 
-function columnSlices(cell: SpriteFrame): SpriteFrame[] {
-  const slices: SpriteFrame[] = [];
-  for (let x = 0; x < cell.width; x++) {
-    slices.push({
-      source: cell.source,
-      x: cell.x + x,
-      y: cell.y,
-      width: 1,
-      height: cell.height,
-    });
-  }
-  return slices;
+function fogStep(dist: number, side: number): number {
+  const amount = Math.min(0.72, dist / FOG + (side === 1 ? 0.18 : 0));
+  return Math.min(FOG_TINTS.length - 1, Math.round((amount / 0.72) * (FOG_TINTS.length - 1)));
 }
 
 function rotate(player: Player, angle: number): void {
@@ -177,12 +166,11 @@ export function raycaster(parent: HTMLElement): HazumiApp {
       });
 
       const assets: Assets = {
-        walls: WALL_TILES.map((index) => columnSlices(tiles.frame(index))),
+        walls: WALL_TILES.map((index) => tiles.frame(index)),
         slime: sprites.clip("slimeMove"),
         beacon: sprites.clip("beacon"),
       };
-      const firstWall = assets.walls[0]?.[0];
-      if (firstWall === undefined) throw new Error("wall tilesheet produced no columns");
+      if (assets.walls[0] === undefined) throw new Error("wall tilesheet produced no frames");
 
       const map = parseMap(LAYOUT);
       const player: Player = {
@@ -194,15 +182,16 @@ export function raycaster(parent: HTMLElement): HazumiApp {
         planeY: 0.66,
       };
       const depth = new Float32Array(width);
-      const sideHit = new Uint8Array(width);
-      const slice: ScratchFrame = {
-        source: firstWall.source,
-        x: 0,
-        y: 0,
-        width: 1,
-        height: 16,
-      };
       let fps = 0;
+      let lastFog = -1;
+
+      function applyFog(dist: number, side: number): void {
+        const step = fogStep(dist, side);
+        if (step === lastFog) return;
+        lastFog = step;
+        const color = FOG_TINTS[step];
+        if (color !== undefined) tint(color);
+      }
 
       function cell(x: number, y: number): number {
         const cx = Math.floor(x);
@@ -258,36 +247,18 @@ export function raycaster(parent: HTMLElement): HazumiApp {
             : (mapY - player.y + (1 - stepY) / 2) / rayDirY;
         const dist = raw < 0.05 ? 0.05 : raw;
         depth[col] = dist;
-        sideHit[col] = side;
 
-        const columns = assets.walls[tile - 1];
-        if (columns === undefined) return;
+        const wall = assets.walls[tile - 1];
+        if (wall === undefined) return;
         let wallX = side === 0 ? player.y + dist * rayDirY : player.x + dist * rayDirX;
         wallX -= Math.floor(wallX);
-        let texX = Math.floor(wallX * columns.length);
-        if (side === 0 && rayDirX > 0) texX = columns.length - texX - 1;
-        if (side === 1 && rayDirY < 0) texX = columns.length - texX - 1;
-        const frame = columns[Math.max(0, Math.min(columns.length - 1, texX))];
-        if (frame === undefined) return;
+        let texX = Math.floor(wallX * wall.width);
+        if (side === 0 && rayDirX > 0) texX = wall.width - texX - 1;
+        if (side === 1 && rayDirY < 0) texX = wall.width - texX - 1;
+        texX = Math.max(0, Math.min(wall.width - 1, texX));
         const lineH = viewHeight / dist;
-        image(frame, col, -lineH / 2 + viewHeight / 2, 1, lineH);
-      }
-
-      function drawFog(viewWidth: number, viewHeight: number): void {
-        for (let col = 0; col < viewWidth; col++) {
-          const dist = depth[col] ?? FOG;
-          const alpha = Math.min(0.72, dist / FOG + (sideHit[col] === 1 ? 0.18 : 0));
-          if (alpha < 0.04) continue;
-          const step = Math.min(
-            FOG_COLORS.length - 1,
-            Math.round((alpha / 0.72) * (FOG_COLORS.length - 1)),
-          );
-          const fog = FOG_COLORS[step];
-          if (fog === undefined) continue;
-          const lineH = viewHeight / dist;
-          fill(fog);
-          rect(col, -lineH / 2 + viewHeight / 2, 1, lineH);
-        }
+        applyFog(dist, side);
+        image(wall, col, -lineH / 2 + viewHeight / 2, 1, lineH, texX, 0, 1, wall.height);
       }
 
       function drawSprites(viewWidth: number, viewHeight: number): void {
@@ -314,16 +285,16 @@ export function raycaster(parent: HTMLElement): HazumiApp {
           const spriteH = Math.abs(viewHeight / ty);
           const clip = sprite.kind === "beacon" ? assets.beacon : assets.slime;
           const frame = clip.at(time.elapsed);
-          slice.source = frame.source;
-          slice.y = frame.y;
-          slice.height = frame.height;
           const x0 = Math.floor(screenX - spriteH / 2);
           const y0 = -spriteH / 2 + viewHeight / 2;
+          applyFog(ty, 0);
           for (let col = x0; col < x0 + spriteH; col++) {
             if (col < 0 || col >= viewWidth || ty >= (depth[col] ?? 0)) continue;
-            const texX = Math.floor(((col - x0) * frame.width) / spriteH);
-            slice.x = frame.x + Math.max(0, Math.min(frame.width - 1, texX));
-            image(slice, col, y0, 1, spriteH);
+            const texX = Math.max(
+              0,
+              Math.min(frame.width - 1, Math.floor(((col - x0) * frame.width) / spriteH)),
+            );
+            image(frame, col, y0, 1, spriteH, texX, 0, 1, frame.height);
           }
         }
       }
@@ -386,9 +357,10 @@ export function raycaster(parent: HTMLElement): HazumiApp {
           fill("oklch(0.22 0.03 80)");
           rect(0, viewHeight / 2, viewWidth, viewHeight / 2);
 
+          lastFog = -1;
           for (let col = 0; col < viewWidth; col++) castColumn(col, viewWidth, viewHeight);
-          drawFog(viewWidth, viewHeight);
           drawSprites(viewWidth, viewHeight);
+          noTint();
 
           camera.screen(() => {
             drawMinimap(viewHeight);

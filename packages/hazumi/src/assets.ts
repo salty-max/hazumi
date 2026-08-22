@@ -1,5 +1,11 @@
 export { loadImage } from "./load-image";
-export { spritesheet, isSpriteFrame, UnknownFrameError, UnknownClipError } from "./spritesheet";
+export {
+  spritesheet,
+  isSpriteFrame,
+  sliceFrame,
+  UnknownFrameError,
+  UnknownClipError,
+} from "./spritesheet";
 export { createClip, ClipEnd, EmptyClipError } from "./animation";
 export { tilemap, EMPTY_TILE } from "./tilemap";
 export type { AnimationClip, ClipOptions } from "./animation";

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   isSpriteFrame,
+  sliceFrame,
   spritesheet,
   UnknownClipError,
   UnknownFrameError,
@@ -124,6 +125,37 @@ describe("isSpriteFrame", () => {
     const sheet = spritesheet(image(32, 32), { frame: [16, 16] });
     expect(isSpriteFrame(sheet.at(0, 0))).toBe(true);
     expect(isSpriteFrame(image(32, 32))).toBe(false);
+  });
+});
+
+describe("sliceFrame", () => {
+  const sheet = spritesheet(image(64, 32), { frame: [16, 16] });
+  const cell = sheet.at(1, 1);
+
+  test("three arguments crop a strip from the left of the frame", () => {
+    expect(sliceFrame(cell, 3, 1)).toMatchObject({
+      source: cell.source,
+      x: cell.x + 3,
+      y: cell.y,
+      width: 1,
+      height: cell.height,
+    });
+  });
+
+  test("five arguments crop a sub-rectangle relative to the frame", () => {
+    expect(sliceFrame(cell, 2, 4, 6, 8)).toMatchObject({
+      x: cell.x + 2,
+      y: cell.y + 4,
+      width: 6,
+      height: 8,
+    });
+  });
+
+  test("allocates a new frame rather than mutating the original", () => {
+    const original = { x: cell.x, y: cell.y, width: cell.width, height: cell.height };
+    const sliced = sliceFrame(cell, 1, 1);
+    expect(sliced).not.toBe(cell);
+    expect(cell).toMatchObject(original);
   });
 });
 

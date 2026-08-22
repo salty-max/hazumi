@@ -26,11 +26,10 @@ import { loadImage, spritesheet, tilemap } from "hazumi/assets";
 ```
 
 Those functions resolve to the application whose lifecycle callback is running.
-They work in `update` / `draw` / `dispose`, and in the factory until the first
-`await`. After an `await`, use the factory's context argument for app-owned
-plugin services such as `audio`; the returned callbacks can use the imports
-again. Calling a capability import with no active scene throws
-`NoActiveSceneError`.
+They work in `update` / `draw` / `dispose`, and for the whole factory —
+including code after an `await`. Plugin services such as `audio` still live on
+the factory context argument. Calling a capability import with no active scene
+throws `NoActiveSceneError`.
 
 The context object remains the implementation those modules read, and the place
 plugins attach. It is not the scene-author API.

@@ -172,6 +172,7 @@ interface Style {
   fillA8: number;
   stroke: number;
   strokeA8: number;
+  tint: number;
   strokeWidth: number;
   blend: Blend;
 }
@@ -182,6 +183,7 @@ function defaultStyle(): Style {
     fillA8: 255,
     stroke: rgba8Word(0, 0, 0, 255),
     strokeA8: 255,
+    tint: rgba8Word(255, 255, 255, 255),
     strokeWidth: 0,
     blend: Blend.Normal,
   };
@@ -789,6 +791,13 @@ export class Webgl2Renderer {
         this.#style.fill = rgba8Word(r8, g8, b8, a8);
         this.#style.fillA8 = a8;
       },
+      setTint: (r: number, g: number, b: number, a: number): void => {
+        const r8 = toUnorm8(r);
+        const g8 = toUnorm8(g);
+        const b8 = toUnorm8(b);
+        const a8 = toUnorm8(a);
+        this.#style.tint = rgba8Word(r8, g8, b8, a8);
+      },
       setStroke: (r: number, g: number, b: number, a: number): void => {
         const r8 = toUnorm8(r);
         const g8 = toUnorm8(g);
@@ -1118,7 +1127,6 @@ export class Webgl2Renderer {
     translateAffine(m, x + width / 2, y + height / 2);
     scaleAffine(m, width / 2, height / 2);
 
-    // Images reuse the glyph instance layout; the fill colour acts as a tint.
     this.#pushTextured(m, u0, v0, u1, v1, textureId, Pipeline.Image);
   }
 
@@ -1176,9 +1184,7 @@ export class Webgl2Renderer {
     arr[i + 7] = v0;
     arr[i + 8] = u1;
     arr[i + 9] = v1;
-    // Images ignore fill. `noFill()` must not hide a sprite, and a later tint
-    // opcode is the place for colour — not the shape fill channel.
-    this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = rgba8Word(255, 255, 255, 255);
+    this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = style.tint;
 
     this.#batches.push(style.blend, pipeline, textureId);
     this.#glyphCount++;

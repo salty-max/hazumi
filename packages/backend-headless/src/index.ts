@@ -30,6 +30,9 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     setFill: (r: number, g: number, b: number, a: number): void => {
       out.push({ op: "setFill", args: [r, g, b, a] });
     },
+    setTint: (r: number, g: number, b: number, a: number): void => {
+      out.push({ op: "setTint", args: [r, g, b, a] });
+    },
     setStroke: (r: number, g: number, b: number, a: number): void => {
       out.push({ op: "setStroke", args: [r, g, b, a] });
     },

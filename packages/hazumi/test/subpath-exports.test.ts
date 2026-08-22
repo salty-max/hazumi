@@ -13,6 +13,9 @@ describe("capability subpath exports", () => {
     expect(typeof assets.loadImage).toBe("function");
     expect(typeof assets.spritesheet).toBe("function");
     expect(typeof draw.circle).toBe("function");
+    expect(typeof draw.tint).toBe("function");
+    expect(typeof draw.noTint).toBe("function");
+    expect(typeof assets.sliceFrame).toBe("function");
     expect(typeof draw.scoped).toBe("function");
     expect(typeof draw.NoActiveSceneError).toBe("function");
     expect(typeof input.keyIsDown).toBe("function");

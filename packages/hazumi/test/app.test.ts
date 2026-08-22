@@ -18,7 +18,21 @@ class TestCanvas extends EventTarget {
   removed = false;
   displayWidth = 0;
   displayHeight = 0;
-  readonly style = { width: "", maxWidth: "", height: "", aspectRatio: "", touchAction: "" };
+  tabIndex = -1;
+  focused = false;
+  readonly style = {
+    width: "",
+    maxWidth: "",
+    height: "",
+    aspectRatio: "",
+    touchAction: "",
+    userSelect: "",
+  };
+
+  focus(options?: { preventScroll?: boolean }): void {
+    this.focused = true;
+    void options;
+  }
 
   getBoundingClientRect(): DOMRect {
     return {
@@ -124,7 +138,7 @@ function harness(): RuntimeHarness {
 }
 
 function inputEvent(type: string, properties: Readonly<Record<string, unknown>>): Event {
-  const event = new Event(type);
+  const event = new Event(type, { cancelable: properties.cancelable === true });
   Object.defineProperties(
     event,
     Object.fromEntries(
@@ -387,6 +401,23 @@ describe("capability imports", () => {
     expect(() => screen.width).toThrow("active scene");
     app.stop();
   });
+
+  test("capability imports survive an await in the factory", async () => {
+    const h = harness();
+    const observations: number[] = [];
+    const app = start(
+      { backend: () => h.renderer, canvas: h.canvas, width: 320, height: 180 },
+      async () => {
+        await Promise.resolve();
+        observations.push(screen.width);
+        return { draw: (): void => {} };
+      },
+    );
+    await app.ready;
+    expect(observations).toEqual([320]);
+    expect(() => screen.width).toThrow("active scene");
+    app.stop();
+  });
 });
 
 describe("canvas sizing", () => {
@@ -412,6 +443,8 @@ describe("canvas sizing", () => {
     expect(h.canvas.style.height).toBe("auto");
     expect(h.canvas.style.aspectRatio).toBe("800 / 450");
     expect(h.canvas.style.touchAction).toBe("none");
+    expect(h.canvas.style.userSelect).toBe("none");
+    expect(h.canvas.tabIndex).toBe(0);
 
     app.stop();
   });
@@ -1156,6 +1189,64 @@ describe("input transitions", () => {
 
     expect(releases).toEqual([false, true]);
     expect(app.context.keyIsDown("w")).toBe(false);
+    app.stop();
+  });
+
+  test("arrow keys and space do not scroll the hosting page", async () => {
+    const h = harness();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, { draw: (): void => {} });
+    await app.ready;
+
+    const arrow = inputEvent("keydown", { key: "ArrowDown", cancelable: true });
+    globalThis.dispatchEvent(arrow);
+    expect(arrow.defaultPrevented).toBe(true);
+
+    const space = inputEvent("keydown", { key: " ", cancelable: true });
+    globalThis.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(true);
+
+    const move = inputEvent("keydown", { key: "w", cancelable: true });
+    globalThis.dispatchEvent(move);
+    expect(move.defaultPrevented).toBe(false);
+
+    app.stop();
+  });
+
+  test("does not swallow arrows while a text field is focused", async () => {
+    const h = harness();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, { draw: (): void => {} });
+    await app.ready;
+
+    const arrow = inputEvent("keydown", {
+      key: "ArrowDown",
+      cancelable: true,
+      target: { tagName: "TEXTAREA" },
+    });
+    globalThis.dispatchEvent(arrow);
+    expect(arrow.defaultPrevented).toBe(false);
+
+    app.stop();
+  });
+
+  test("a click on the canvas takes keyboard focus without scrolling to it", async () => {
+    const h = harness();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, { draw: (): void => {} });
+    await app.ready;
+
+    h.canvas.dispatchEvent(
+      inputEvent("pointerdown", {
+        pointerId: 1,
+        pointerType: "mouse",
+        isPrimary: true,
+        pressure: 0.5,
+        clientX: 0,
+        clientY: 0,
+        button: 0,
+        buttons: 1,
+      }),
+    );
+    expect((h.canvas as unknown as TestCanvas).focused).toBe(true);
+
     app.stop();
   });
 });

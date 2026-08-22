@@ -100,6 +100,10 @@ export class CommandBuffer {
     this.#write4(Op.SetFill, r, g, b, a);
   }
 
+  setTint(r: number, g: number, b: number, a: number): void {
+    this.#write4(Op.SetTint, r, g, b, a);
+  }
+
   setStroke(r: number, g: number, b: number, a: number): void {
     this.#write4(Op.SetStroke, r, g, b, a);
   }

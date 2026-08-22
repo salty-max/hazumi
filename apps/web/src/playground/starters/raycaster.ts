@@ -19,20 +19,10 @@ const sprites = spritesheet(spriteImage, {
 });
 
 return createRaycaster({
-  walls: [42, 43, 52].map((index) => columnSlices(tiles.frame(index))),
+  walls: [42, 43, 52].map((index) => tiles.frame(index)),
   slime: sprites.clip('slimeMove'),
   beacon: sprites.clip('beacon'),
-});
-
-function columnSlices(cell) {
-  return Array.from({ length: cell.width }, (_, x) => ({
-    source: cell.source,
-    x: cell.x + x,
-    y: cell.y,
-    width: 1,
-    height: cell.height,
-  }));
-}`,
+});`,
   },
   {
     name: "map.js",
@@ -88,17 +78,22 @@ export function createMap() {
   },
   {
     name: "render.js",
-    code: `import { background, circle, fill, image, line, noStroke, rect, stroke, strokeWeight, text, textSize } from 'hazumi/draw';
+    code: `import { background, circle, fill, image, line, noStroke, noTint, rect, stroke, strokeWeight, text, textSize, tint } from 'hazumi/draw';
 import { input, keyIsDown } from 'hazumi/input';
 import { camera, screen, time } from 'hazumi/scene';
 import { createMap } from './map.js';
 
-// One DDA ray per column. Walls and sprites are 1px image strips so the
-// image pipeline can batch them; distance fog is a second shape pass.
+// One DDA ray per column. Walls and sprites are 1px crops so the image
+// pipeline can batch them; distance fog is a per-instance tint, not a
+// second shape pass.
 const MOVE = 3.2;
 const TURN = 2.2;
 const RADIUS = 0.18;
 const FOG = 14;
+const FOG_TINTS = Array.from({ length: 16 }, (_, i) => {
+  const byte = Math.round((1 - (i / 15) * 0.72) * 255).toString(16).padStart(2, '0');
+  return '#' + byte + byte + byte;
+});
 
 function rotate(player, angle) {
   const c = Math.cos(angle);
@@ -128,14 +123,20 @@ export function createRaycaster(assets) {
     planeY: 0.66,
   };
   let depth = new Float32Array(0);
-  let sideHit = new Uint8Array(0);
-  const slice = { source: assets.walls[0][0].source, x: 0, y: 0, width: 1, height: 16 };
   let fps = 0;
+  let lastFog = -1;
+
+  function applyFog(dist, side) {
+    const amount = Math.min(0.72, dist / FOG + (side === 1 ? 0.18 : 0));
+    const step = Math.min(FOG_TINTS.length - 1, Math.round((amount / 0.72) * (FOG_TINTS.length - 1)));
+    if (step === lastFog) return;
+    lastFog = step;
+    tint(FOG_TINTS[step]);
+  }
 
   function resizeBuffers(width) {
     if (depth.length === width) return;
     depth = new Float32Array(width);
-    sideHit = new Uint8Array(width);
   }
 
   function cell(x, y) {
@@ -189,29 +190,19 @@ export function createRaycaster(assets) {
       : (mapY - player.y + (1 - stepY) / 2) / rayDirY;
     const dist = raw < 0.05 ? 0.05 : raw;
     depth[col] = dist;
-    sideHit[col] = side;
 
     const lineH = height / dist;
     const y0 = -lineH / 2 + height / 2;
     let wallX = side === 0 ? player.y + dist * rayDirY : player.x + dist * rayDirX;
     wallX -= Math.floor(wallX);
-    const columns = assets.walls[tile - 1];
-    if (columns === undefined) return;
-    let texX = Math.floor(wallX * columns.length);
-    if (side === 0 && rayDirX > 0) texX = columns.length - texX - 1;
-    if (side === 1 && rayDirY < 0) texX = columns.length - texX - 1;
-    image(columns[Math.max(0, Math.min(columns.length - 1, texX))], col, y0, 1, lineH);
-  }
-
-  function drawFog(width, height) {
-    for (let col = 0; col < width; col++) {
-      const dist = depth[col];
-      const alpha = Math.min(0.72, dist / FOG + (sideHit[col] === 1 ? 0.18 : 0));
-      if (alpha < 0.04) continue;
-      const lineH = height / dist;
-      fill('oklch(0.07 0.02 265 / ' + alpha.toFixed(3) + ')');
-      rect(col, -lineH / 2 + height / 2, 1, lineH);
-    }
+    const wall = assets.walls[tile - 1];
+    if (wall === undefined) return;
+    let texX = Math.floor(wallX * wall.width);
+    if (side === 0 && rayDirX > 0) texX = wall.width - texX - 1;
+    if (side === 1 && rayDirY < 0) texX = wall.width - texX - 1;
+    texX = Math.max(0, Math.min(wall.width - 1, texX));
+    applyFog(dist, side);
+    image(wall, col, y0, 1, lineH, texX, 0, 1, wall.height);
   }
 
   function drawSprites(width, height) {
@@ -235,16 +226,13 @@ export function createRaycaster(assets) {
       const screenX = (width / 2) * (1 + tx / ty);
       const spriteH = Math.abs(height / ty);
       const frame = (sprite.kind === 'beacon' ? assets.beacon : assets.slime).at(time.elapsed);
-      slice.source = frame.source;
-      slice.y = frame.y;
-      slice.height = frame.height;
       const x0 = Math.floor(screenX - spriteH / 2);
       const y0 = -spriteH / 2 + height / 2;
+      applyFog(ty, 0);
       for (let col = x0; col < x0 + spriteH; col++) {
         if (col < 0 || col >= width || ty >= depth[col]) continue;
-        const texX = Math.floor(((col - x0) * frame.width) / spriteH);
-        slice.x = frame.x + Math.max(0, Math.min(frame.width - 1, texX));
-        image(slice, col, y0, 1, spriteH);
+        const texX = Math.max(0, Math.min(frame.width - 1, Math.floor(((col - x0) * frame.width) / spriteH)));
+        image(frame, col, y0, 1, spriteH, texX, 0, 1, frame.height);
       }
     }
   }
@@ -306,9 +294,10 @@ export function createRaycaster(assets) {
       fill('oklch(0.22 0.03 80)');
       rect(0, height / 2, width, height / 2);
 
+      lastFog = -1;
       for (let col = 0; col < width; col++) castColumn(col, width, height);
-      drawFog(width, height);
       drawSprites(width, height);
+      noTint();
 
       camera.screen(() => {
         drawMinimap(height);

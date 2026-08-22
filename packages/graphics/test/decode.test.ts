@@ -56,6 +56,7 @@ describe("decode", () => {
   test("every known opcode has a decode case", () => {
     const buf = new CommandBuffer();
     buf.setFill(1, 0, 0, 1);
+    buf.setTint(1, 1, 1, 1);
     buf.setStroke(0, 1, 0, 1);
     buf.setStrokeWidth(2);
     buf.setBlend(0);
@@ -81,6 +82,8 @@ describe("decode", () => {
     buf.closePath();
     buf.fillPath();
     buf.strokePath();
+    buf.image({ width: 1, height: 1 } as never, 0, 0, 1, 1);
+    buf.imageRegion({ width: 1, height: 1 } as never, 0, 0, 1, 1, 0, 0, 1, 1);
     buf.pop();
 
     expect(() => decode(buf, {})).not.toThrow();
