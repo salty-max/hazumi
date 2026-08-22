@@ -1,0 +1,268 @@
+@import "@fontsource-variable/bricolage-grotesque";
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@source "./**/*.{ts,tsx,html}";
+@source "../index.html";
+@source "../../../examples/**/*.ts";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-editor: var(--editor);
+  --color-canvas: var(--canvas);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--ring);
+  --font-display: "Bricolage Grotesque Variable", "Arial Narrow", ui-sans-serif, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  color-scheme: dark;
+  --background: oklch(0.145 0.015 255);
+  --foreground: oklch(0.94 0.01 255);
+  --panel: oklch(0.175 0.016 255);
+  --editor: oklch(0.125 0.012 255);
+  --canvas: oklch(0.115 0.016 255);
+  --card: oklch(0.19 0.016 255);
+  --card-foreground: oklch(0.94 0.01 255);
+  --popover: oklch(0.2 0.018 255);
+  --popover-foreground: oklch(0.96 0.008 255);
+  --primary: oklch(0.72 0.16 305);
+  --primary-foreground: oklch(0.18 0.035 305);
+  --secondary: oklch(0.22 0.016 255);
+  --secondary-foreground: oklch(0.92 0.01 255);
+  --muted: oklch(0.23 0.015 255);
+  --muted-foreground: oklch(0.66 0.018 255);
+  --accent: oklch(0.28 0.06 305);
+  --accent-foreground: oklch(0.9 0.06 305);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(0.28 0.016 255);
+  --ring: oklch(0.8 0.12 305);
+  --radius: 0.625rem;
+}
+
+* {
+  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.site-page {
+  background:
+    radial-gradient(
+      circle at 82% 4%,
+      color-mix(in oklab, var(--primary) 14%, transparent),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 9% 55%,
+      color-mix(in oklab, oklch(0.78 0.13 52) 8%, transparent),
+      transparent 24rem
+    ),
+    var(--background);
+}
+
+.hazumi-mark {
+  position: relative;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--primary) 48%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  transform: rotate(8deg);
+}
+
+.hazumi-mark::before,
+.hazumi-mark span {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--primary);
+  border-radius: 3px;
+  content: "";
+}
+
+.hazumi-mark::before {
+  transform: translate(-3px, -3px);
+}
+
+.hazumi-mark span {
+  transform: translate(3px, 3px);
+}
+
+.preview-grid {
+  display: grid;
+  background-color: var(--canvas);
+  background-image:
+    linear-gradient(color-mix(in oklab, white 2.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, white 2.5%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+#stage canvas {
+  display: block;
+  width: min(520px, calc(100vw - 56px));
+  max-width: 100%;
+  height: auto;
+}
+
+.cm-editor {
+  height: 100%;
+  background: var(--editor);
+  color: oklch(0.88 0.018 255);
+  font-size: 13px;
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}
+.cm-scroller {
+  font-family: var(--font-mono);
+  line-height: 1.7;
+}
+.cm-gutters {
+  border: 0 !important;
+  background: var(--editor) !important;
+  color: oklch(0.48 0.018 255) !important;
+}
+.cm-activeLine,
+.cm-activeLineGutter {
+  background: oklch(0.18 0.018 255) !important;
+}
+.cm-selectionBackground {
+  background: oklch(0.35 0.08 305 / 0.45) !important;
+}
+.cm-focused .cm-selectionBackground {
+  background: oklch(0.42 0.1 305 / 0.5) !important;
+}
+.cm-selectionMatch {
+  background: oklch(0.42 0.08 80 / 0.22);
+}
+.cm-matchingBracket {
+  outline: 1px solid color-mix(in oklab, var(--primary) 55%, transparent);
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+  color: var(--foreground) !important;
+}
+.cm-content {
+  padding: 14px 0;
+  caret-color: var(--primary);
+}
+.cm-line {
+  padding: 0 18px 0 8px;
+}
+
+.tok-comment {
+  color: oklch(0.64 0.035 255);
+  font-style: italic;
+}
+.tok-keyword {
+  color: oklch(0.78 0.15 340);
+}
+.tok-string {
+  color: oklch(0.82 0.12 155);
+}
+.tok-string2 {
+  color: oklch(0.8 0.13 35);
+}
+.tok-number,
+.tok-bool,
+.tok-null,
+.tok-atom,
+.tok-literal {
+  color: oklch(0.84 0.13 80);
+}
+.tok-typeName,
+.tok-className,
+.tok-namespace {
+  color: oklch(0.8 0.11 225);
+}
+.tok-variableName {
+  color: oklch(0.82 0.045 255);
+}
+.tok-variableName.tok-definition,
+.tok-propertyName.tok-definition {
+  color: oklch(0.8 0.12 305);
+}
+.tok-labelName {
+  color: oklch(0.8 0.12 305);
+}
+.tok-propertyName,
+.tok-attributeName {
+  color: oklch(0.79 0.08 250);
+}
+.tok-operator,
+.tok-punctuation,
+.tok-bracket {
+  color: oklch(0.7 0.025 255);
+}
+.tok-meta {
+  color: oklch(0.72 0.1 225);
+}
+.tok-invalid {
+  color: oklch(0.82 0.16 25);
+  text-decoration: underline wavy;
+}
+
+@media (max-width: 860px) {
+  #stage canvas {
+    width: min(520px, calc(100vw - 72px));
+  }
+}

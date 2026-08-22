@@ -13,4 +13,6 @@ coverage/
 # Local env
 .env
 .env.local
+.vercel
 apps/*/dist/
+.env*

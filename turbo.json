@@ -8,15 +8,15 @@
       "inputs": ["src/**", "tsdown.config.ts", "package.json", "tsconfig.json"],
       "outputs": ["dist/**"]
     },
-    "@hazumi/docs#build": {
+    "@hazumi/web#build": {
       "dependsOn": ["^build"],
       "inputs": [
         "src/**",
+        "index.html",
+        "vite.config.ts",
         "package.json",
         "tsconfig.json",
-        "$TURBO_ROOT$/index.html",
-        "$TURBO_ROOT$/examples/gallery.html",
-        "$TURBO_ROOT$/examples/gallery.ts"
+        "$TURBO_ROOT$/examples/**"
       ],
       "outputs": ["dist/**"]
     },

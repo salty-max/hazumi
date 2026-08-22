@@ -120,7 +120,7 @@ or the code wants restructuring so the rule stops firing. Every suppression
 this repo has carried turned out to be the second: sequential awaits became a
 promise chain, `new Function` became a module import that also gave user code
 real stack traces. The one exception is `no-console` for `bench/`, `examples/`
-and the docs build script, which are programs whose output _is_ the product;
+and the docs catalog script, which are programs whose output _is_ the product;
 it is scoped in `.oxlintrc.json` rather than sprinkled through the source.
 
 **Benchmark contamination** — never read `process.memoryUsage()` inside or

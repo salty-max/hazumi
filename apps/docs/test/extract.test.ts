@@ -91,6 +91,23 @@ describe("collectExportedNames", () => {
     expect([...names].toSorted()).toEqual(["B", "a", "d"]);
   });
 
+  test("ignores export lists nested in a namespace", () => {
+    const names = collectExportedNames(`
+      declare namespace vec2_d_exports {
+        export { add$1 as add, scale };
+      }
+      export { vec2_d_exports as vec2, lerp };
+    `);
+    expect([...names].toSorted()).toEqual(["lerp", "vec2"]);
+    expect(names.has("add")).toBe(false);
+  });
+
+  test("reads export * as namespace", () => {
+    expect([...collectExportedNames('export * as collision from "./collision";')]).toEqual([
+      "collision",
+    ]);
+  });
+
   test("reads declarations exported inline", () => {
     const names = collectExportedNames(`
       export interface Options {}
@@ -163,10 +180,30 @@ export type { Widget };
     expect(kinds).toEqual({ Widget: "interface", makeWidget: "function", VERSION: "const" });
   });
 
-  test("orders types before values", () => {
+  test("orders callables before types", () => {
     const kinds = extractModule("demo", source).entries.map((e) => e.kind);
-    expect(kinds.indexOf("interface")).toBeLessThan(kinds.indexOf("function"));
     expect(kinds.indexOf("function")).toBeLessThan(kinds.indexOf("const"));
+    expect(kinds.indexOf("function")).toBeLessThan(kinds.indexOf("interface"));
+  });
+
+  test("keeps a namespaced re-export as one symbol", () => {
+    const mod = extractModule(
+      "math",
+      `
+declare namespace vec2_d_exports {
+  export { add$1 as add, Vec2 };
+}
+declare function add$1(a: number, b: number): number;
+interface Vec2 { readonly x: number; readonly y: number }
+export { vec2_d_exports as vec2, Vec2 };
+`,
+    );
+    const names = mod.entries.map((e) => e.name);
+    expect(names).toContain("vec2");
+    expect(names).toContain("Vec2");
+    expect(names).not.toContain("add");
+    expect(mod.entries.find((e) => e.name === "vec2")?.kind).toBe("namespace");
+    expect(mod.entries.find((e) => e.name === "vec2")?.signature).toContain("add");
   });
 
   test("deduplicates declarations gathered from shared chunks", () => {
@@ -225,6 +262,17 @@ describe("against the real build output", () => {
     expect(start?.kind).toBe("function");
     expect(start?.description).toContain("Start a Hazumi application");
     expect(start?.examples.length).toBeGreaterThan(0);
+  });
+
+  test("math keeps vec2 as a namespace instead of flattening add()", async () => {
+    const source = await Bun.file(`${REPO_ROOT}packages/math/dist/index.d.ts`).text();
+    const mod = extractModule("@hazumi/math", source);
+    const names = mod.entries.map((e) => e.name);
+    expect(names).toContain("vec2");
+    expect(names).toContain("collision");
+    expect(names).toContain("lerp");
+    expect(names).not.toContain("add");
+    expect(mod.entries.find((e) => e.name === "vec2")?.kind).toBe("namespace");
   });
 
   test("finds capability functions exported inline", async () => {

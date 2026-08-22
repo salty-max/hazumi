@@ -8,7 +8,7 @@
  * document something the package does not actually ship.
  */
 
-export type DocKind = "function" | "class" | "interface" | "type" | "const";
+export type DocKind = "function" | "class" | "interface" | "type" | "const" | "namespace";
 
 export interface DocParam {
   readonly name: string;
@@ -157,7 +157,40 @@ export function parseDocComment(raw: string): ParsedComment {
 }
 
 const DECLARATION =
-  /^(?:declare\s+)?(function|class|interface|type|const|abstract\s+class)\s+([A-Za-z_$][\w$]*)/;
+  /^(?:declare\s+)?(function|class|interface|type|const|namespace|abstract\s+class)\s+([A-Za-z_$][\w$]*)/;
+
+const INLINE_EXPORT =
+  /^\s*export\s+(?:declare\s+)?(?:abstract\s+)?(?:function|class|interface|type|const|namespace)\s+([A-Za-z_$][\w$]*)/;
+
+const STAR_AS_EXPORT = /^\s*export\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+/;
+
+/**
+ * Walk file-level lines only. Nested `export { add as add }` inside
+ * `declare namespace vec2_d_exports` is not public API — the public name is
+ * the namespace itself (`vec2`).
+ */
+function forEachTopLevelLine(source: string, visit: (line: string) => void): void {
+  let depth = 0;
+  for (const line of source.split("\n")) {
+    if (depth === 0) visit(line);
+    for (const char of line) {
+      if (char === "{") depth++;
+      else if (char === "}") depth = Math.max(0, depth - 1);
+    }
+  }
+}
+
+function namesFromExportClause(clause: string): string[] {
+  const names: string[] = [];
+  for (const part of clause.split(",")) {
+    const cleaned = part.trim().replace(/^type\s+/, "");
+    if (cleaned.length === 0) continue;
+    const alias = /\bas\s+([A-Za-z_$][\w$]*)/.exec(cleaned);
+    const name = alias?.[1] ?? cleaned;
+    if (name.length > 0) names.push(name);
+  }
+  return names;
+}
 
 /**
  * Names re-exported by the module, which is what makes an entry public.
@@ -167,22 +200,35 @@ const DECLARATION =
  */
 export function collectExportedNames(source: string): Set<string> {
   const names = new Set<string>();
-  for (const match of source.matchAll(
-    /^\s*export\s+(?:declare\s+)?(?:abstract\s+)?(?:function|class|interface|type|const)\s+([A-Za-z_$][\w$]*)/gm,
-  )) {
-    const name = match[1];
-    if (name !== undefined) names.add(name);
-  }
-  for (const match of source.matchAll(/export\s*(?:type\s*)?\{([^}]*)\}/g)) {
-    for (const part of (match[1] ?? "").split(",")) {
-      // Handles `a`, `a as b`, and `type a`.
-      const cleaned = part.trim().replace(/^type\s+/, "");
-      const alias = /\bas\s+([A-Za-z_$][\w$]*)/.exec(cleaned);
-      const name = alias?.[1] ?? cleaned;
-      if (name.length > 0) names.add(name);
+  forEachTopLevelLine(source, (line) => {
+    const inline = INLINE_EXPORT.exec(line);
+    if (inline?.[1] !== undefined) names.add(inline[1]);
+    const starAs = STAR_AS_EXPORT.exec(line);
+    if (starAs?.[1] !== undefined) names.add(starAs[1]);
+    const brace = /^\s*export\s+(?:type\s+)?\{([^}]*)\}/.exec(line);
+    if (brace?.[1] !== undefined) {
+      for (const name of namesFromExportClause(brace[1])) names.add(name);
     }
-  }
+  });
   return names;
+}
+
+/** Local declaration name → public export name (`vec2_d_exports` → `vec2`). */
+export function collectExportAliases(source: string): Map<string, string> {
+  const aliases = new Map<string, string>();
+  forEachTopLevelLine(source, (line) => {
+    const brace = /^\s*export\s+(?:type\s+)?\{([^}]*)\}/.exec(line);
+    if (brace?.[1] === undefined) return;
+    for (const part of brace[1].split(",")) {
+      const cleaned = part.trim().replace(/^type\s+/, "");
+      const aliased = /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/.exec(cleaned);
+      if (aliased === null) continue;
+      const local = aliased[1];
+      const exported = aliased[2];
+      if (local !== undefined && exported !== undefined) aliases.set(local, exported);
+    }
+  });
+  return aliases;
 }
 
 /** Capture a declaration's text, following braces so interfaces stay intact. */
@@ -211,14 +257,36 @@ function captureSignature(lines: readonly string[], start: number): { text: stri
   return { text: parts.join("\n"), next: lines.length };
 }
 
+function emptyDoc(): {
+  description: string;
+  params: DocParam[];
+  returns: string;
+  examples: string[];
+  deprecated: string;
+} {
+  return { description: "", params: [], returns: "", examples: [], deprecated: "" };
+}
+
+function namespaceSignature(publicName: string, body: string): string {
+  const clause = /export\s*\{([^}]+)\}/.exec(body);
+  const members =
+    clause?.[1] === undefined
+      ? []
+      : namesFromExportClause(clause[1]).filter((member) => member !== publicName);
+  if (members.length === 0) return `namespace ${publicName}`;
+  return `namespace ${publicName} {\n  ${members.join(", ")}\n}`;
+}
+
 export function extractModule(
   name: string,
   source: string,
   publicSource: string = source,
 ): DocModule {
   const exported = collectExportedNames(publicSource);
+  const aliases = collectExportAliases(publicSource);
   const lines = source.split("\n");
   const entries: DocEntry[] = [];
+  const found = new Set<string>();
 
   let pending: string | null = null;
   let i = 0;
@@ -240,27 +308,42 @@ export function extractModule(
       continue;
     }
 
+    const starAs = STAR_AS_EXPORT.exec(line);
+    if (starAs?.[1] !== undefined && exported.has(starAs[1])) {
+      const publicName = starAs[1];
+      const doc = pending === null ? emptyDoc() : parseDocComment(pending);
+      entries.push({
+        name: publicName,
+        kind: "namespace",
+        signature: `namespace ${publicName}`,
+        ...doc,
+      });
+      found.add(publicName);
+      pending = null;
+      i++;
+      continue;
+    }
+
     const decl = DECLARATION.exec(trimmed.replace(/^export\s+/, ""));
     if (decl !== null) {
       const kindRaw = (decl[1] ?? "").replace("abstract ", "");
-      const entryName = decl[2] ?? "";
+      const declaredName = decl[2] ?? "";
+      const publicName = aliases.get(declaredName) ?? declaredName;
       const captured = captureSignature(lines, i);
 
-      if (exported.has(entryName)) {
-        const doc =
-          pending === null
-            ? { description: "", params: [], returns: "", examples: [], deprecated: "" }
-            : parseDocComment(pending);
-
+      if (exported.has(publicName)) {
+        const doc = pending === null ? emptyDoc() : parseDocComment(pending);
+        const raw = captured.text
+          .replace(/^export\s+/, "")
+          .replace(/^declare\s+/, "")
+          .trim();
         entries.push({
-          name: entryName,
+          name: publicName,
           kind: kindRaw as DocKind,
-          signature: captured.text
-            .replace(/^export\s+/, "")
-            .replace(/^declare\s+/, "")
-            .trim(),
+          signature: kindRaw === "namespace" ? namespaceSignature(publicName, captured.text) : raw,
           ...doc,
         });
+        found.add(publicName);
       }
 
       pending = null;
@@ -274,24 +357,41 @@ export function extractModule(
     i++;
   }
 
-  // Types and interfaces first, then values — reads better as a reference.
+  // `export { physics }` with the declaration in another file still has a name.
+  for (const leftover of exported) {
+    if (found.has(leftover)) continue;
+    entries.push({
+      name: leftover,
+      kind: "const",
+      signature: leftover,
+      ...emptyDoc(),
+    });
+  }
+
+  // Call-ables first: that is what a scene author looks up.
   const order: Record<DocKind, number> = {
-    class: 0,
-    interface: 1,
-    type: 2,
-    function: 3,
-    const: 4,
+    function: 0,
+    namespace: 1,
+    const: 2,
+    class: 3,
+    interface: 4,
+    type: 5,
   };
   const sorted = entries.toSorted(
     (a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name),
   );
-  const seen = new Set<string>();
-  const unique = sorted.filter((entry) => {
-    const key = `${entry.kind}\0${entry.name}\0${entry.signature}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const byName = new Map<string, DocEntry>();
+  for (const entry of sorted) {
+    const previous = byName.get(entry.name);
+    // `vec2` is both a factory function and a namespace in the rolled .d.ts.
+    // The import is the namespace (`vec2.add`).
+    if (previous === undefined || (entry.kind === "namespace" && previous.kind !== "namespace")) {
+      byName.set(entry.name, entry);
+    }
+  }
+  const unique = [...byName.values()].toSorted(
+    (a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name),
+  );
 
   return { name, entries: unique };
 }

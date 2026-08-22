@@ -5,10 +5,10 @@
  */
 import { createPluginHost, start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
-import { overlay } from "hazumi/debug";
+import { overlay, type OverlayApi } from "hazumi/debug";
 import { background, circle, fill, pop, push, rect, rotate, translate } from "hazumi/draw";
 import { input, pointerJustPressed } from "hazumi/input";
-import { physics, Shape, type World } from "hazumi/physics";
+import { physics, Shape, type PhysicsApi, type World } from "hazumi/physics";
 import { random, screen } from "hazumi/scene";
 
 const MAX_DYNAMIC = 64;
@@ -28,7 +28,7 @@ function cull(world: World): void {
   }
 }
 
-export function rigidBodies(parent: HTMLElement): HazumiApp {
+export function rigidBodies(parent: HTMLElement): HazumiApp<PhysicsApi & OverlayApi> {
   return start(
     {
       backend: webgl2(),

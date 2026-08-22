@@ -23,6 +23,7 @@ const scopes = [
   "create-hazumi",
   "docs",
   "playground",
+  "web",
   "examples",
   "repo",
   "deps",

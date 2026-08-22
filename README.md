@@ -366,6 +366,10 @@ bun run dev
 
 Requires [Bun](https://bun.sh) 1.3+.
 
+## Site
+
+`apps/web`, deployed on Vercel from `main`.
+
 ## License
 
 MIT
