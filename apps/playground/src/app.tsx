@@ -294,11 +294,7 @@ export function App(): JSX.Element {
   }, [run]);
 
   const copyCode = useCallback(async (): Promise<void> => {
-    const files = filesRef.current;
-    const text =
-      files.length === 1
-        ? (files[0]?.code ?? "")
-        : files.map((file) => `// ${file.name}\n${file.code}`).join("\n\n");
+    const text = filesRef.current[activeFileIndex]?.code ?? "";
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -308,7 +304,7 @@ export function App(): JSX.Element {
       setCopied(false);
       setStatus({ text: describeError(error), kind: "error" });
     }
-  }, []);
+  }, [activeFileIndex]);
 
   useEffect(() => {
     return (): void => {
