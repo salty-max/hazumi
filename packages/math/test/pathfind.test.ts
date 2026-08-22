@@ -124,6 +124,25 @@ describe("pathfind.astar", () => {
     expect(out.length).toBe(0);
   });
 
+  test("lazy re-push may grow the heap past the cell count", () => {
+    // Decrease-key is a second heap entry. A typed array sized to V silently
+    // drops writes past the end, so a cost field that relaxes the same cell
+    // many times has to be allowed to grow.
+    const map = pathfind.grid(24, 24, 0.25);
+    for (let row = 0; row < 24; row++) {
+      for (let column = 0; column < 24; column++) {
+        map.set(column, row, 0.25 + ((column * 13 + row * 7) % 9) * 0.05);
+      }
+    }
+    const path = pathfind.astar(map, 0, 0, 23, 23);
+    expect(path).not.toBeNull();
+    expect(waypoints(path!)[0]).toEqual([0, 0]);
+    expect(waypoints(path!).at(-1)).toEqual([23, 23]);
+    const again = pathfind.astar(map, 23, 23, 0, 0, { out: path! });
+    expect(again).not.toBeNull();
+    expect(waypoints(again!).at(-1)).toEqual([0, 0]);
+  });
+
   test("rejects a grid it did not create", () => {
     const fake = {
       columns: 1,

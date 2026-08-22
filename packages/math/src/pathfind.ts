@@ -75,8 +75,8 @@ class PathGrid implements Grid {
   readonly cameFrom: Int32Array;
   readonly stamp: Uint32Array;
   readonly closed: Uint32Array;
-  readonly heap: Int32Array;
-  readonly heapF: Float64Array;
+  heap: Int32Array;
+  heapF: Float64Array;
   heapSize = 0;
   generation = 1;
 
@@ -259,7 +259,21 @@ function beginSearch(search: PathGrid): void {
   }
 }
 
+function ensureHeap(search: PathGrid): void {
+  if (search.heapSize < search.heap.length) return;
+  let cap = search.heap.length;
+  if (cap === 0) cap = 1;
+  while (cap <= search.heapSize) cap *= 2;
+  const next = new Int32Array(cap);
+  next.set(search.heap);
+  search.heap = next;
+  const nextF = new Float64Array(cap);
+  nextF.set(search.heapF);
+  search.heapF = nextF;
+}
+
 function heapPush(search: PathGrid, index: number, f: number): void {
+  ensureHeap(search);
   let hole = search.heapSize;
   search.heapSize += 1;
   while (hole > 0) {
