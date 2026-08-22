@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
 import { run } from "../src/cli";
-import { findPackageRoot } from "../src/local";
+import { findPackageRoot, readOwnVersion } from "../src/local";
 
 function captureIo(input = ""): {
   stdin: PassThrough;
@@ -72,7 +72,7 @@ describe("run", () => {
       dependencies: { hazumi: string };
     };
     expect(pkg.name).toBe("orbit");
-    expect(pkg.dependencies.hazumi).toBe("^0.1.0");
+    expect(pkg.dependencies.hazumi).toBe(`^${readOwnVersion(packageRoot)}`);
     expect(readFileSync(join(cwd, "orbit", "src/main.ts"), "utf8")).toContain("time.elapsed");
     expect(io.stdoutText()).toContain("bun run dev");
     expect(io.stdoutText()).toContain("Zip that folder");
