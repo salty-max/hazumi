@@ -84,6 +84,13 @@ function makeContext(): {
   };
 }
 
+/** Circle x values in the order a backend would walk them. */
+function painted(h: { buffer: CommandBuffer }): number[] {
+  return record(h.buffer)
+    .filter((c) => c.op === "circle")
+    .map((c) => c.args[0] as number);
+}
+
 describe("environment", () => {
   test("reads live state rather than a snapshot", () => {
     const { ctx, state } = makeContext();
@@ -693,13 +700,6 @@ describe("text measurement", () => {
 });
 
 describe("depth layers", () => {
-  /** Circle x values in the order a backend would walk them. */
-  function painted(h: { buffer: CommandBuffer }): number[] {
-    return record(h.buffer)
-      .filter((c) => c.op === "circle")
-      .map((c) => c.args[0] as number);
-  }
-
   test("lower depth paints first, whatever the call order", () => {
     const h = makeContext();
     h.ctx.layer(5, () => h.ctx.circle(1, 0, 1));
