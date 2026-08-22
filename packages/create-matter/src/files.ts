@@ -21,7 +21,7 @@ export function projectFiles(options: ProjectFilesOptions): readonly FilePlan[] 
   const sceneFile = options.autoImport ? "src/main.scene.ts" : "src/main.ts";
   return [
     { path: "package.json", contents: packageJson(options) },
-    { path: "tsconfig.json", contents: tsconfig() },
+    { path: "tsconfig.json", contents: tsconfig(options.autoImport) },
     { path: "vite.config.ts", contents: viteConfig(options.autoImport) },
     { path: "index.html", contents: indexHtml(options.name, sceneFile) },
     { path: ".gitignore", contents: gitignore() },
@@ -54,12 +54,20 @@ function packageJson(options: ProjectFilesOptions): string {
     },
     devDependencies,
   };
-  const json =
-    Object.keys(options.overrides).length > 0 ? { ...body, overrides: options.overrides } : body;
+  let json: Record<string, unknown> = body;
+  if (Object.keys(options.overrides).length > 0) {
+    if (options.packageManager === "pnpm") {
+      json = { ...body, pnpm: { overrides: options.overrides } };
+    } else if (options.packageManager === "yarn") {
+      json = { ...body, resolutions: options.overrides };
+    } else {
+      json = { ...body, overrides: options.overrides };
+    }
+  }
   return `${JSON.stringify(json, null, 2)}\n`;
 }
 
-function tsconfig(): string {
+function tsconfig(autoImport: boolean): string {
   return `${JSON.stringify(
     {
       compilerOptions: {
@@ -73,7 +81,7 @@ function tsconfig(): string {
         verbatimModuleSyntax: true,
         isolatedModules: true,
       },
-      include: ["src"],
+      include: autoImport ? ["src", "node_modules/@matter/vite-plugin/globals.d.ts"] : ["src"],
     },
     null,
     2,

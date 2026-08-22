@@ -94,6 +94,7 @@ describe("projectFiles", () => {
     expect(pkg.dependencies.matter).toBe("file:///repo/packages/matter");
     expect(pkg.devDependencies["@matter/vite-plugin"]).toBe("file:///repo/packages/vite-plugin");
     expect(pkg.overrides["@matter/math"]).toBe("file:///repo/packages/math");
+    expect(files.find((file) => file.path === "tsconfig.json")?.contents).toContain("globals.d.ts");
     expect(files.find((file) => file.path === "vite.config.ts")?.contents).toContain(
       "matterAutoImport",
     );
@@ -101,5 +102,42 @@ describe("projectFiles", () => {
       "/src/main.scene.ts",
     );
     expect(files.find((file) => file.path === "README.md")?.contents).toContain("npm run build");
+  });
+
+  test("pnpm --local writes pnpm.overrides", () => {
+    const files = projectFiles({
+      name: "orion",
+      template: TemplateKind.Sketch,
+      autoImport: false,
+      matterSpec: "file:///repo/packages/matter",
+      vitePluginSpec: "file:///repo/packages/vite-plugin",
+      packageManager: "pnpm",
+      overrides: { "@matter/math": "file:///repo/packages/math" },
+    });
+    const pkg = JSON.parse(files[0]!.contents) as {
+      overrides?: Record<string, string>;
+      pnpm?: { overrides: Record<string, string> };
+      resolutions?: Record<string, string>;
+    };
+    expect(pkg.overrides).toBeUndefined();
+    expect(pkg.pnpm?.overrides["@matter/math"]).toBe("file:///repo/packages/math");
+  });
+
+  test("yarn --local writes resolutions", () => {
+    const files = projectFiles({
+      name: "orion",
+      template: TemplateKind.Sketch,
+      autoImport: false,
+      matterSpec: "file:///repo/packages/matter",
+      vitePluginSpec: "file:///repo/packages/vite-plugin",
+      packageManager: "yarn",
+      overrides: { "@matter/math": "file:///repo/packages/math" },
+    });
+    const pkg = JSON.parse(files[0]!.contents) as {
+      overrides?: Record<string, string>;
+      resolutions?: Record<string, string>;
+    };
+    expect(pkg.overrides).toBeUndefined();
+    expect(pkg.resolutions?.["@matter/math"]).toBe("file:///repo/packages/math");
   });
 });
