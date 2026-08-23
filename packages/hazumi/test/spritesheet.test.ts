@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { InvalidClipError } from "../src/animation";
 import {
   isSpriteFrame,
   sliceFrame,
@@ -210,5 +211,98 @@ describe("animation clips", () => {
         clips: { bad: { frames: ["a", "nope"] } },
       }),
     ).toThrow(UnknownFrameError);
+  });
+});
+
+describe("clips from a run of frames", () => {
+  // 4 columns, 3 rows, so the column count is not something a caller reading
+  // "row 1" would have written out by hand.
+  const sheet = spritesheet(image(64, 48), {
+    frame: [16, 16],
+    clips: {
+      idle: { row: 0, fps: 4 },
+      run: { row: 1, fps: 12 },
+      attack: { row: 2, from: 1, to: 2 },
+      whole: { from: 2, to: 5 },
+    },
+  });
+
+  test("a row becomes that row, left to right", () => {
+    const run = sheet.clip("run");
+    expect(run.frames).toHaveLength(4);
+    expect(run.frames[0]).toBe(sheet.at(0, 1));
+    expect(run.frames[3]).toBe(sheet.at(3, 1));
+  });
+
+  test("from and to cut a slice of the row, inclusive", () => {
+    const attack = sheet.clip("attack");
+    expect(attack.frames).toHaveLength(2);
+    expect(attack.frames[0]).toBe(sheet.at(1, 2));
+    expect(attack.frames[1]).toBe(sheet.at(2, 2));
+  });
+
+  test("a run without a row counts across the whole sheet", () => {
+    const whole = sheet.clip("whole");
+    expect(whole.frames).toHaveLength(4);
+    expect(whole.frames[0]).toBe(sheet.frame(2));
+    expect(whole.frames[3]).toBe(sheet.frame(5));
+  });
+
+  test("the run is resolved from the sheet's own column count", () => {
+    // The same declaration on a wider sheet has to give a longer clip, or it
+    // is really just indices in disguise.
+    const wide = spritesheet(image(128, 48), { frame: [16, 16], clips: { run: { row: 1 } } });
+    expect(wide.clip("run").frames).toHaveLength(8);
+    expect(wide.clip("run").frames[0]).toBe(wide.at(0, 1));
+  });
+
+  test("options and defaults still apply", () => {
+    expect(sheet.clip("idle").fps).toBe(4);
+    expect(sheet.clip("whole").fps).toBe(12);
+  });
+
+  test("listing frames and asking for a run at once is refused", () => {
+    expect(() =>
+      spritesheet(image(64, 48), { frame: [16, 16], clips: { run: { frames: [0], row: 1 } } }),
+    ).toThrow(InvalidClipError);
+  });
+
+  test("a clip declaring neither is refused", () => {
+    expect(() => spritesheet(image(64, 48), { frame: [16, 16], clips: { run: {} } })).toThrow(
+      /no frames/,
+    );
+  });
+
+  test("a row past the end of the sheet says how many there are", () => {
+    try {
+      spritesheet(image(64, 48), { frame: [16, 16], clips: { run: { row: 7 } } });
+      throw new Error("expected the row to be refused");
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidClipError);
+      expect((error as Error).message).toContain("3 rows");
+      expect((error as InvalidClipError).clipName).toBe("run");
+    }
+  });
+
+  test("a run past the end of its row is refused", () => {
+    // 4 columns, so column 4 is off the row even though frame 4 exists.
+    expect(() =>
+      spritesheet(image(64, 48), { frame: [16, 16], clips: { run: { row: 0, to: 4 } } }),
+    ).toThrow(/outside the 4 frames/);
+  });
+
+  test("a backwards run is refused rather than yielding nothing", () => {
+    expect(() =>
+      spritesheet(image(64, 48), { frame: [16, 16], clips: { run: { from: 5, to: 2 } } }),
+    ).toThrow(InvalidClipError);
+  });
+
+  test("a row on a sheet of named rectangles is refused", () => {
+    expect(() =>
+      spritesheet(image(64, 64), {
+        frames: { a: [0, 0, 16, 16] },
+        clips: { run: { row: 0 } },
+      }),
+    ).toThrow(/named rectangles/);
   });
 });

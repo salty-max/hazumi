@@ -7,7 +7,7 @@ export {
   UnknownFrameError,
   UnknownClipError,
 } from "./spritesheet";
-export { createClip, ClipEnd, EmptyClipError } from "./animation";
+export { createClip, ClipEnd, EmptyClipError, InvalidClipError } from "./animation";
 export { tilemap, EMPTY_TILE } from "./tilemap";
 export { fromAseprite, AsepriteImportError } from "./import/aseprite";
 export { fromTiled, TiledImportError } from "./import/tiled";

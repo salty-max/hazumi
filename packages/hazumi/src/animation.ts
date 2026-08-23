@@ -14,6 +14,15 @@ export const ClipEnd = {
 
 export type ClipEnd = (typeof ClipEnd)[keyof typeof ClipEnd];
 
+/**
+ * What a clip is made of.
+ *
+ * Either an explicit list of frames, or a run of consecutive ones named by
+ * `row` and `from`/`to`. The run is there because a grid sheet almost always
+ * puts an animation on a row, and spelling that out as indices means computing
+ * them from the sheet's column count — a number the caller does not have until
+ * the sheet exists, and one that changes the day the sheet is repacked.
+ */
 export interface ClipOptions {
   /**
    * Frames, by grid index or by name.
@@ -22,11 +31,34 @@ export interface ClipOptions {
    * screen time. That is simpler than per-frame durations and is how most
    * sprite tooling expresses it.
    */
-  readonly frames: readonly (number | string)[];
+  readonly frames?: readonly (number | string)[];
+  /** A whole grid row, left to right. Row 0 is the top one. */
+  readonly row?: number;
+  /** First frame of the run, inclusive. Counted within `row` when given. */
+  readonly from?: number;
+  /** Last frame of the run, inclusive. Defaults to the last one there is. */
+  readonly to?: number;
   /** Frames per second. Defaults to 12. */
   readonly fps?: number;
   /** Defaults to looping. */
   readonly end?: ClipEnd;
+}
+
+/**
+ * Thrown when a clip declaration cannot be turned into a run of frames.
+ *
+ * Every case here is a mistake in source that cannot come right at runtime, so
+ * it fails when the sheet is built rather than when the clip is first drawn.
+ */
+export class InvalidClipError extends Error {
+  /** The clip that was declared. */
+  readonly clipName: string;
+
+  constructor(name: string, detail: string) {
+    super(`Animation clip ${JSON.stringify(name)} ${detail}`);
+    this.name = "InvalidClipError";
+    this.clipName = name;
+  }
 }
 
 export class EmptyClipError extends Error {

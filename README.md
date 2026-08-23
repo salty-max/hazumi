@@ -182,14 +182,24 @@ Clips live on the sheet:
 const hero = spritesheet(await loadImage("hero.png"), {
   frame: [16, 24],
   clips: {
-    idle: { frames: [0, 1, 2, 3], fps: 6 },
-    run: { frames: [8, 9, 10, 11, 12, 13], fps: 14 },
+    idle: { row: 0, fps: 6 },
+    run: { row: 1, fps: 14 },
+    attack: { row: 2, from: 1, to: 4, end: ClipEnd.Hold },
     jump: { frames: [16], end: ClipEnd.Hold },
   },
 });
 
 image(hero.clip("run").at(time.elapsed), x, y);
 ```
+
+A grid sheet almost always puts one animation on a row, so a clip can say which
+row it is instead of listing indices. The sheet resolves that, because the row
+only becomes indices once the column count is known — and that is a number the
+caller would otherwise compute from the image size and rewrite the day the sheet
+is repacked. `from` and `to` are inclusive and count within the row, or across
+the whole sheet when there is no row. `frames` still takes an explicit list,
+which is what an out-of-order or a repeating clip needs; declaring both is
+refused, as is a row or a run that falls outside the sheet.
 
 `at(seconds)` is a pure function of time. Several entities can share a clip.
 Clips loop, hold, or ping-pong; repeat a frame index to hold it longer.

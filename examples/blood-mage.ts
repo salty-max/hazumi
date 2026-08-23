@@ -14,7 +14,7 @@
  * drawn grouped by the sheet they currently need rather than one at a time.
  * Interleaving would cost a draw call per mage.
  */
-import { ClipEnd, loadImage, spritesheet, type Spritesheet } from "hazumi/assets";
+import { ClipEnd, loadImage, spritesheet, type ClipOptions, type Spritesheet } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
 import { background, fill, image, text, textSize } from "hazumi/draw";
@@ -55,11 +55,6 @@ interface Mage {
   speed: number;
 }
 
-/** Linear frame indices for one row of a sheet. */
-function rowFrames(columns: number, row: number): number[] {
-  return Array.from({ length: columns }, (_, i) => row * columns + i);
-}
-
 export function bloodMage(parent: HTMLElement): HazumiApp {
   return start(
     {
@@ -83,14 +78,11 @@ export function bloodMage(parent: HTMLElement): HazumiApp {
         fps: number,
         end?: ClipEnd,
       ): Spritesheet {
-        const columns = Math.floor(sourceImage.width / CELL);
-        const clips: Record<string, { frames: number[]; fps: number; end?: ClipEnd }> = {};
+        const clips: Record<string, ClipOptions> = {};
         for (const facing of FACINGS) {
-          clips[facing] = {
-            frames: rowFrames(columns, FACING_ROW[facing]),
-            fps,
-            ...(end === undefined ? {} : { end }),
-          };
+          // One facing per row, whatever the sheet's length: Idle is 16 frames
+          // wide and Walk is 4, and neither count is written down here.
+          clips[facing] = { row: FACING_ROW[facing], fps, ...(end === undefined ? {} : { end }) };
         }
         return spritesheet(sourceImage, { frame: [CELL, CELL], clips });
       }
