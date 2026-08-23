@@ -18,17 +18,22 @@ import {
   background,
   circle,
   fill,
+  line,
+  noStroke,
   pop,
   push,
   rect,
   rotate,
+  stroke,
+  strokeWeight,
   text,
   textAlign,
   textSize,
   translate,
 } from "hazumi/draw";
 import { input, keyIsDown, pointerJustPressed } from "hazumi/input";
-import { physics, Shape, type PhysicsApi, type World } from "hazumi/physics";
+import { collision } from "hazumi/math";
+import { physics, Shape, type PhysicsApi, type RigidBody, type World } from "hazumi/physics";
 import { random, screen } from "hazumi/scene";
 
 const MAX_DYNAMIC = 64;
@@ -110,6 +115,38 @@ export function rigidBodies(parent: HTMLElement): HazumiApp<PhysicsApi & Overlay
           friction: 0.55,
         });
       }
+
+      // A rope: each link held a fixed distance from the one above, the first
+      // from a point in the world rather than from a body.
+      const ROPE_X = 470;
+      let above: RigidBody | null = null;
+      for (let i = 0; i < 7; i++) {
+        const link = world.addCircle({
+          x: ROPE_X,
+          y: 40 + i * 26,
+          radius: i === 6 ? 14 : 6,
+          density: i === 6 ? 3 : 1,
+          linearDamping: 0.3,
+          angularDamping: 0.5,
+        });
+        if (above === null) {
+          world.addDistanceJoint({ a: link, anchorBX: ROPE_X, anchorBY: 20, length: 26 });
+        } else {
+          world.addDistanceJoint({ a: above, b: link, length: 26 });
+        }
+        above = link;
+      }
+
+      // A pendulum: pinned by one end, free to turn about it.
+      const arm = world.addBox({
+        x: 120,
+        y: 120,
+        width: 130,
+        height: 12,
+        friction: 0.4,
+        angularDamping: 0.1,
+      });
+      world.addPinJoint({ a: arm, anchorAX: -65, anchorAY: 0, anchorBX: 55, anchorBY: 120 });
       for (let i = 0; i < 6; i++) {
         world.addCircle({
           x: 430 + i * 6,
@@ -118,6 +155,10 @@ export function rigidBodies(parent: HTMLElement): HazumiApp<PhysicsApi & Overlay
           restitution: 0.72,
         });
       }
+
+      const EMITTER_X = 20;
+      const EMITTER_Y = 20;
+      const beam = collision.createRayHit();
 
       return {
         update(): void {
@@ -157,6 +198,32 @@ export function rigidBodies(parent: HTMLElement): HazumiApp<PhysicsApi & Overlay
         },
         draw(): void {
           background("oklch(0.14 0.03 250)");
+
+          // A ray from the corner towards the pointer, stopped at the first
+          // body it meets. Sleeping bodies block it like any other.
+          const found = world.raycast(
+            EMITTER_X,
+            EMITTER_Y,
+            input.mouseX - EMITTER_X,
+            input.mouseY - EMITTER_Y,
+            { maxDistance: 1000, out: beam },
+          );
+          const endX = found === null ? input.mouseX : beam.x;
+          const endY = found === null ? input.mouseY : beam.y;
+          stroke(found === null ? "oklch(0.5 0.05 250)" : "oklch(0.85 0.2 30)");
+          strokeWeight(found === null ? 1 : 2);
+          line(EMITTER_X, EMITTER_Y, endX, endY);
+          noStroke();
+          if (found !== null) {
+            fill("oklch(0.9 0.2 30)");
+            circle(beam.x, beam.y, 7);
+            // The surface normal, which is what a bounce or a decal needs.
+            stroke("oklch(0.9 0.2 30)");
+            strokeWeight(1);
+            line(beam.x, beam.y, beam.x + beam.normalX * 18, beam.y + beam.normalY * 18);
+            noStroke();
+          }
+
           let awake = 0;
           for (let i = 0; i < world.bodies.length; i++) {
             const body = world.bodies[i];
