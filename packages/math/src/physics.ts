@@ -108,6 +108,15 @@ export interface WorldOptions {
 export interface JointOptions {
   readonly a: RigidBody;
   readonly b?: RigidBody;
+  /**
+   * Whether the two bodies still collide with each other. Defaults to false.
+   *
+   * Joined parts overlap by design — a wheel's axle sits inside the chassis it
+   * turns on — and a contact between them would fight the joint holding them
+   * there. Leaving it on is for the cases where the joint is a leash rather
+   * than an assembly.
+   */
+  readonly collideConnected?: boolean;
   readonly anchorAX?: number;
   readonly anchorAY?: number;
   readonly anchorBX?: number;
@@ -144,6 +153,8 @@ export interface Joint {
   anchorBY: number;
   /** Rest length. Zero for a pin. */
   length: number;
+  /** Whether the two bodies still collide. */
+  readonly collideConnected: boolean;
 }
 
 /** Where a ray stops, and what it should skip. */
@@ -170,6 +181,13 @@ export interface World {
   clear: () => void;
   applyForce: (body: RigidBody, fx: number, fy: number, px?: number, py?: number) => void;
   applyImpulse: (body: RigidBody, ix: number, iy: number, px?: number, py?: number) => void;
+  /**
+   * Spin a body without pushing it anywhere.
+   *
+   * A force at an offset point turns a body and shoves it at the same time,
+   * which is not what driving a wheel or leaning a rider does.
+   */
+  applyTorque: (body: RigidBody, torque: number) => void;
   /** Bring a sleeping body back into the simulation. */
   wake: (body: RigidBody) => void;
   /**
@@ -221,6 +239,8 @@ interface InternalBody extends RigidBody {
    * the solver to rediscover every accumulated impulse from nothing.
    */
   uid: number;
+  /** Bodies this one is joined to and does not collide with. Usually empty. */
+  linked: InternalBody[];
   /** Union-find parent while sleep is decided. */
   island: number;
   /** World bounds for this step, already grown by the motion ahead of it. */
@@ -385,6 +405,7 @@ function createBody(
     stillFor: 0,
     index: 0,
     uid: nextUid++,
+    linked: [],
     island: 0,
     islandStill: 0,
     minX: 0,
@@ -878,6 +899,9 @@ function findContacts(
       // Two bodies that cannot move between them have nothing to resolve. That
       // is what makes a settled pile free rather than merely quiet.
       if (isDormant(a) && isDormant(b)) continue;
+      // A joint holds these two together on purpose; a contact between them
+      // would spend the whole step arguing with it.
+      if (a.linked.length > 0 && a.linked.includes(b)) continue;
       // Something that can move has reached a sleeper, so it is no longer
       // entitled to sit the step out.
       if (!a.isAwake) wakeBody(a);
@@ -1004,6 +1028,11 @@ function solveContact(contact: Contact): void {
   tangentLambda = contact.pt - ptOld;
   applyImpulseOn(a, -tx * tangentLambda, -ty * tangentLambda, px, py);
   applyImpulseOn(b, tx * tangentLambda, ty * tangentLambda, px, py);
+}
+
+function unlink(body: InternalBody, other: InternalBody): void {
+  const at = body.linked.indexOf(other);
+  if (at !== -1) body.linked.splice(at, 1);
 }
 
 /** Union-find root, flattening the path it walks. */
@@ -1494,6 +1523,11 @@ export class PhysicsWorld implements World {
     const index = this.#joints.indexOf(joint as InternalJoint);
     if (index === -1) return false;
     this.#joints.splice(index, 1);
+    const other = joint.b as InternalBody | null;
+    if (!joint.collideConnected && other !== null) {
+      unlink(joint.a as InternalBody, other);
+      unlink(other, joint.a as InternalBody);
+    }
     // Whatever it was holding up is now on its own.
     wakeBody(joint.a as InternalBody);
     if (joint.b !== null) wakeBody(joint.b as InternalBody);
@@ -1504,10 +1538,16 @@ export class PhysicsWorld implements World {
     const a = this.#owned(options.a);
     const b = options.b === undefined ? null : this.#owned(options.b);
     if (a === b) throw new TypeError("A joint needs two different bodies");
+    const collideConnected = options.collideConnected === true;
+    if (!collideConnected && b !== null) {
+      a.linked.push(b);
+      b.linked.push(a);
+    }
     return {
       kind,
       a,
       b,
+      collideConnected,
       anchorAX: finite(options.anchorAX ?? 0, "anchorAX"),
       anchorAY: finite(options.anchorAY ?? 0, "anchorAY"),
       anchorBX: finite(options.anchorBX ?? (b === null ? a.x : 0), "anchorBX"),
@@ -1582,6 +1622,7 @@ export class PhysicsWorld implements World {
   }
 
   clear(): void {
+    for (const body of this.#bodies) body.linked.length = 0;
     this.#bodies.length = 0;
     this.#joints.length = 0;
     this.#previousCount = 0;
@@ -1609,6 +1650,13 @@ export class PhysicsWorld implements World {
       finite(px ?? body.x, "px"),
       finite(py ?? body.y, "py"),
     );
+  }
+
+  applyTorque(body: RigidBody, torque: number): void {
+    const target = this.#owned(body);
+    if (target.invMass === 0) return;
+    wakeBody(target);
+    target.torque += finite(torque, "torque");
   }
 
   #owned(body: RigidBody): InternalBody {

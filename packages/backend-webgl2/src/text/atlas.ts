@@ -56,6 +56,9 @@ const DEFAULT_CHARSET =
   "abcdefghijklmnopqrstuvwxyz{|}~" +
   "\u00a1\u00a2\u00a3\u00a5\u00a7\u00a9\u00ab\u00ac\u00ae\u00b0\u00b1\u00b5\u00b7" +
   "\u00bb\u00bc\u00bd\u00bf\u00d7\u00f7\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026\u20ac" +
+  // Arrow keys are the most common control a game names on screen, and
+  // without these they came out as the missing-glyph mark.
+  "\u2190\u2191\u2192\u2193" +
   "\u00c0\u00c1\u00c2\u00c3\u00c4\u00c5\u00c6\u00c7\u00c8\u00c9\u00ca\u00cb" +
   "\u00cc\u00cd\u00ce\u00cf\u00d1\u00d2\u00d3\u00d4\u00d5\u00d6\u00d8" +
   "\u00d9\u00da\u00db\u00dc\u00dd\u00df" +

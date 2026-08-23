@@ -52,4 +52,13 @@ the world whose world anchor is moved to the cursor each frame. That is what
 the new `chain` example does — grab a link, pull, and watch the readout say
 how far the chain gave and whether it came back.
 
+Bodies a joint holds together no longer collide with each other, which
+`collideConnected` turns back on. A wheel's axle sits inside the chassis it
+turns on by construction, and a contact there spends the whole step arguing
+with the joint: the `bike` example could not move at all until this went in.
+
+`applyTorque` spins a body without pushing it anywhere. A force at an offset
+point turns a body and shoves it at the same time, which is not what driving a
+wheel or leaning a rider does.
+
 `world.joints` lists the constraints, and the debug overlay draws them.
