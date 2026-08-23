@@ -1,5 +1,17 @@
 # @hazumi/backend-headless
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [408df7e]
+- Updated dependencies [be750e6]
+- Updated dependencies [510ae40]
+  - @hazumi/graphics@0.5.0
+  - @hazumi/math@0.5.0
+  - @hazumi/color@0.5.0
+  - @hazumi/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

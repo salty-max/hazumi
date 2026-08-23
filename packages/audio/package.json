@@ -1,6 +1,6 @@
 {
   "name": "@hazumi/audio",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Web Audio plugin for Hazumi with bounded pooled voices.",
   "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",
