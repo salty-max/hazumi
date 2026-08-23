@@ -18,13 +18,15 @@ import { webgl2 } from "hazumi/backends/webgl2";
 import {
   Align,
   background,
+  beginShape,
   circle,
+  endShape,
   fill,
   line,
+  noFill,
   noStroke,
   pop,
   push,
-  rect,
   rotate,
   stroke,
   strokeWeight,
@@ -32,6 +34,7 @@ import {
   textAlign,
   textSize,
   translate,
+  vertex,
 } from "hazumi/draw";
 import { keyIsDown, keyJustPressed } from "hazumi/input";
 import { physics, type PhysicsApi, type RigidBody, type World } from "hazumi/physics";
@@ -43,7 +46,7 @@ const GROUND_Y = 430;
 const START_X = 120;
 
 const WHEEL_RADIUS = 15;
-const AXLE_X = 26;
+const AXLE_X = 31;
 const AXLE_Y = 9;
 /** Where the swingarm hinges, and how far above the axle the spring pulls. */
 const PIVOT_X = 6;
@@ -72,7 +75,7 @@ function buildBike(world: World, x: number): Bike {
   const chassis = world.addBox({
     x,
     y: height(x) - 46,
-    width: 68,
+    width: 76,
     height: 14,
     density: 1.2,
     friction: 0.3,
@@ -119,6 +122,156 @@ function buildBike(world: World, x: number): Bike {
     });
   }
   return { chassis, rear, front };
+}
+
+const TYRE = "oklch(0.24 0.02 260)";
+const RIM = "oklch(0.80 0.02 260)";
+const HUB = "oklch(0.52 0.02 260)";
+const METAL = "oklch(0.68 0.02 260)";
+const BODY = "oklch(0.62 0.20 28)";
+const ENGINE = "oklch(0.36 0.02 260)";
+const SUIT = "oklch(0.40 0.06 255)";
+const HELMET = "oklch(0.88 0.16 88)";
+const GROUND_FILL = "oklch(0.21 0.02 250)";
+const GROUND_EDGE = "oklch(0.55 0.06 250)";
+
+/** A point given in the chassis's own frame, in world coordinates. */
+function onFrame(chassis: RigidBody, lx: number, ly: number, out: { x: number; y: number }): void {
+  const c = Math.cos(chassis.angle);
+  const s = Math.sin(chassis.angle);
+  out.x = chassis.x + c * lx - s * ly;
+  out.y = chassis.y + s * lx + c * ly;
+}
+
+const HEAD = { x: 0, y: 0 };
+const PIVOT = { x: 0, y: 0 };
+
+function drawWheel(wheel: RigidBody): void {
+  noFill();
+  stroke(TYRE);
+  strokeWeight(6);
+  circle(wheel.x, wheel.y, wheel.radius * 2 - 3);
+  stroke(RIM);
+  strokeWeight(2);
+  circle(wheel.x, wheel.y, wheel.radius * 1.25);
+  // Spokes turn with the body, which is the difference between a wheel that
+  // rolls and one that slides.
+  strokeWeight(1.5);
+  for (let i = 0; i < 6; i++) {
+    const a = wheel.angle + (i * Math.PI) / 6;
+    const r = wheel.radius * 0.6;
+    line(
+      wheel.x - Math.cos(a) * r,
+      wheel.y - Math.sin(a) * r,
+      wheel.x + Math.cos(a) * r,
+      wheel.y + Math.sin(a) * r,
+    );
+  }
+  noStroke();
+  fill(HUB);
+  circle(wheel.x, wheel.y, 6);
+}
+
+function drawBike(rider: Bike): void {
+  const { chassis, rear, front } = rider;
+  drawWheel(rear);
+  drawWheel(front);
+
+  // Swingarm and fork are drawn to where the wheels actually are, so the
+  // suspension working is something you can see rather than infer. A long
+  // raked fork is most of a motocrosser's stance.
+  stroke(METAL);
+  strokeWeight(5);
+  onFrame(chassis, -PIVOT_X, AXLE_Y, PIVOT);
+  line(PIVOT.x, PIVOT.y, rear.x, rear.y);
+  onFrame(chassis, AXLE_X - 9, -20, HEAD);
+  strokeWeight(5);
+  line(HEAD.x, HEAD.y, front.x, front.y);
+  noStroke();
+
+  push();
+  translate(chassis.x, chassis.y);
+  rotate(chassis.angle);
+
+  // Frame: a short, tall triangle with plenty of air under it.
+  stroke(METAL);
+  strokeWeight(3);
+  line(20, -21, -2, -1);
+  line(-2, -1, -10, -18);
+  line(20, -21, -10, -18);
+  line(-10, -18, -26, -19);
+  noStroke();
+
+  fill(ENGINE);
+  beginShape();
+  vertex(2, -11);
+  vertex(12, -13);
+  vertex(13, -3);
+  vertex(3, -1);
+  endShape(true);
+
+  fill(BODY);
+  // Shrouds, tank, seat and the kicked-up tail in one run: separate pieces
+  // read as loose planks at the size this is actually seen at.
+  beginShape();
+  vertex(22, -25);
+  vertex(12, -27);
+  vertex(-6, -27);
+  vertex(-22, -24);
+  vertex(-30, -27);
+  vertex(-35, -28);
+  vertex(-34, -24);
+  vertex(-26, -20);
+  vertex(-8, -18);
+  vertex(4, -16);
+  vertex(16, -14);
+  vertex(23, -17);
+  endShape(true);
+  // Front fender: pointed and high, but no longer than the wheel it covers.
+  beginShape();
+  vertex(23, -29);
+  vertex(33, -33);
+  vertex(37, -31);
+  vertex(27, -26);
+  endShape(true);
+
+  stroke(METAL);
+  strokeWeight(3);
+  line(21, -25, 26, -34);
+  strokeWeight(2.5);
+  line(21, -36, 31, -33);
+  noStroke();
+
+  // Rider, standing on the pegs: knees bent, hips back, chest over the bars.
+  // A trailing back leg and a straight arm are what read as motocross.
+  stroke(SUIT);
+  strokeWeight(7);
+  line(-6, -30, 2, -20);
+  line(2, -20, -4, -11);
+  strokeWeight(8);
+  line(-6, -31, 12, -42);
+  strokeWeight(5);
+  line(12, -42, 25, -34);
+  noStroke();
+  fill(HELMET);
+  circle(16, -47, 14);
+  fill(ENGINE);
+  beginShape();
+  vertex(19, -48);
+  vertex(23, -46);
+  vertex(18, -43);
+  endShape(true);
+  // Peak, angled down the way a motocross helmet's is. Level and long, it
+  // reads as a beak.
+  fill(HELMET);
+  beginShape();
+  vertex(19, -52);
+  vertex(27, -50);
+  vertex(26, -46);
+  vertex(19, -48);
+  endShape(true);
+
+  pop();
 }
 
 export function bike(parent: HTMLElement): HazumiApp<PhysicsApi> {
@@ -201,43 +354,28 @@ export function bike(parent: HTMLElement): HazumiApp<PhysicsApi> {
         },
         draw(): void {
           background("oklch(0.16 0.03 250)");
-          const { chassis, rear, front } = rider;
+          const { chassis } = rider;
           camera.follow(chassis.x + 90, GROUND_Y - 60, 0.08);
 
-          // The ground as its own outline, sampled rather than read back from
-          // the bodies: one line reads as a track, forty boxes do not.
-          stroke("oklch(0.42 0.05 250)");
-          strokeWeight(3);
+          // The ground as a filled mass with a lit edge, sampled rather than
+          // read back from the bodies: one shape reads as a track, forty boxes
+          // do not — and a solid ground is what a silhouette needs to sit on.
           const left = chassis.x - 400;
-          for (let x = left; x < left + 900; x += SEGMENT / 2) {
+          const right = left + 900;
+          fill(GROUND_FILL);
+          beginShape();
+          for (let x = left; x <= right; x += SEGMENT / 2) vertex(x, height(x));
+          vertex(right, GROUND_Y + 400);
+          vertex(left, GROUND_Y + 400);
+          endShape(true);
+          stroke(GROUND_EDGE);
+          strokeWeight(2);
+          for (let x = left; x < right; x += SEGMENT / 2) {
             line(x, height(x), x + SEGMENT / 2, height(x + SEGMENT / 2));
           }
           noStroke();
 
-          fill("oklch(0.72 0.14 250)");
-          push();
-          translate(chassis.x, chassis.y);
-          rotate(chassis.angle);
-          rect(-chassis.width / 2, -chassis.height / 2, chassis.width, chassis.height);
-          // A rider, so which way it is leaning is readable at a glance.
-          fill("oklch(0.85 0.16 60)");
-          rect(-6, -26, 14, 20);
-          pop();
-
-          for (const wheel of [rear, front]) {
-            fill("oklch(0.80 0.03 250)");
-            circle(wheel.x, wheel.y, wheel.radius * 2);
-            // A spoke: without it a rolling wheel and a sliding one look alike.
-            stroke("oklch(0.35 0.04 250)");
-            strokeWeight(2);
-            line(
-              wheel.x,
-              wheel.y,
-              wheel.x + Math.cos(wheel.angle) * wheel.radius,
-              wheel.y + Math.sin(wheel.angle) * wheel.radius,
-            );
-            noStroke();
-          }
+          drawBike(rider);
 
           camera.screen(() => {
             fill("oklch(0.9 0.02 250)");
