@@ -1,6 +1,6 @@
 {
   "name": "@hazumi/backend-webgl2",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Primary WebGL2 renderer: instanced SDF primitives and batching.",
   "homepage": "https://hazumi-eta.vercel.app",
   "license": "MIT",

@@ -1,5 +1,22 @@
 # @hazumi/backend-webgl2
 
+## 0.6.0
+
+### Patch Changes
+
+- 53835db: Put the arrow keys in the text atlas.
+
+  The default charset covered ASCII and the Latin-1 supplement, so a scene
+  naming its controls — the most ordinary thing a game draws — rendered
+  `→ throttle` as `¿ throttle`. Four glyphs, and the most common control legend
+  there is now reads.
+
+- Updated dependencies [9d6f068]
+  - @hazumi/math@0.6.0
+  - @hazumi/color@0.6.0
+  - @hazumi/graphics@0.6.0
+  - @hazumi/core@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @hazumi/backend-canvas2d
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [9d6f068]
+  - @hazumi/math@0.6.0
+  - @hazumi/color@0.6.0
+  - @hazumi/graphics@0.6.0
+  - @hazumi/core@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
