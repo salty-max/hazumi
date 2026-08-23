@@ -36,21 +36,20 @@ import { collision } from "hazumi/math";
 import { physics, Shape, type PhysicsApi, type RigidBody, type World } from "hazumi/physics";
 import { random, screen } from "hazumi/scene";
 
-const MAX_DYNAMIC = 64;
+const MAX_SPAWNED = 48;
 
-function cull(world: World): void {
-  let dynamic = 0;
-  for (let i = 0; i < world.bodies.length; i++) {
-    if (world.bodies[i]?.isStatic === false) dynamic++;
-  }
-  if (dynamic < MAX_DYNAMIC) return;
-  for (let i = 0; i < world.bodies.length; i++) {
-    const body = world.bodies[i];
-    if (body !== undefined && !body.isStatic) {
-      world.remove(body);
-      return;
-    }
-  }
+/**
+ * Drop the oldest body the pointer put there, and only those.
+ *
+ * Culling the first dynamic body in the world instead reaches the furniture:
+ * the tower, then the rope, whose links are among the earliest bodies added.
+ * Removing a link takes its joints with it, so enough clicking used to eat the
+ * rope one link at a time — which looks exactly like a rope snapping.
+ */
+function cull(world: World, spawned: RigidBody[]): void {
+  if (spawned.length < MAX_SPAWNED) return;
+  const oldest = spawned.shift();
+  if (oldest !== undefined) world.remove(oldest);
 }
 
 export function rigidBodies(parent: HTMLElement): HazumiApp<PhysicsApi & OverlayApi> {
@@ -159,40 +158,48 @@ export function rigidBodies(parent: HTMLElement): HazumiApp<PhysicsApi & Overlay
       const EMITTER_X = 20;
       const EMITTER_Y = 20;
       const beam = collision.createRayHit();
+      /** Everything the pointer has put here, oldest first. */
+      const spawned: RigidBody[] = [];
 
       return {
         update(): void {
           if (pointerJustPressed()) {
-            cull(world);
+            cull(world, spawned);
             if (keyIsDown("Shift")) {
               // 2400 units a second is 40 units a step, against walls 16 wide.
               // Nothing but a contact found before the shapes touch keeps this
               // inside the room.
-              world.addCircle({
-                x: 40,
-                y: input.mouseY,
-                radius: 7,
-                vx: 2400,
-                restitution: 0.5,
-                friction: 0.3,
-              });
+              spawned.push(
+                world.addCircle({
+                  x: 40,
+                  y: input.mouseY,
+                  radius: 7,
+                  vx: 2400,
+                  restitution: 0.5,
+                  friction: 0.3,
+                }),
+              );
             } else if (random.bool()) {
-              world.addCircle({
-                x: input.mouseX,
-                y: input.mouseY,
-                radius: random.range(8, 18),
-                restitution: 0.55,
-              });
+              spawned.push(
+                world.addCircle({
+                  x: input.mouseX,
+                  y: input.mouseY,
+                  radius: random.range(8, 18),
+                  restitution: 0.55,
+                }),
+              );
             } else {
-              world.addBox({
-                x: input.mouseX,
-                y: input.mouseY,
-                width: random.range(18, 40),
-                height: random.range(16, 32),
-                angle: random.range(-0.5, 0.5),
-                restitution: 0.18,
-                friction: 0.5,
-              });
+              spawned.push(
+                world.addBox({
+                  x: input.mouseX,
+                  y: input.mouseY,
+                  width: random.range(18, 40),
+                  height: random.range(16, 32),
+                  angle: random.range(-0.5, 0.5),
+                  restitution: 0.18,
+                  friction: 0.5,
+                }),
+              );
             }
           }
         },
