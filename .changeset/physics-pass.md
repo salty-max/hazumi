@@ -1,5 +1,6 @@
 ---
 "@hazumi/math": minor
+"@hazumi/physics": minor
 "hazumi": minor
 ---
 
@@ -41,3 +42,7 @@ instead of silently inheriting its grip.
 
 Sleeping zeroes velocity, so a body read after it has settled reports `vy` of
 exactly 0 rather than a residual.
+
+`physics()` takes the two damping options too, since its options extend the
+world's, and the debug overlay dims sleeping bodies and reports how many of
+them are awake.
