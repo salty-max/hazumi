@@ -466,7 +466,30 @@ start(
 ```
 
 Do not also call `world.step` — the host already did. `overlay()` draws stats
-and body outlines after the scene; `toggleKey: "F1"` makes it dismissible.
+and body outlines after the scene; `toggleKey: "F1"` makes it dismissible, and
+it dims the bodies that are asleep.
+
+Contacts are found before the step moves anything, and a pair closing faster
+than it is wide still gets one: a body cannot cross something thinner than the
+distance it covers in a frame, however fast it is thrown. Stacks hold because
+the solver spends a velocity before the body does, not a frame behind it.
+
+Bodies that stay still for long enough stop being simulated, in whole islands
+rather than one at a time — a crate at the bottom of a stack does not sleep
+under one still rocking on top of it. Anything that could disturb a sleeper
+wakes it: an impulse, a force, something arriving, or a neighbour removed.
+`world.wake(body)` is the manual door, and `body.isAwake` is readable.
+
+```ts
+world.addBox({ x, y, width: 40, height: 24, friction: 0.7, linearDamping: 0.2 });
+```
+
+Damping is a rate per second, and defaults to 0 — a vacuum, where a shoved
+crate slides until it hits something. `physics({ linearDamping, angularDamping })`
+sets the default every new body starts with. Friction and restitution combine
+across the pair, friction as the geometric mean and restitution as the smaller
+of the two, so `friction: 0` really does slide and `restitution: 0` really does
+land dead.
 
 `import { physics } from "hazumi/math"` is the solver on its own, if you want
 to step it yourself. Platformers that slide on tiles still use `slideAabb`.
