@@ -15,6 +15,8 @@ import type { HazumiContext } from "./context";
 
 const STATIC_STROKE = "oklch(0.72 0.02 250)";
 const DYNAMIC_STROKE = "oklch(0.82 0.18 145)";
+/** A sleeping body is skipped by the solver, so it reads as inert, not active. */
+const SLEEPING_STROKE = "oklch(0.55 0.06 145)";
 const HUD_FILL = "oklch(0.92 0.02 250)";
 
 /** Scene-facing overlay controls. */
@@ -118,6 +120,10 @@ function drawOverlay(runtime: OverlayRuntime, context: HazumiContext): void {
       }
       const world = physicsWorld(context);
       const bodies = world === undefined ? 0 : world.bodies.length;
+      let awake = 0;
+      if (world !== undefined) {
+        for (const body of world.bodies) if (!body.isStatic && body.isAwake) awake++;
+      }
       const fps = runtime.fps > 0 ? String(Math.round(runtime.fps)) : "—";
       const ms = (context.dt * 1000).toFixed(1);
       context.camera.screen(() => {
@@ -127,7 +133,9 @@ function drawOverlay(runtime: OverlayRuntime, context: HazumiContext): void {
         context.textAlign(Align.Left, Baseline.Top);
         context.text(`${fps} fps`, 10, 10);
         context.text(`${ms} ms`, 10, 26);
-        context.text(`${bodies} bodies`, 10, 42);
+        // Awake next to the total, because the gap between them is the whole
+        // point of sleeping and is otherwise invisible.
+        context.text(`${bodies} bodies · ${awake} awake`, 10, 42);
       });
     }
   } finally {
@@ -142,7 +150,8 @@ function drawPhysics(context: HazumiContext, world: World): void {
   for (let i = 0; i < bodies.length; i++) {
     const body = bodies[i];
     if (body === undefined) continue;
-    context.stroke(body.isStatic ? STATIC_STROKE : DYNAMIC_STROKE);
+    if (body.isStatic) context.stroke(STATIC_STROKE);
+    else context.stroke(body.isAwake ? DYNAMIC_STROKE : SLEEPING_STROKE);
     drawBody(context, body);
   }
 }
