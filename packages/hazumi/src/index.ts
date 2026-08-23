@@ -58,7 +58,7 @@ export type {
   ParticleSystem,
   ParticleSystemOptions,
 } from "./particles";
-export { createClip, ClipEnd, EmptyClipError } from "./animation";
+export { createClip, ClipEnd, EmptyClipError, InvalidClipError } from "./animation";
 export { tween, sequence, InvalidTweenError } from "./tween";
 export type { Tween, TweenOptions } from "./tween";
 export type { AnimationClip, ClipOptions } from "./animation";

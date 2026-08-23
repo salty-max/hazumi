@@ -1,5 +1,5 @@
 import type { ImageSource } from "@hazumi/graphics";
-import { type AnimationClip, type ClipOptions, createClip } from "./animation";
+import { type AnimationClip, type ClipOptions, createClip, InvalidClipError } from "./animation";
 
 /**
  * One sprite: a rectangle of source pixels within a sheet.
@@ -169,12 +169,73 @@ export function spritesheet(source: ImageSource, options: SpritesheetOptions): S
     return named;
   };
 
+  /**
+   * A clip's frames, whether listed one by one or asked for as a run.
+   *
+   * A run is resolved here because this is where the grid is known: `row: 1`
+   * means nothing without the column count, and the caller only learns that by
+   * dividing the image size themselves — the arithmetic this exists to remove.
+   */
+  const clipRefs = (name: string, spec: ClipOptions): readonly (number | string)[] => {
+    const wantsRun = spec.row !== undefined || spec.from !== undefined || spec.to !== undefined;
+
+    if (spec.frames !== undefined) {
+      if (wantsRun) {
+        throw new InvalidClipError(
+          name,
+          "lists its frames and also asks for a run. Use one or the other.",
+        );
+      }
+      return spec.frames;
+    }
+    if (!wantsRun) {
+      throw new InvalidClipError(
+        name,
+        "has no frames. Give it `frames`, a `row`, or a `from`/`to` run.",
+      );
+    }
+    if (spec.row !== undefined) {
+      if (isNamed(options)) {
+        throw new InvalidClipError(
+          name,
+          `asks for row ${spec.row}, but this sheet is declared as named rectangles rather than a grid.`,
+        );
+      }
+      if (!Number.isInteger(spec.row) || spec.row < 0 || spec.row >= rows) {
+        throw new InvalidClipError(
+          name,
+          `asks for row ${spec.row}, but the sheet has ${rows} ${rows === 1 ? "row" : "rows"}.`,
+        );
+      }
+    }
+
+    // Within a row, indices are columns; without one they run over the sheet.
+    const base = spec.row === undefined ? 0 : spec.row * columns;
+    const span = spec.row === undefined ? all.length : columns;
+    const first = spec.from ?? 0;
+    const last = spec.to ?? span - 1;
+
+    if (!Number.isInteger(first) || !Number.isInteger(last)) {
+      throw new InvalidClipError(
+        name,
+        `runs from ${first} to ${last}, which are not whole frames.`,
+      );
+    }
+    if (first < 0 || last >= span || first > last) {
+      throw new InvalidClipError(
+        name,
+        `runs from ${first} to ${last}, outside the ${span} ${span === 1 ? "frame" : "frames"} available.`,
+      );
+    }
+    return Array.from({ length: last - first + 1 }, (_, i) => base + first + i);
+  };
+
   // Clips resolve their frames once, here, so sampling is pure arithmetic.
   const clips = new Map<string, AnimationClip>();
   for (const [name, options_] of Object.entries(options.clips ?? {})) {
     clips.set(
       name,
-      createClip(name, options_.frames.map(resolve), {
+      createClip(name, clipRefs(name, options_).map(resolve), {
         ...(options_.fps === undefined ? {} : { fps: options_.fps }),
         ...(options_.end === undefined ? {} : { end: options_.end }),
       }),
