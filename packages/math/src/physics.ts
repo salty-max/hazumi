@@ -131,10 +131,17 @@ export interface Joint {
   readonly a: RigidBody;
   /** Null when the joint is pinned to the world. */
   readonly b: RigidBody | null;
-  readonly anchorAX: number;
-  readonly anchorAY: number;
-  readonly anchorBX: number;
-  readonly anchorBY: number;
+  /**
+   * Where the joint holds each body, and where it holds the world.
+   *
+   * Mutable, because a joint that cannot move its anchor cannot follow
+   * anything: dragging a body with the pointer is a joint pinned to the world
+   * whose world anchor is moved to the cursor each frame.
+   */
+  anchorAX: number;
+  anchorAY: number;
+  anchorBX: number;
+  anchorBY: number;
   /** Rest length. Zero for a pin. */
   length: number;
 }

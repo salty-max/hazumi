@@ -739,6 +739,22 @@ describe("joints", () => {
     }
   });
 
+  test("moving a world anchor drags the body with it", () => {
+    // This is what a pointer drag is: a joint pinned to the world whose anchor
+    // is moved to the cursor every frame.
+    const world = physics.world({ gravityY: 0 });
+    const body = world.addCircle({ x: 0, y: 0, radius: 8, linearDamping: 4 });
+    const leash = world.addDistanceJoint({ a: body, anchorBX: 0, anchorBY: 0, length: 0 });
+
+    for (let frame = 0; frame < 240; frame++) {
+      leash.anchorBX = Math.min(frame * 2, 300);
+      world.wake(body);
+      world.step(1 / 60);
+    }
+    expect(body.x).toBeCloseTo(300, 0);
+    expect(body.y).toBeCloseTo(0, 0);
+  });
+
   test("a joint needs two different bodies", () => {
     const world = physics.world();
     const only = world.addCircle({ x: 0, y: 0, radius: 4 });
