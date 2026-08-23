@@ -27,6 +27,20 @@ start({ backend: webgl2(), width: 600, height: 600 }, () => {
   };
 });`;
 
+const ASSETS = `import {
+  fromAseprite, fromTiled, loadImage, loadJson, spritesheet, tilemap,
+} from 'hazumi/assets';
+
+const hero = spritesheet(
+  await loadImage('hero.png'),
+  fromAseprite(await loadJson('hero.json')),
+);
+const run = hero.clip('run');
+
+const level = tilemap(
+  fromTiled(await loadJson('level-1.tmj'), { terrain }),
+);`;
+
 const POINTS: ReadonlyArray<{ readonly title: string; readonly body: string }> = [
   {
     title: "One buffer",
@@ -39,6 +53,10 @@ const POINTS: ReadonlyArray<{ readonly title: string; readonly body: string }> =
   {
     title: "Fixed step",
     body: "update(dt) on a clock. draw(alpha) on the display. Interpolate without touching the sim.",
+  },
+  {
+    title: "Sampled tweens",
+    body: "tween() is a function of elapsed time. Nothing to tick, nothing to own, and it rewinds.",
   },
 ];
 
@@ -83,7 +101,7 @@ export function HomePage(): JSX.Element {
           <InlineCode>dist/</InlineCode> you can zip.
         </p>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-3">
+        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {POINTS.map((point) => (
             <Card key={point.title}>
               <CardHeader className="border-b-0 pb-0">
@@ -94,6 +112,25 @@ export function HomePage(): JSX.Element {
               </CardContent>
             </Card>
           ))}
+        </div>
+      </Container>
+
+      <Container className="pb-28">
+        <div className="grid gap-8 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
+          <div>
+            <p className="mb-3 font-mono text-[0.65rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+              Assets
+            </p>
+            <h2 className="max-w-md font-display text-3xl leading-tight font-semibold tracking-tight">
+              What your tools export is what the scene reads
+            </h2>
+            <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+              Aseprite tags become clips, keeping their per-frame durations. Tiled layers become a
+              tilemap. Both are pure transforms, so nothing fetches behind your back — and the scene
+              factory is already async, so there is no preload phase to thread through.
+            </p>
+          </div>
+          <CodeBlock source={ASSETS} className="p-5 leading-7" />
         </div>
       </Container>
     </main>
