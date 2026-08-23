@@ -375,6 +375,24 @@ export const SCENES: readonly Scene[] = [
     },
   },
   {
+    name: "text",
+    // The one pipeline with no analytic distance: glyphs sample an SDF atlas
+    // built at runtime, so this is the only scene that can catch the atlas
+    // being read wrong. A runtime SDF and the browser's own hinted rasteriser
+    // differ along every stem, but by less than a point in practice — the extra
+    // headroom is for fonts differing between machines, not for slop.
+    draw: (b) => {
+      b.background(0, 0, 0, 1);
+      b.setFill(1, 1, 1, 1);
+      b.setFont("sans-serif");
+      b.setTextSize(34);
+      b.text(30, 90, "Hamburgefonstiv 0123");
+      b.setTextSize(18);
+      b.text(30, 150, "the quick brown fox jumps");
+    },
+    tolerance: 6,
+  },
+  {
     name: "push/pop restores style",
     draw: (b) => {
       b.background(0, 0, 0, 1);
