@@ -701,6 +701,44 @@ describe("joints", () => {
     expect(peak).toBeLessThan(2500);
   });
 
+  test("a struck chain goes back to its length", () => {
+    // The velocity solve only removes relative motion along the joint; the
+    // length itself is restored by the position pass. Running that pass once
+    // takes out a fifth of the error, which a swinging chain puts straight
+    // back: hit side-on, this rope sat 1.5% long ten seconds later instead of
+    // settling to its rest length.
+    const world = physics.world({ gravityY: 1600, linearDamping: 0.2 });
+    const links: physics.RigidBody[] = [];
+    let above: physics.RigidBody | null = null;
+    for (let i = 0; i < 7; i++) {
+      const heavy = i === 6;
+      const link = world.addCircle({
+        x: 300,
+        y: 40 + i * 26,
+        radius: heavy ? 14 : 6,
+        density: heavy ? 3 : 1,
+        linearDamping: 0.3,
+      });
+      links.push(link);
+      if (above === null) {
+        world.addDistanceJoint({ a: link, anchorBX: 300, anchorBY: 20, length: 26 });
+      } else {
+        world.addDistanceJoint({ a: above, b: link, length: 26 });
+      }
+      above = link;
+    }
+    step(world, 600);
+    world.applyImpulse(links[6] as physics.RigidBody, 40000, 0);
+    step(world, 600);
+
+    for (const [i, link] of links.entries()) {
+      const ax = i === 0 ? 300 : (links[i - 1] as physics.RigidBody).x;
+      const ay = i === 0 ? 20 : (links[i - 1] as physics.RigidBody).y;
+      // 0.08 off with four position passes, 0.39 off with one.
+      expect(Math.abs(Math.hypot(link.x - ax, link.y - ay) - 26)).toBeLessThan(0.15);
+    }
+  });
+
   test("a joint needs two different bodies", () => {
     const world = physics.world();
     const only = world.addCircle({ x: 0, y: 0, radius: 4 });

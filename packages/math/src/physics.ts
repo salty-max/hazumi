@@ -1235,6 +1235,17 @@ interface InternalJoint extends Joint {
 const JOINT_CORRECTION = 0.2;
 /** Cap on one step's correction, so a badly stretched joint eases back. */
 const MAX_JOINT_CORRECTION = 8;
+/**
+ * How many times the joint position pass runs per step.
+ *
+ * One pass removes a fifth of the error, which a swinging chain re-introduces
+ * as fast: struck side-on, a seven-link rope sat 1.5% long and stayed there.
+ * Measured residual after ten seconds of swinging — 1 pass 1.5%, 2 passes
+ * 0.8%, 4 passes 0.23%, 8 passes nothing measurable — against a cost for 200
+ * joints of 0.132, 0.146, 0.164 and 0.192 ms a step. Four buys the part worth
+ * having.
+ */
+const JOINT_POSITION_PASSES = 4;
 
 /** An anchor in world space. A joint pinned to the world stores one already. */
 function jointAnchor(body: InternalBody | null, lx: number, ly: number, out: MutablePoint): void {
@@ -1690,7 +1701,9 @@ export class PhysicsWorld implements World {
       const contact = this.#contacts[i];
       if (contact !== undefined) correctPositions(contact);
     }
-    for (const joint of this.#joints) correctJoint(joint);
+    for (let pass = 0; pass < JOINT_POSITION_PASSES; pass++) {
+      for (const joint of this.#joints) correctJoint(joint);
+    }
     this.#settle(dt, count);
     const swap = this.#previous;
     this.#previous = this.#contacts;
