@@ -1,4 +1,5 @@
 import { bloodMage } from "../../../../examples/blood-mage";
+import { bike } from "../../../../examples/bike";
 import { chain } from "../../../../examples/chain";
 import { characters } from "../../../../examples/characters";
 import { flowField } from "../../../../examples/flow-field";
@@ -54,6 +55,7 @@ const SCENES: readonly SceneSpec[] = [
   { name: "blood mage", run: bloodMage, heavy: true, preview: `${PREVIEW}/blood-mage.png` },
   { name: "rigid bodies", run: rigidBodies },
   { name: "chain", run: chain },
+  { name: "bike", run: bike },
   { name: "raycaster", run: raycaster, heavy: true, preview: `${PREVIEW}/raycaster.png` },
 ];
 

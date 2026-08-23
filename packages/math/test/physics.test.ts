@@ -202,6 +202,21 @@ describe("friction and bookkeeping", () => {
     expect(puck.vx).toBeCloseTo(200, 0);
   });
 
+  test("torque spins a body without moving it", () => {
+    const world = physics.world({ gravityY: 0 });
+    const wheel = world.addCircle({ x: 0, y: 0, radius: 10 });
+    // Held down like a throttle: one nudge leaves it turning slowly enough to
+    // count as still, and it would be asleep again by the end.
+    for (let i = 0; i < 30; i++) {
+      world.applyTorque(wheel, 200_000);
+      world.step(1 / 60);
+    }
+    expect(wheel.omega).toBeGreaterThan(1);
+    // A force at the rim would have shoved it sideways as well.
+    expect(wheel.x).toBe(0);
+    expect(wheel.y).toBe(0);
+  });
+
   test("remove drops a body from later steps", () => {
     const world = physics.world({ gravityY: 0 });
     const ball = world.addCircle({ x: 0, y: 0, radius: 4, vx: 10 });
