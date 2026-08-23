@@ -57,6 +57,14 @@ Bodies a joint holds together no longer collide with each other, which
 turns on by construction, and a contact there spends the whole step arguing
 with the joint: the `bike` example could not move at all until this went in.
 
+A distance joint can be a spring rather than a rod: `stiffness`, in
+oscillations per second, and `damping` as a fraction of critical. It is a
+proper soft constraint — compliance and bias derived from the frequency, not a
+position bias bolted onto the velocity solve — so it does not pump energy.
+Measured on a hanging weight: 1Hz oscillates at 1.0Hz, 3Hz at 2.7Hz, damping 1
+settles without overshoot, and 0 is exactly as rigid as before. Suspension
+falls out of it, which is what the `bike` example rides on.
+
 `applyTorque` spins a body without pushing it anywhere. A force at an offset
 point turns a body and shoves it at the same time, which is not what driving a
 wheel or leaning a rider does.
