@@ -40,4 +40,10 @@ so a chain struck side-on sat 1.5% long and stayed there while it swung.
 Measured residual after ten seconds — one pass 1.5%, four passes 0.23% — and
 the pendulum's worst anchor drift fell from 1.13 units to 0.22 with it.
 
+Removing a body removes the joints attached to it, which is what stops a
+constraint solving against a body the world no longer owns. A scene that culls
+its oldest body to stay under a budget needs to cull from what it spawned:
+otherwise it works through its own scenery and takes a rope apart one link at
+a time.
+
 `world.joints` lists the constraints, and the debug overlay draws them.

@@ -507,7 +507,19 @@ world.addPinJoint({ a: arm, anchorAX: -65, anchorBX: 55, anchorBY: 120 });
 
 A distance joint is a rod or a taut rope; a pin is a hinge, holding a point
 while leaving rotation free. Both are rigid rather than springy: a chain
-stretches under a shock and comes back, rather than staying long. Anchors are local to each body and default to its
+stretches under a shock and comes back, rather than staying long.
+
+How well it holds depends on what it is holding. A load up to a few dozen
+times a link's own mass hangs at the rest length exactly; past a couple of
+hundred times, sequential impulses stop keeping up and the chain sags —
+measured on a seven-link rope, 55x sat 2.5% long and 222x sat 30% long. Give
+the links some mass of their own if a heavy thing hangs off them. A body
+wedged between two links spreads them because it physically cannot be
+anywhere else, and the chain closes again once it is gone.
+
+Removing a body removes the joints attached to it. A scene that culls its
+oldest body to stay under a budget should cull from what it spawned, or it
+will eventually eat its own scenery one link at a time. Anchors are local to each body and default to its
 centre. `removeJoint` cuts one, and removing a body takes its joints with it —
 solving against a body the world no longer owns is a ghost constraint. Joints
 join sleep islands, so a rope sleeps and wakes as one piece.
