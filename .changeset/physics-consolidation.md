@@ -46,4 +46,10 @@ its oldest body to stay under a budget needs to cull from what it spawned:
 otherwise it works through its own scenery and takes a rope apart one link at
 a time.
 
+A joint's anchors are mutable, because a joint that cannot move its anchor
+cannot follow anything: dragging a body with the pointer is a joint pinned to
+the world whose world anchor is moved to the cursor each frame. That is what
+the new `chain` example does — grab a link, pull, and watch the readout say
+how far the chain gave and whether it came back.
+
 `world.joints` lists the constraints, and the debug overlay draws them.

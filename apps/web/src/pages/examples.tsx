@@ -1,4 +1,5 @@
 import { bloodMage } from "../../../../examples/blood-mage";
+import { chain } from "../../../../examples/chain";
 import { characters } from "../../../../examples/characters";
 import { flowField } from "../../../../examples/flow-field";
 import { gridWaves } from "../../../../examples/grid-waves";
@@ -52,6 +53,7 @@ const SCENES: readonly SceneSpec[] = [
   { name: "characters", run: characters, heavy: true, preview: `${PREVIEW}/characters.png` },
   { name: "blood mage", run: bloodMage, heavy: true, preview: `${PREVIEW}/blood-mage.png` },
   { name: "rigid bodies", run: rigidBodies },
+  { name: "chain", run: chain },
   { name: "raycaster", run: raycaster, heavy: true, preview: `${PREVIEW}/raycaster.png` },
 ];
 
