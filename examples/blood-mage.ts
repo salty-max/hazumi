@@ -2,10 +2,12 @@
  * A real asset pack: the Minifantasy Blood Mage.
  *
  * Six sheets, 32x32 frames, four facings per sheet arranged as two mirror
- * pairs: front-left / front-right, then back-left / back-right. Confirmed by
- * reading the Walk and Idle rows, not by pack metadata. Frame timing comes
- * from the pack's own AnimationInfo: 100ms for Attack, Dmg, Die and Jump,
- * 200ms for Idle and Walk — so 10fps and 5fps.
+ * pairs: front-right / front-left, then back-right / back-left. Which row
+ * faces which way is not in the pack metadata, so it comes from Attack_Effect:
+ * the slash arc sits on the side the mage is striking, right of centre on rows
+ * 0 and 2 and left of it on rows 1 and 3. Frame timing comes from the pack's
+ * own AnimationInfo: 100ms for Attack, Dmg, Die and Jump, 200ms for Idle and
+ * Walk — so 10fps and 5fps.
  *
  * The interesting part for the library is draw order. Each animation is its
  * own texture, and batching merges only adjacent instances, so the mages are
@@ -22,15 +24,23 @@ const CELL = 32;
 const SCALE = 4;
 const COUNT = 24;
 
-const FACINGS = ["frontLeft", "frontRight", "backLeft", "backRight"] as const;
+const FACINGS = ["frontRight", "frontLeft", "backRight", "backLeft"] as const;
 type Facing = (typeof FACINGS)[number];
+
+/** The sheet row each facing is drawn from. Front pair first, then back. */
+const FACING_ROW: Record<Facing, number> = {
+  frontRight: 0,
+  frontLeft: 1,
+  backRight: 2,
+  backLeft: 3,
+};
 
 /** Left-facing rows walk left; right-facing rows walk right. */
 const WALK_X: Record<Facing, number> = {
-  frontLeft: -1,
   frontRight: 1,
-  backLeft: -1,
+  frontLeft: -1,
   backRight: 1,
+  backLeft: -1,
 };
 
 type StateName = "idle" | "walk" | "attack";
@@ -75,9 +85,9 @@ export function bloodMage(parent: HTMLElement): HazumiApp {
       ): Spritesheet {
         const columns = Math.floor(sourceImage.width / CELL);
         const clips: Record<string, { frames: number[]; fps: number; end?: ClipEnd }> = {};
-        for (const [row, facing] of FACINGS.entries()) {
+        for (const facing of FACINGS) {
           clips[facing] = {
-            frames: rowFrames(columns, row),
+            frames: rowFrames(columns, FACING_ROW[facing]),
             fps,
             ...(end === undefined ? {} : { end }),
           };
