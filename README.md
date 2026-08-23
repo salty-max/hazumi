@@ -491,6 +491,49 @@ across the pair, friction as the geometric mean and restitution as the smaller
 of the two, so `friction: 0` really does slide and `restitution: 0` really does
 land dead.
 
+### Joints
+
+Two anchors held together, either between bodies or between a body and a point
+in the world:
+
+```ts
+const anchor = world.addCircle({ x: 300, y: 40, radius: 6 });
+const weight = world.addCircle({ x: 300, y: 160, radius: 14, density: 3 });
+world.addDistanceJoint({ a: anchor, b: weight, length: 120 });
+
+// Leaving `b` out pins to the world, and the B anchor is world coordinates.
+world.addPinJoint({ a: arm, anchorAX: -65, anchorBX: 55, anchorBY: 120 });
+```
+
+A distance joint is a rod or a taut rope; a pin is a hinge, holding a point
+while leaving rotation free. Anchors are local to each body and default to its
+centre. `removeJoint` cuts one, and removing a body takes its joints with it —
+solving against a body the world no longer owns is a ghost constraint. Joints
+join sleep islands, so a rope sleeps and wakes as one piece.
+
+### Queries
+
+```ts
+const hit = createRayHit();
+const target = world.raycast(x, y, dx, dy, { maxDistance: 400, ignore: player, out: hit });
+const picked = world.pointQuery(input.mouseX, input.mouseY);
+```
+
+`raycast` returns the nearest body and writes the point, normal and distance
+into `out`, so a caller holding one hit allocates nothing per shot. `ignore`
+skips whatever fired it, which a shot from inside the shooter otherwise hits
+every time. `pointQuery` returns the body under a point, latest first, which is
+what picking wants. Sleeping bodies answer both — sleeping is a shortcut the
+solver takes, not invisibility.
+
+Pairs are found by sweeping a sorted axis rather than testing everything
+against everything, so cost grows with the number of bodies rather than its
+square: 1200 spread-out bodies cost 0.11 ms a step against 1.30 ms.
+
+A body drifting slower than about 1.5 units a second counts as still, and will
+eventually sleep. In a game with gravity that is what you want; a scene that
+relies on very slow drift in a vacuum should keep its bodies awake.
+
 `import { physics } from "hazumi/math"` is the solver on its own, if you want
 to step it yourself. Platformers that slide on tiles still use `slideAabb`.
 

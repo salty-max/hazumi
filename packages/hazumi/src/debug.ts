@@ -17,6 +17,7 @@ const STATIC_STROKE = "oklch(0.72 0.02 250)";
 const DYNAMIC_STROKE = "oklch(0.82 0.18 145)";
 /** A sleeping body is skipped by the solver, so it reads as inert, not active. */
 const SLEEPING_STROKE = "oklch(0.55 0.06 145)";
+const JOINT_STROKE = "oklch(0.85 0.16 85)";
 const HUD_FILL = "oklch(0.92 0.02 250)";
 
 /** Scene-facing overlay controls. */
@@ -153,6 +154,41 @@ function drawPhysics(context: HazumiContext, world: World): void {
     if (body.isStatic) context.stroke(STATIC_STROKE);
     else context.stroke(body.isAwake ? DYNAMIC_STROKE : SLEEPING_STROKE);
     drawBody(context, body);
+  }
+  drawJoints(context, world);
+}
+
+const ANCHOR_A = { x: 0, y: 0 };
+const ANCHOR_B = { x: 0, y: 0 };
+
+function anchorPoint(body: RigidBody, lx: number, ly: number, out: { x: number; y: number }): void {
+  const c = Math.cos(body.angle);
+  const s = Math.sin(body.angle);
+  out.x = body.x + c * lx - s * ly;
+  out.y = body.y + s * lx + c * ly;
+}
+
+/**
+ * Joints as the line they hold, anchor to anchor.
+ *
+ * A constraint has no shape of its own, so a physics view without them draws a
+ * rope bridge as a row of unrelated planks.
+ */
+function drawJoints(context: HazumiContext, world: World): void {
+  context.stroke(JOINT_STROKE);
+  for (const joint of world.joints) {
+    anchorPoint(joint.a, joint.anchorAX, joint.anchorAY, ANCHOR_A);
+    // A joint with no second body is pinned to a point in the world, and holds
+    // that point directly rather than in anyone's local frame.
+    if (joint.b === null) {
+      ANCHOR_B.x = joint.anchorBX;
+      ANCHOR_B.y = joint.anchorBY;
+    } else {
+      anchorPoint(joint.b, joint.anchorBX, joint.anchorBY, ANCHOR_B);
+    }
+    context.line(ANCHOR_A.x, ANCHOR_A.y, ANCHOR_B.x, ANCHOR_B.y);
+    context.circle(ANCHOR_A.x, ANCHOR_A.y, 4);
+    context.circle(ANCHOR_B.x, ANCHOR_B.y, 4);
   }
 }
 

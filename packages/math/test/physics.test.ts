@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createRayHit } from "../src/collision";
 import { physics } from "../src/index";
 
 function step(world: physics.World, times: number, dt = 1 / 60): void {
@@ -423,5 +424,288 @@ describe("sleeping", () => {
     expect(crate.isAwake).toBe(false);
     world.wake(crate);
     expect(crate.isAwake).toBe(true);
+  });
+});
+
+describe("broad phase", () => {
+  test("a pair beyond the crowd is still found", () => {
+    // The sweep stops walking forward as soon as a body starts past where the
+    // current one ends. Stopping one body too early loses exactly this pair.
+    const world = physics.world({ gravityY: 0 });
+    for (let i = 0; i < 200; i++) {
+      world.addCircle({ x: (i % 20) * 40, y: Math.floor(i / 20) * 40, radius: 6 });
+    }
+    const left = world.addCircle({ x: 5000, y: 0, radius: 10 });
+    const right = world.addCircle({ x: 5006, y: 0, radius: 10 });
+    step(world, 30);
+    expect(right.x - left.x).toBeGreaterThan(19);
+  });
+
+  test("a heap settles inside a budget", () => {
+    // Pairs are visited in sweep order, which changes as bodies slide past one
+    // another. Presenting the same pair with its bodies swapped matches no
+    // warm-start entry, so the solver rediscovers every accumulated impulse
+    // from nothing: this heap goes quiet at frame 175 with a stable pair
+    // identity and frame 417 without, and 160 boxes never settle at all.
+    const world = physics.world({ gravityY: 1600 });
+    world.addBox({ x: 0, y: 600, width: 1000, height: 20, isStatic: true, friction: 0.6 });
+    for (let i = 0; i < 80; i++) {
+      world.addBox({
+        x: -200 + (i % 16) * 26,
+        y: 540 - Math.floor(i / 16) * 28,
+        width: 24,
+        height: 24,
+        friction: 0.6,
+      });
+    }
+    step(world, 300);
+    const awake = world.bodies.filter((body) => !body.isStatic && body.isAwake).length;
+    expect(awake).toBe(0);
+  });
+});
+
+describe("queries", () => {
+  test("a ray reports the nearest body, where it met it, and which way it faces", () => {
+    const world = physics.world({ gravityY: 0 });
+    const near = world.addCircle({ x: 100, y: 0, radius: 10 });
+    world.addCircle({ x: 300, y: 0, radius: 10 });
+    const hit = createRayHit();
+
+    expect(world.raycast(0, 0, 1, 0, { out: hit })).toBe(near);
+    expect(hit.distance).toBeCloseTo(90);
+    expect(hit.x).toBeCloseTo(90);
+    expect(hit.normalX).toBeCloseTo(-1);
+    expect(hit.normalY).toBeCloseTo(0);
+  });
+
+  test("direction need not be normalised, and the distance is in world units", () => {
+    const world = physics.world({ gravityY: 0 });
+    world.addCircle({ x: 0, y: 100, radius: 10 });
+    const hit = createRayHit();
+    expect(world.raycast(0, 0, 0, 57, { out: hit })).not.toBeNull();
+    expect(hit.distance).toBeCloseTo(90);
+  });
+
+  test("maxDistance stops the ray short", () => {
+    const world = physics.world({ gravityY: 0 });
+    world.addCircle({ x: 100, y: 0, radius: 10 });
+    expect(world.raycast(0, 0, 1, 0, { maxDistance: 80 })).toBeNull();
+    expect(world.raycast(0, 0, 1, 0, { maxDistance: 95 })).not.toBeNull();
+  });
+
+  test("ignore skips whatever fired the shot", () => {
+    const world = physics.world({ gravityY: 0 });
+    const shooter = world.addCircle({ x: 0, y: 0, radius: 12 });
+    const target = world.addCircle({ x: 100, y: 0, radius: 10 });
+    // Without this the muzzle is inside the shooter and every shot hits it.
+    expect(world.raycast(0, 0, 1, 0)).toBe(shooter);
+    expect(world.raycast(0, 0, 1, 0, { ignore: shooter })).toBe(target);
+  });
+
+  test("a ray meets an oriented box on the face it actually presents", () => {
+    const world = physics.world({ gravityY: 0 });
+    // Turned an eighth of a turn, so a horizontal ray meets a slanted face.
+    const box = world.addBox({ x: 100, y: 0, width: 40, height: 40, angle: Math.PI / 4 });
+    const hit = createRayHit();
+    expect(world.raycast(0, 0, 1, 0, { out: hit })).toBe(box);
+    // The corner now reaches half the diagonal towards the ray.
+    expect(hit.distance).toBeCloseTo(100 - Math.SQRT2 * 20, 3);
+    expect(Math.hypot(hit.normalX, hit.normalY)).toBeCloseTo(1);
+    expect(hit.normalX).toBeLessThan(0);
+  });
+
+  test("a ray that meets nothing says so, and one pointing away too", () => {
+    const world = physics.world({ gravityY: 0 });
+    world.addCircle({ x: 100, y: 0, radius: 10 });
+    expect(world.raycast(0, 200, 1, 0)).toBeNull();
+    expect(world.raycast(0, 0, -1, 0)).toBeNull();
+    expect(world.raycast(0, 0, 0, 0)).toBeNull();
+  });
+
+  test("a sleeping body is still there to be hit", () => {
+    const world = physics.world({ gravityY: 1600 });
+    world.addBox({ x: 0, y: 300, width: 400, height: 20, isStatic: true });
+    const crate = world.addBox({ x: 0, y: 100, width: 40, height: 40 });
+    step(world, 300);
+    expect(crate.isAwake).toBe(false);
+    expect(world.raycast(-300, crate.y, 1, 0)).toBe(crate);
+  });
+
+  test("pointQuery picks the body under a point, latest first", () => {
+    const world = physics.world({ gravityY: 0 });
+    const under = world.addBox({ x: 0, y: 0, width: 60, height: 60 });
+    expect(world.pointQuery(0, 0)).toBe(under);
+    const over = world.addCircle({ x: 0, y: 0, radius: 10 });
+    // Added later, so it is what a click lands on.
+    expect(world.pointQuery(0, 0)).toBe(over);
+    expect(world.pointQuery(28, 0)).toBe(under);
+    expect(world.pointQuery(400, 0)).toBeNull();
+  });
+
+  test("pointQuery respects a box's rotation", () => {
+    const world = physics.world({ gravityY: 0 });
+    world.addBox({ x: 0, y: 0, width: 100, height: 10, angle: Math.PI / 2 });
+    // Turned upright: the point is inside along the new long axis and outside
+    // along the short one.
+    expect(world.pointQuery(0, 40)).not.toBeNull();
+    expect(world.pointQuery(40, 0)).toBeNull();
+  });
+});
+
+describe("joints", () => {
+  test("a rod carries an impulse to the far end without inventing momentum", () => {
+    const world = physics.world({ gravityY: 0 });
+    const a = world.addCircle({ x: 0, y: 0, radius: 8 });
+    const b = world.addCircle({ x: 60, y: 0, radius: 8 });
+    world.addDistanceJoint({ a, b });
+    world.applyImpulse(a, -4000, 0);
+    step(world, 120);
+
+    // One rigid body of both masses would move at exactly this speed.
+    const shared = -4000 / (a.mass + b.mass);
+    expect(a.vx).toBeCloseTo(shared, 3);
+    expect(b.vx).toBeCloseTo(shared, 3);
+    expect(b.x - a.x).toBeCloseTo(60, 3);
+  });
+
+  test("length defaults to however far apart the anchors start", () => {
+    const world = physics.world({ gravityY: 0 });
+    const a = world.addCircle({ x: 0, y: 0, radius: 4 });
+    const b = world.addCircle({ x: 0, y: 45, radius: 4 });
+    expect(world.addDistanceJoint({ a, b }).length).toBeCloseTo(45);
+    expect(world.addDistanceJoint({ a, b, length: 10 }).length).toBe(10);
+  });
+
+  test("a rope hangs at its rest length and settles", () => {
+    const world = physics.world({ gravityY: 1600 });
+    let previous: physics.RigidBody | null = null;
+    const links: physics.RigidBody[] = [];
+    for (let i = 0; i < 5; i++) {
+      const link = world.addCircle({ x: 0, y: 30 + i * 30, radius: 6, linearDamping: 0.4 });
+      links.push(link);
+      if (previous === null)
+        world.addDistanceJoint({ a: link, anchorBX: 0, anchorBY: 0, length: 30 });
+      else world.addDistanceJoint({ a: previous, b: link, length: 30 });
+      previous = link;
+    }
+    step(world, 900);
+
+    for (const [i, link] of links.entries()) {
+      const ax = i === 0 ? 0 : (links[i - 1] as physics.RigidBody).x;
+      const ay = i === 0 ? 0 : (links[i - 1] as physics.RigidBody).y;
+      expect(Math.hypot(link.x - ax, link.y - ay)).toBeCloseTo(30, 1);
+    }
+    // Hanging straight down from the anchor at the origin.
+    expect((links[4] as physics.RigidBody).y).toBeCloseTo(150, 0);
+  });
+
+  test("a pin holds its anchor while leaving rotation free", () => {
+    const world = physics.world({ gravityY: 1600 });
+    const arm = world.addBox({ x: 100, y: 0, width: 160, height: 12 });
+    world.addPinJoint({ a: arm, anchorAX: -80, anchorAY: 0, anchorBX: 20, anchorBY: 0 });
+
+    let worst = 0;
+    for (let i = 0; i < 600; i++) {
+      world.step(1 / 60);
+      const c = Math.cos(arm.angle);
+      const s = Math.sin(arm.angle);
+      worst = Math.max(worst, Math.hypot(arm.x + c * -80 - 20, arm.y + s * -80));
+    }
+    expect(worst).toBeLessThan(3);
+    // It swung rather than hanging rigid from the start.
+    expect(Math.abs(arm.angle)).toBeGreaterThan(0.2);
+  });
+
+  test("cutting the joint drops what it held", () => {
+    const world = physics.world({ gravityY: 1600 });
+    const weight = world.addCircle({ x: 0, y: 60, radius: 8 });
+    const rope = world.addDistanceJoint({ a: weight, anchorBX: 0, anchorBY: 0, length: 60 });
+    step(world, 300);
+    const held = weight.y;
+    expect(held).toBeCloseTo(60, 0);
+
+    expect(world.removeJoint(rope)).toBe(true);
+    expect(world.removeJoint(rope)).toBe(false);
+    step(world, 60);
+    expect(weight.y).toBeGreaterThan(held + 50);
+  });
+
+  test("removing a body takes its joints with it", () => {
+    const world = physics.world({ gravityY: 0 });
+    const a = world.addCircle({ x: 0, y: 0, radius: 6 });
+    const b = world.addCircle({ x: 40, y: 0, radius: 6 });
+    world.addDistanceJoint({ a, b });
+    expect(world.joints).toHaveLength(1);
+    world.remove(b);
+    // Solving against a body the world no longer owns is a ghost constraint.
+    expect(world.joints).toHaveLength(0);
+    expect(() => world.step(1 / 60)).not.toThrow();
+  });
+
+  test("a joint sleeps and wakes as one island", () => {
+    const world = physics.world({ gravityY: 1600 });
+    world.addBox({ x: 0, y: 400, width: 400, height: 20, isStatic: true, friction: 0.6 });
+    const anchor = world.addCircle({ x: 0, y: 100, radius: 8, isStatic: true });
+    const weight = world.addCircle({ x: 0, y: 160, radius: 8, linearDamping: 0.6 });
+    world.addDistanceJoint({ a: anchor, b: weight, length: 60 });
+    step(world, 600);
+    expect(weight.isAwake).toBe(false);
+
+    const passer = world.addCircle({ x: 0, y: 260, radius: 8 });
+    world.applyImpulse(passer, 0, -20000);
+    step(world, 20);
+    expect(weight.isAwake).toBe(true);
+  });
+
+  test("a struck rope does not gain energy", () => {
+    // A distance joint pulls along its own axis, so its accumulated impulse
+    // has to be a scalar rebuilt along the current axis. Warm starting from a
+    // stored vector re-applies it along an axis the rope has swung away from,
+    // and nothing takes that back: hit side-on, this rope reached 10^8 units
+    // per second within a second and then went non-finite. Everything here
+    // stays inside what a fall down a 600-unit room can produce.
+    const world = physics.world({ gravityY: 1600 });
+    world.addBox({ x: 300, y: 588, width: 600, height: 24, isStatic: true, friction: 0.7 });
+    world.addBox({ x: 300, y: 12, width: 600, height: 24, isStatic: true });
+    world.addBox({ x: 8, y: 300, width: 16, height: 600, isStatic: true });
+    world.addBox({ x: 592, y: 300, width: 16, height: 600, isStatic: true });
+
+    let above: physics.RigidBody | null = null;
+    for (let i = 0; i < 7; i++) {
+      const heavy = i === 6;
+      const link = world.addCircle({
+        x: 300,
+        y: 40 + i * 26,
+        radius: heavy ? 14 : 6,
+        density: heavy ? 3 : 1,
+      });
+      if (above === null) {
+        world.addDistanceJoint({ a: link, anchorBX: 300, anchorBY: 20, length: 26 });
+      } else {
+        world.addDistanceJoint({ a: above, b: link, length: 26 });
+      }
+      above = link;
+    }
+    for (let i = 0; i < 3; i++) {
+      world.addCircle({ x: 260 + i * 6, y: 40 + i * 10, radius: 16 - i, restitution: 0.72 });
+    }
+
+    let peak = 0;
+    for (let i = 0; i < 900; i++) {
+      world.step(1 / 60);
+      for (const body of world.bodies) {
+        peak = Math.max(peak, Math.abs(body.vx) + Math.abs(body.vy));
+      }
+    }
+    expect(Number.isFinite(peak)).toBe(true);
+    expect(peak).toBeLessThan(2500);
+  });
+
+  test("a joint needs two different bodies", () => {
+    const world = physics.world();
+    const only = world.addCircle({ x: 0, y: 0, radius: 4 });
+    expect(() => world.addDistanceJoint({ a: only, b: only })).toThrow(TypeError);
+    const stranger = physics.world().addCircle({ x: 0, y: 0, radius: 4 });
+    expect(() => world.addPinJoint({ a: only, b: stranger })).toThrow(TypeError);
   });
 });

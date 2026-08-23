@@ -23,6 +23,8 @@ is independent and pins the library range explicitly.
 | P9 ✅  | Runtime resize and DPR tracking, mutable pixels, and PNG frame capture               |
 | P10 ✅ | Packed RGBA8 WebGL uploads for shapes, text, images, and paths                       |
 | P11 ✅ | Image tint, source-rect crops, factory TLS across `await`, pooled particles          |
+| P12 ✅ | Text metrics, depth layers, asset loaders, Aseprite/Tiled import, tweens             |
+| P13 ✅ | Physics: contacts before motion, speculative contacts, sleeping, joints, queries     |
 
 The measurements that back these:
 
@@ -31,12 +33,16 @@ The measurements that back these:
 | 100k shapes per frame   | 10.00 ms median, **1 draw call**, p95 11.50 ms                  |
 | Encode cost             | 0.97 ms/frame flat fill, 1.84 ms with a fill per shape          |
 | Steady-state allocation | 0 buffer growths, 0.0 kB heap delta over 200 frames             |
-| Backend agreement       | 20 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
+| Backend agreement       | 21 scenes, worst 1.81/255; all three image scenes exact at 0.00 |
 | SVG vs Canvas2D         | worst 1.22/255 — tighter, since both go through the same engine |
 | Sprite batching         | 400 sprites across 16 frames of one sheet → **1 draw call**     |
 | Several sheets          | 3 sheets grouped → 3 calls; interleaved → 300                   |
 | Context loss            | Recovered without reload, back to 1 draw call                   |
 | Packed vertex upload    | 5.60 → 4.40 MB for 100k shapes (**−21.4%**)                     |
+| Six-box stack drift     | 65.3 → 0.43 units once contacts resolve before motion           |
+| Fast body vs thin wall  | crossed a 10-unit wall from 600 units/s; now held at any speed  |
+| Settled pile of 60      | 0.265 → 0.005 ms/step once islands sleep                        |
+| Broad phase, 1200 apart | 1.30 → 0.11 ms/step sweeping a sorted axis                      |
 
 The application loop exposes the fixed-step clock through `start()`: a scene
 may implement `update(fixedDt)` and `draw(alpha)`, with catch-up capped before a
@@ -107,6 +113,19 @@ the frame `predraw` / `postdraw`. `@hazumi/physics` hosts the math solver on
 that update hook. The debug overlay in L5 draws stats and body outlines after
 the scene. Grid A* lives in `@hazumi/math` as `pathfind`, beside `collision`.
 
+The 2D engine gained the pieces a game reaches for and could not find: text
+measurement and wrapping, depth layers, loaders for text, JSON and fonts,
+Aseprite and Tiled importers, sampled tweens, and clips declared as a row of a
+sheet rather than as linear frame indices.
+
+The rigid-body solver was then rebuilt where it mattered. Contacts resolve
+before the step moves anything, which is what makes stacks hold; contacts are
+found before shapes touch, out to the distance a pair can close in a step,
+which is what stops a fast body crossing a thin one. Bodies that stay still
+stop being simulated, in islands rather than one at a time. Joints — distance
+and pin — sit in the same solver, and the world answers raycasts and point
+queries against bodies rather than only against loose AABBs.
+
 ## Deferred by decision
 
 - **WebGPU.** A backend at parity with WebGL2 — shapes, glyphs, images,
@@ -127,9 +146,12 @@ Not bugs, and not scheduled to be fixed — recorded so they are not rediscovere
 - **Stroke under anisotropic scale.** Both backends scale stroke with the
   transform but distribute it differently, so the comparison scenes use uniform
   scale only.
-- **Text is outside backend comparison.** The GPU path renders glyphs from a
-  signed distance field while Canvas2D and SVG use native text. These cannot
-  match pixel for pixel by construction.
+- **Text renders from an SDF, not from native text.** The GPU path builds a
+  signed distance field at runtime where Canvas2D and SVG use the browser's own
+  rasteriser. The two were assumed too different to compare and left out of the
+  harness for it — which is exactly why a shader bug that drew every glyph
+  inside-out shipped. They are compared now and agree to 1.16/255: close enough
+  to gate on, not close enough to expect zero.
 - **SDF, not MSDF.** Corners soften well above the atlas resolution. MSDF holds
   them sharp but needs an offline generator, which would mean a build step and
   an atlas to ship.

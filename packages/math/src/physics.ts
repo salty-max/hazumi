@@ -15,6 +15,8 @@
  * radians, clockwise because y grows downward.
  */
 
+import type { RayHit } from "./collision";
+
 export const Shape = {
   Circle: 0,
   Box: 1,
@@ -96,6 +98,57 @@ export interface WorldOptions {
   readonly angularDamping?: number;
 }
 
+/**
+ * What a joint ties together.
+ *
+ * Leaving `b` out pins to the world instead of to another body, in which case
+ * `anchorBX`/`anchorBY` are world coordinates rather than local ones. Anchors
+ * default to the centre of each body.
+ */
+export interface JointOptions {
+  readonly a: RigidBody;
+  readonly b?: RigidBody;
+  readonly anchorAX?: number;
+  readonly anchorAY?: number;
+  readonly anchorBX?: number;
+  readonly anchorBY?: number;
+}
+
+export interface DistanceJointOptions extends JointOptions {
+  /** Defaults to however far apart the anchors are when the joint is made. */
+  readonly length?: number;
+}
+
+export const JointKind = {
+  Distance: 0,
+  Pin: 1,
+} as const;
+export type JointKind = (typeof JointKind)[keyof typeof JointKind];
+
+/** A constraint between two bodies, or between a body and the world. */
+export interface Joint {
+  readonly kind: JointKind;
+  readonly a: RigidBody;
+  /** Null when the joint is pinned to the world. */
+  readonly b: RigidBody | null;
+  readonly anchorAX: number;
+  readonly anchorAY: number;
+  readonly anchorBX: number;
+  readonly anchorBY: number;
+  /** Rest length. Zero for a pin. */
+  length: number;
+}
+
+/** Where a ray stops, and what it should skip. */
+export interface RaycastOptions {
+  /** Defaults to unbounded. */
+  readonly maxDistance?: number;
+  /** Skipped entirely — usually whatever fired the ray. */
+  readonly ignore?: RigidBody;
+  /** Filled with the point, normal and distance. Reuse one and nothing is allocated. */
+  readonly out?: RayHit;
+}
+
 export interface World {
   gravityX: number;
   gravityY: number;
@@ -112,6 +165,34 @@ export interface World {
   applyImpulse: (body: RigidBody, ix: number, iy: number, px?: number, py?: number) => void;
   /** Bring a sleeping body back into the simulation. */
   wake: (body: RigidBody) => void;
+  /**
+   * The nearest body a ray meets, or null.
+   *
+   * The body comes back as the return value and the geometry goes into
+   * `options.out`, so a caller holding one hit object allocates nothing per
+   * shot. Sleeping bodies are found like any other — sleeping is a shortcut
+   * the solver takes, not invisibility.
+   *
+   * ```ts
+   * const hit = createRayHit();
+   * const target = world.raycast(x, y, aimX, aimY, { maxDistance: 400, ignore: player, out: hit });
+   * ```
+   */
+  raycast: (
+    x: number,
+    y: number,
+    dx: number,
+    dy: number,
+    options?: RaycastOptions,
+  ) => RigidBody | null;
+  /** The body a point falls inside, or null. The most recently added wins. */
+  pointQuery: (x: number, y: number) => RigidBody | null;
+  readonly joints: readonly Joint[];
+  /** Hold two anchors a fixed distance apart — a rod, or a rope pulled taut. */
+  addDistanceJoint: (options: DistanceJointOptions) => Joint;
+  /** Hold two anchors at the same point, leaving rotation free — a hinge. */
+  addPinJoint: (options: JointOptions) => Joint;
+  removeJoint: (joint: Joint) => boolean;
   step: (dt: number) => void;
 }
 
@@ -124,8 +205,22 @@ interface InternalBody extends RigidBody {
   stillFor: number;
   /** This body's slot in the world, so contacts can be turned into indices. */
   index: number;
+  /**
+   * Creation order, and the only stable way to say which body of a pair is A.
+   *
+   * The broad phase visits pairs in whatever order the sweep reaches them, so
+   * without this the roles would swap as bodies slide past each other — and a
+   * contact whose A and B changed places matches no warm-start entry, leaving
+   * the solver to rediscover every accumulated impulse from nothing.
+   */
+  uid: number;
   /** Union-find parent while sleep is decided. */
   island: number;
+  /** World bounds for this step, already grown by the motion ahead of it. */
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
   /** On an island root, the least still time in that island. */
   islandStill: number;
 }
@@ -172,6 +267,10 @@ const WARM_START_DISTANCE_SQ = 4;
 const SLEEP_LINEAR_SPEED = 1.5;
 const SLEEP_ANGULAR_SPEED = 0.08;
 const SLEEP_DELAY = 0.4;
+/** How close a removed body has to have been to count as someone's support. */
+const WAKE_MARGIN = 2;
+
+let nextUid = 0;
 
 const CLIP_IN: readonly [MutablePoint, MutablePoint] = [
   { x: 0, y: 0 },
@@ -278,8 +377,13 @@ function createBody(
     torque: 0,
     stillFor: 0,
     index: 0,
+    uid: nextUid++,
     island: 0,
     islandStill: 0,
+    minX: 0,
+    minY: 0,
+    maxX: 0,
+    maxY: 0,
     ...extra,
   };
 }
@@ -323,30 +427,27 @@ function speculativeReach(a: InternalBody, b: InternalBody, dt: number): number 
   return (sa + sb) * dt;
 }
 
-function boundsOverlap(a: InternalBody, b: InternalBody, reach: number): boolean {
-  let aHw: number;
-  let aHh: number;
-  if (a.shape === Shape.Circle) {
-    aHw = a.radius;
-    aHh = a.radius;
+function updateBounds(body: InternalBody, dt: number): void {
+  let hw: number;
+  let hh: number;
+  if (body.shape === Shape.Circle) {
+    hw = body.radius;
+    hh = body.radius;
   } else {
-    const c = Math.abs(Math.cos(a.angle));
-    const s = Math.abs(Math.sin(a.angle));
-    aHw = c * a.width * 0.5 + s * a.height * 0.5;
-    aHh = s * a.width * 0.5 + c * a.height * 0.5;
+    // Computed once per body per step. Doing it inside the pair test meant a
+    // cosine and a sine for both bodies of every pair considered.
+    const c = Math.abs(Math.cos(body.angle));
+    const s = Math.abs(Math.sin(body.angle));
+    hw = c * body.width * 0.5 + s * body.height * 0.5;
+    hh = s * body.width * 0.5 + c * body.height * 0.5;
   }
-  let bHw: number;
-  let bHh: number;
-  if (b.shape === Shape.Circle) {
-    bHw = b.radius;
-    bHh = b.radius;
-  } else {
-    const c = Math.abs(Math.cos(b.angle));
-    const s = Math.abs(Math.sin(b.angle));
-    bHw = c * b.width * 0.5 + s * b.height * 0.5;
-    bHh = s * b.width * 0.5 + c * b.height * 0.5;
-  }
-  return Math.abs(a.x - b.x) <= aHw + bHw + reach && Math.abs(a.y - b.y) <= aHh + bHh + reach;
+  // Grown by this body's own travel: a pair test against another box grown the
+  // same way is exactly the pair's combined reach.
+  const travel = (Math.abs(body.vx) + Math.abs(body.vy)) * dt;
+  body.minX = body.x - hw - travel;
+  body.maxX = body.x + hw + travel;
+  body.minY = body.y - hh - travel;
+  body.maxY = body.y + hh + travel;
 }
 
 function addContact(
@@ -727,31 +828,65 @@ function collideBoxes(
   return addContact(contacts, count, a, b, nx, ny, incident.x, incident.y, minOverlap, reach);
 }
 
-function findContacts(bodies: readonly InternalBody[], contacts: Contact[], dt: number): number {
-  let count = 0;
+/** Sorted by where each body starts on x, so the sweep can stop early. */
+function byMinX(a: InternalBody, b: InternalBody): number {
+  return a.minX - b.minX;
+}
+
+/**
+ * Pairs worth testing, by sweeping a sorted axis rather than trying everything.
+ *
+ * Comparing every body with every other is fine for a handful and quadratic
+ * after that: 600 falling boxes spent 12.4 ms a step there, past a whole frame
+ * at 60Hz. Sorting on x and walking forward until a body starts beyond where
+ * the current one ends visits neighbours instead. The sort itself is nearly
+ * free in practice — the order barely changes between steps, and that is
+ * exactly the case a merge sort finishes in one pass.
+ */
+function findContacts(
+  bodies: readonly InternalBody[],
+  sorted: InternalBody[],
+  contacts: Contact[],
+  dt: number,
+): number {
   for (let i = 0; i < bodies.length; i++) {
-    const a = bodies[i];
+    const body = bodies[i];
+    if (body === undefined) continue;
+    updateBounds(body, dt);
+    sorted[i] = body;
+  }
+  sorted.length = bodies.length;
+  sorted.sort(byMinX);
+
+  let count = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    const a = sorted[i];
     if (a === undefined) continue;
-    for (let j = i + 1; j < bodies.length; j++) {
-      const b = bodies[j];
+    for (let j = i + 1; j < sorted.length; j++) {
+      const b = sorted[j];
       if (b === undefined) continue;
+      // Sorted, so nothing further along can reach back either.
+      if (b.minX > a.maxX) break;
+      if (a.maxY < b.minY || b.maxY < a.minY) continue;
       // Two bodies that cannot move between them have nothing to resolve. That
       // is what makes a settled pile free rather than merely quiet.
       if (isDormant(a) && isDormant(b)) continue;
-      const reach = speculativeReach(a, b, dt);
-      if (!boundsOverlap(a, b, reach)) continue;
       // Something that can move has reached a sleeper, so it is no longer
       // entitled to sit the step out.
       if (!a.isAwake) wakeBody(a);
       if (!b.isAwake) wakeBody(b);
-      if (a.shape === Shape.Circle && b.shape === Shape.Circle) {
-        count = collideCircles(a, b, contacts, count, reach);
-      } else if (a.shape === Shape.Circle && b.shape === Shape.Box) {
-        count = collideCircleBox(a, b, true, contacts, count, reach);
-      } else if (a.shape === Shape.Box && b.shape === Shape.Circle) {
-        count = collideCircleBox(b, a, false, contacts, count, reach);
+      // Creation order, not sweep order: see `uid`.
+      const first = a.uid < b.uid ? a : b;
+      const second = a.uid < b.uid ? b : a;
+      const reach = speculativeReach(first, second, dt);
+      if (first.shape === Shape.Circle && second.shape === Shape.Circle) {
+        count = collideCircles(first, second, contacts, count, reach);
+      } else if (first.shape === Shape.Circle && second.shape === Shape.Box) {
+        count = collideCircleBox(first, second, true, contacts, count, reach);
+      } else if (first.shape === Shape.Box && second.shape === Shape.Circle) {
+        count = collideCircleBox(second, first, false, contacts, count, reach);
       } else {
-        count = collideBoxes(a, b, contacts, count, reach);
+        count = collideBoxes(first, second, contacts, count, reach);
       }
     }
   }
@@ -884,6 +1019,44 @@ function joinIslands(bodies: readonly InternalBody[], a: number, b: number): voi
   if (body !== undefined) body.island = rootA;
 }
 
+/**
+ * Move a joint's bodies back towards where the constraint says they belong.
+ *
+ * Translation only, like the contact correction next to it: turning a body to
+ * fix an anchor would need the same care rotation always needs, and the
+ * velocity solve is what actually holds a joint together. This only mops up
+ * the drift the solve leaves behind.
+ */
+function correctJoint(joint: InternalJoint): void {
+  const { a, b } = joint;
+  const invSum = a.invMass + (b === null ? 0 : b.invMass);
+  if (invSum === 0) return;
+
+  jointAnchor(a, joint.anchorAX, joint.anchorAY, JOINT_A);
+  jointAnchor(b, joint.anchorBX, joint.anchorBY, JOINT_B);
+  let ex = JOINT_B.x - JOINT_A.x;
+  let ey = JOINT_B.y - JOINT_A.y;
+
+  if (joint.kind === JointKind.Distance) {
+    const separation = Math.hypot(ex, ey);
+    if (separation === 0) return;
+    const error = separation - joint.length;
+    ex = (ex / separation) * error;
+    ey = (ey / separation) * error;
+  }
+
+  const size = Math.hypot(ex, ey);
+  if (size === 0) return;
+  const step = Math.min(size * JOINT_CORRECTION, MAX_JOINT_CORRECTION) / size;
+  const scale = step / invSum;
+  a.x += ex * scale * a.invMass;
+  a.y += ey * scale * a.invMass;
+  if (b !== null) {
+    b.x -= ex * scale * b.invMass;
+    b.y -= ey * scale * b.invMass;
+  }
+}
+
 function correctPositions(contact: Contact): void {
   const { a, b, nx, ny, depth } = contact;
   const correction = Math.min(
@@ -900,6 +1073,302 @@ function correctPositions(contact: Contact): void {
   b.y += ny * scale * b.invMass;
 }
 
+/**
+ * Distance along a unit ray to a circle, or -1.
+ *
+ * A ray that starts inside reports 0, matching `raycastAabb` — the caller
+ * asked what the ray meets, and it is already touching this one.
+ */
+function rayCircle(
+  ox: number,
+  oy: number,
+  dx: number,
+  dy: number,
+  cx: number,
+  cy: number,
+  radius: number,
+): number {
+  const mx = ox - cx;
+  const my = oy - cy;
+  const outside = mx * mx + my * my - radius * radius;
+  if (outside <= 0) return 0;
+  const along = mx * dx + my * dy;
+  // Outside and pointing away.
+  if (along > 0) return -1;
+  const discriminant = along * along - outside;
+  if (discriminant < 0) return -1;
+  return -along - Math.sqrt(discriminant);
+}
+
+/** Distance along a unit ray to an oriented box, or -1. Writes the normal. */
+function rayBox(
+  ox: number,
+  oy: number,
+  dx: number,
+  dy: number,
+  body: InternalBody,
+  normal: MutablePoint,
+): number {
+  // Solved in the box's own frame, where it is axis-aligned and the test is
+  // two slabs; the normal is turned back at the end.
+  const c = Math.cos(body.angle);
+  const sn = Math.sin(body.angle);
+  const rx = ox - body.x;
+  const ry = oy - body.y;
+  const lx = c * rx + sn * ry;
+  const ly = -sn * rx + c * ry;
+  const ldx = c * dx + sn * dy;
+  const ldy = -sn * dx + c * dy;
+  const hw = body.width * 0.5;
+  const hh = body.height * 0.5;
+
+  if (Math.abs(lx) <= hw && Math.abs(ly) <= hh) {
+    normal.x = 0;
+    normal.y = 0;
+    return 0;
+  }
+
+  let near = -Infinity;
+  let far = Infinity;
+  let axis = 0;
+  let sign = 0;
+
+  if (ldx === 0) {
+    if (lx < -hw || lx > hw) return -1;
+  } else {
+    const inverse = 1 / ldx;
+    let t0 = (-hw - lx) * inverse;
+    let t1 = (hw - lx) * inverse;
+    let face = inverse >= 0 ? -1 : 1;
+    if (t0 > t1) {
+      const swap = t0;
+      t0 = t1;
+      t1 = swap;
+      face = -face;
+    }
+    if (t0 > near) {
+      near = t0;
+      axis = 0;
+      sign = face;
+    }
+    if (t1 < far) far = t1;
+  }
+
+  if (ldy === 0) {
+    if (ly < -hh || ly > hh) return -1;
+  } else {
+    const inverse = 1 / ldy;
+    let t0 = (-hh - ly) * inverse;
+    let t1 = (hh - ly) * inverse;
+    let face = inverse >= 0 ? -1 : 1;
+    if (t0 > t1) {
+      const swap = t0;
+      t0 = t1;
+      t1 = swap;
+      face = -face;
+    }
+    if (t0 > near) {
+      near = t0;
+      axis = 1;
+      sign = face;
+    }
+    if (t1 < far) far = t1;
+  }
+
+  if (near > far || far < 0) return -1;
+  const localNx = axis === 0 ? sign : 0;
+  const localNy = axis === 0 ? 0 : sign;
+  normal.x = c * localNx - sn * localNy;
+  normal.y = sn * localNx + c * localNy;
+  return near;
+}
+
+function containsPoint(body: InternalBody, x: number, y: number): boolean {
+  if (body.shape === Shape.Circle) {
+    const dx = x - body.x;
+    const dy = y - body.y;
+    return dx * dx + dy * dy <= body.radius * body.radius;
+  }
+  const c = Math.cos(body.angle);
+  const s = Math.sin(body.angle);
+  const rx = x - body.x;
+  const ry = y - body.y;
+  const lx = c * rx + s * ry;
+  const ly = -s * rx + c * ry;
+  return Math.abs(lx) <= body.width * 0.5 && Math.abs(ly) <= body.height * 0.5;
+}
+
+const RAY_NORMAL: MutablePoint = { x: 0, y: 0 };
+
+interface InternalJoint extends Joint {
+  a: InternalBody;
+  b: InternalBody | null;
+  /**
+   * Accumulated impulse, kept across steps so the solver starts warm.
+   *
+   * A distance joint pulls only along its own axis, so it keeps a signed
+   * scalar and rebuilds the direction each step: storing the vector instead
+   * means last step's impulse is re-applied along an axis the joint has since
+   * swung away from, and nothing ever takes that back — a rope struck side-on
+   * gains energy every step until its links leave the world.
+   *
+   * A pin constrains a point in two directions at once, so there the vector is
+   * the constraint.
+   */
+  impulse: number;
+  impulseX: number;
+  impulseY: number;
+}
+
+/**
+ * How much of a joint's position error is taken out per step, by moving the
+ * bodies rather than by pushing on their velocities.
+ *
+ * Folding the correction into the velocity solve instead is what a Baumgarte
+ * bias does, and it pumps energy here: a contact clamps its accumulated
+ * impulse at zero, so the pumping is bounded, but a joint is bilateral and
+ * nothing bounds it. Warm starting then re-applies last step's bias on top of
+ * this step's, and a rope with a weight on the end reaches 10^8 units per
+ * second inside a second. Correcting position where contacts correct theirs
+ * keeps the velocity constraint honest — it only ever removes relative motion.
+ */
+const JOINT_CORRECTION = 0.2;
+/** Cap on one step's correction, so a badly stretched joint eases back. */
+const MAX_JOINT_CORRECTION = 8;
+
+/** An anchor in world space. A joint pinned to the world stores one already. */
+function jointAnchor(body: InternalBody | null, lx: number, ly: number, out: MutablePoint): void {
+  if (body === null) {
+    out.x = lx;
+    out.y = ly;
+    return;
+  }
+  const c = Math.cos(body.angle);
+  const s = Math.sin(body.angle);
+  out.x = body.x + c * lx - s * ly;
+  out.y = body.y + s * lx + c * ly;
+}
+
+function pointVelocityX(body: InternalBody | null, ry: number): number {
+  return body === null ? 0 : body.vx - body.omega * ry;
+}
+
+function pointVelocityY(body: InternalBody | null, rx: number): number {
+  return body === null ? 0 : body.vy + body.omega * rx;
+}
+
+function applyJointImpulse(
+  body: InternalBody | null,
+  ix: number,
+  iy: number,
+  px: number,
+  py: number,
+): void {
+  if (body === null) return;
+  applyImpulseOn(body, ix, iy, px, py);
+}
+
+const JOINT_A: MutablePoint = { x: 0, y: 0 };
+const JOINT_B: MutablePoint = { x: 0, y: 0 };
+
+function warmStartJoint(joint: InternalJoint): void {
+  jointAnchor(joint.a, joint.anchorAX, joint.anchorAY, JOINT_A);
+  jointAnchor(joint.b, joint.anchorBX, joint.anchorBY, JOINT_B);
+
+  let ix: number;
+  let iy: number;
+  if (joint.kind === JointKind.Distance) {
+    if (joint.impulse === 0) return;
+    // Rebuilt along the axis the joint has now, not the one it had then.
+    const nx = JOINT_B.x - JOINT_A.x;
+    const ny = JOINT_B.y - JOINT_A.y;
+    const separation = Math.hypot(nx, ny);
+    if (separation === 0) return;
+    ix = (nx / separation) * joint.impulse;
+    iy = (ny / separation) * joint.impulse;
+  } else {
+    if (joint.impulseX === 0 && joint.impulseY === 0) return;
+    ix = joint.impulseX;
+    iy = joint.impulseY;
+  }
+  applyJointImpulse(joint.a, -ix, -iy, JOINT_A.x, JOINT_A.y);
+  applyJointImpulse(joint.b, ix, iy, JOINT_B.x, JOINT_B.y);
+}
+
+function solveDistanceJoint(joint: InternalJoint): void {
+  const { a, b } = joint;
+  jointAnchor(a, joint.anchorAX, joint.anchorAY, JOINT_A);
+  jointAnchor(b, joint.anchorBX, joint.anchorBY, JOINT_B);
+
+  let nx = JOINT_B.x - JOINT_A.x;
+  let ny = JOINT_B.y - JOINT_A.y;
+  const separation = Math.hypot(nx, ny);
+  // Coincident anchors leave no direction to pull along; the next step, once
+  // anything has moved them apart, has one.
+  if (separation === 0) return;
+  nx /= separation;
+  ny /= separation;
+
+  const rax = JOINT_A.x - a.x;
+  const ray = JOINT_A.y - a.y;
+  const rbx = b === null ? 0 : JOINT_B.x - b.x;
+  const rby = b === null ? 0 : JOINT_B.y - b.y;
+
+  const dvx = pointVelocityX(b, rby) - pointVelocityX(a, ray);
+  const dvy = pointVelocityY(b, rbx) - pointVelocityY(a, rax);
+  const vn = dvx * nx + dvy * ny;
+
+  const rnA = cross2(rax, ray, nx, ny);
+  const rnB = cross2(rbx, rby, nx, ny);
+  const invMass =
+    a.invMass +
+    (b === null ? 0 : b.invMass) +
+    a.invInertia * rnA * rnA +
+    (b === null ? 0 : b.invInertia * rnB * rnB);
+  if (invMass === 0) return;
+
+  const lambda = -vn / invMass;
+  joint.impulse += lambda;
+  applyJointImpulse(a, -nx * lambda, -ny * lambda, JOINT_A.x, JOINT_A.y);
+  applyJointImpulse(b, nx * lambda, ny * lambda, JOINT_B.x, JOINT_B.y);
+}
+
+function solvePinJoint(joint: InternalJoint): void {
+  const { a, b } = joint;
+  jointAnchor(a, joint.anchorAX, joint.anchorAY, JOINT_A);
+  jointAnchor(b, joint.anchorBX, joint.anchorBY, JOINT_B);
+
+  const rax = JOINT_A.x - a.x;
+  const ray = JOINT_A.y - a.y;
+  const rbx = b === null ? 0 : JOINT_B.x - b.x;
+  const rby = b === null ? 0 : JOINT_B.y - b.y;
+
+  const dvx = pointVelocityX(b, rby) - pointVelocityX(a, ray);
+  const dvy = pointVelocityY(b, rbx) - pointVelocityY(a, rax);
+
+  // Holding a point still is two constraints at once, so the effective mass is
+  // a 2x2 rather than a scalar — solving each axis on its own would let the
+  // other undo it every iteration.
+  const invMassSum = a.invMass + (b === null ? 0 : b.invMass);
+  const iA = a.invInertia;
+  const iB = b === null ? 0 : b.invInertia;
+  const k11 = invMassSum + iA * ray * ray + iB * rby * rby;
+  const k12 = -iA * rax * ray - iB * rbx * rby;
+  const k22 = invMassSum + iA * rax * rax + iB * rbx * rbx;
+  const determinant = k11 * k22 - k12 * k12;
+  if (determinant === 0) return;
+
+  const rhsX = -dvx;
+  const rhsY = -dvy;
+  const lambdaX = (k22 * rhsX - k12 * rhsY) / determinant;
+  const lambdaY = (k11 * rhsY - k12 * rhsX) / determinant;
+
+  joint.impulseX += lambdaX;
+  joint.impulseY += lambdaY;
+  applyJointImpulse(a, -lambdaX, -lambdaY, JOINT_A.x, JOINT_A.y);
+  applyJointImpulse(b, lambdaX, lambdaY, JOINT_B.x, JOINT_B.y);
+}
+
 export class PhysicsWorld implements World {
   gravityX: number;
   gravityY: number;
@@ -908,6 +1377,8 @@ export class PhysicsWorld implements World {
   angularDamping: number;
   #bodies: InternalBody[] = [];
   #contacts: Contact[] = [];
+  #sorted: InternalBody[] = [];
+  #joints: InternalJoint[] = [];
   #previous: Contact[] = [];
   #previousCount = 0;
 
@@ -950,10 +1421,25 @@ export class PhysicsWorld implements World {
     if (index === -1) return false;
     const removed = this.#bodies[index] as InternalBody;
     this.#bodies.splice(index, 1);
+    // A joint to a body the world no longer owns would keep solving against a
+    // ghost, so it goes with it.
+    for (let i = this.#joints.length - 1; i >= 0; i--) {
+      const joint = this.#joints[i];
+      if (joint === undefined) continue;
+      if (joint.a === removed || joint.b === removed) this.removeJoint(joint);
+    }
     // Whatever was resting on it has just lost its support, and a sleeping
     // body has no other way to find that out.
+    updateBounds(removed, 0);
     for (const other of this.#bodies) {
-      if (!other.isAwake && boundsOverlap(removed, other, WARM_START_DISTANCE_SQ)) wakeBody(other);
+      if (other.isAwake) continue;
+      updateBounds(other, 0);
+      const apart =
+        removed.maxX < other.minX - WAKE_MARGIN ||
+        other.maxX < removed.minX - WAKE_MARGIN ||
+        removed.maxY < other.minY - WAKE_MARGIN ||
+        other.maxY < removed.minY - WAKE_MARGIN;
+      if (!apart) wakeBody(other);
     }
     this.#previousCount = 0;
     return true;
@@ -963,8 +1449,123 @@ export class PhysicsWorld implements World {
     wakeBody(this.#owned(body));
   }
 
+  get joints(): readonly Joint[] {
+    return this.#joints;
+  }
+
+  addDistanceJoint(options: DistanceJointOptions): Joint {
+    const joint = this.#createJoint(JointKind.Distance, options);
+    if (options.length !== undefined) {
+      joint.length = nonNegative(options.length, "length");
+    } else {
+      jointAnchor(joint.a, joint.anchorAX, joint.anchorAY, JOINT_A);
+      jointAnchor(joint.b, joint.anchorBX, joint.anchorBY, JOINT_B);
+      joint.length = Math.hypot(JOINT_B.x - JOINT_A.x, JOINT_B.y - JOINT_A.y);
+    }
+    this.#joints.push(joint);
+    return joint;
+  }
+
+  addPinJoint(options: JointOptions): Joint {
+    const joint = this.#createJoint(JointKind.Pin, options);
+    this.#joints.push(joint);
+    return joint;
+  }
+
+  removeJoint(joint: Joint): boolean {
+    const index = this.#joints.indexOf(joint as InternalJoint);
+    if (index === -1) return false;
+    this.#joints.splice(index, 1);
+    // Whatever it was holding up is now on its own.
+    wakeBody(joint.a as InternalBody);
+    if (joint.b !== null) wakeBody(joint.b as InternalBody);
+    return true;
+  }
+
+  #createJoint(kind: JointKind, options: JointOptions): InternalJoint {
+    const a = this.#owned(options.a);
+    const b = options.b === undefined ? null : this.#owned(options.b);
+    if (a === b) throw new TypeError("A joint needs two different bodies");
+    return {
+      kind,
+      a,
+      b,
+      anchorAX: finite(options.anchorAX ?? 0, "anchorAX"),
+      anchorAY: finite(options.anchorAY ?? 0, "anchorAY"),
+      anchorBX: finite(options.anchorBX ?? (b === null ? a.x : 0), "anchorBX"),
+      anchorBY: finite(options.anchorBY ?? (b === null ? a.y : 0), "anchorBY"),
+      length: 0,
+      impulse: 0,
+      impulseX: 0,
+      impulseY: 0,
+    };
+  }
+
+  raycast(
+    x: number,
+    y: number,
+    dx: number,
+    dy: number,
+    options: RaycastOptions = {},
+  ): RigidBody | null {
+    const length = Math.hypot(dx, dy);
+    if (length === 0) return null;
+    const ux = dx / length;
+    const uy = dy / length;
+    const maxDistance = options.maxDistance ?? Infinity;
+    if (!(maxDistance >= 0)) return null;
+
+    let best: InternalBody | null = null;
+    let bestDistance = maxDistance;
+    let bestNx = 0;
+    let bestNy = 0;
+
+    for (const body of this.#bodies) {
+      if (body === options.ignore) continue;
+      let distance: number;
+      if (body.shape === Shape.Circle) {
+        distance = rayCircle(x, y, ux, uy, body.x, body.y, body.radius);
+        if (distance >= 0 && distance <= bestDistance) {
+          const px = x + ux * distance;
+          const py = y + uy * distance;
+          // Zero radius is impossible, so this normal is always defined.
+          RAY_NORMAL.x = (px - body.x) / body.radius;
+          RAY_NORMAL.y = (py - body.y) / body.radius;
+        }
+      } else {
+        distance = rayBox(x, y, ux, uy, body, RAY_NORMAL);
+      }
+      if (distance < 0 || distance > bestDistance) continue;
+      best = body;
+      bestDistance = distance;
+      bestNx = RAY_NORMAL.x;
+      bestNy = RAY_NORMAL.y;
+    }
+
+    if (best === null) return null;
+    const out = options.out;
+    if (out !== undefined) {
+      out.x = x + ux * bestDistance;
+      out.y = y + uy * bestDistance;
+      out.normalX = bestNx;
+      out.normalY = bestNy;
+      out.distance = bestDistance;
+    }
+    return best;
+  }
+
+  pointQuery(x: number, y: number): RigidBody | null {
+    // Backwards, so the body drawn last is the one picked up.
+    for (let i = this.#bodies.length - 1; i >= 0; i--) {
+      const body = this.#bodies[i];
+      if (body !== undefined && containsPoint(body, x, y)) return body;
+    }
+    return null;
+  }
+
   clear(): void {
     this.#bodies.length = 0;
+    this.#joints.length = 0;
     this.#previousCount = 0;
   }
 
@@ -1013,7 +1614,18 @@ export class PhysicsWorld implements World {
     if (!Number.isFinite(dt) || dt <= 0) return;
     const bodies = this.#bodies;
 
-    const count = findContacts(bodies, this.#contacts, dt);
+    // A joint reaches a body a contact never would, so a sleeper on the far
+    // end of one has to be woken before the pair test decides anything.
+    for (const joint of this.#joints) {
+      const other = joint.b;
+      if (other === null) continue;
+      if (joint.a.isAwake !== other.isAwake) {
+        wakeBody(joint.a);
+        wakeBody(other);
+      }
+    }
+
+    const count = findContacts(bodies, this.#sorted, this.#contacts, dt);
     // Captured before gravity is added, so a resting body does not read this
     // step's downward nudge as an impact and bounce on it.
     for (let i = 0; i < count; i++) {
@@ -1055,10 +1667,16 @@ export class PhysicsWorld implements World {
       const bounce = meetsThisStep && vn < -RESTITUTION_THRESHOLD ? -e * vn : 0;
       contact.velocityBias = bounce > 0 ? bounce : -gap / dt;
     }
+    for (const joint of this.#joints) warmStartJoint(joint);
+
     for (let iter = 0; iter < this.iterations; iter++) {
       for (let i = 0; i < count; i++) {
         const contact = this.#contacts[i];
         if (contact !== undefined) solveContact(contact);
+      }
+      for (const joint of this.#joints) {
+        if (joint.kind === JointKind.Distance) solveDistanceJoint(joint);
+        else solvePinJoint(joint);
       }
     }
     for (let i = 0; i < bodies.length; i++) {
@@ -1072,6 +1690,7 @@ export class PhysicsWorld implements World {
       const contact = this.#contacts[i];
       if (contact !== undefined) correctPositions(contact);
     }
+    for (const joint of this.#joints) correctJoint(joint);
     this.#settle(dt, count);
     const swap = this.#previous;
     this.#previous = this.#contacts;
@@ -1110,6 +1729,12 @@ export class PhysicsWorld implements World {
       // otherwise chain every pile in the world into one.
       if (contact.a.invMass === 0 || contact.b.invMass === 0) continue;
       joinIslands(bodies, contact.a.index, contact.b.index);
+    }
+
+    for (const joint of this.#joints) {
+      const other = joint.b;
+      if (other === null || joint.a.invMass === 0 || other.invMass === 0) continue;
+      joinIslands(bodies, joint.a.index, other.index);
     }
 
     for (let i = 0; i < bodies.length; i++) {

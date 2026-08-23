@@ -18,10 +18,17 @@ export type {
   BodyOptions,
   BoxBodyOptions,
   CircleBodyOptions,
+  DistanceJointOptions,
+  Joint,
+  JointOptions,
+  RaycastOptions,
   RigidBody,
   World,
   WorldOptions,
 } from "@hazumi/math";
+
+export const JointKind: typeof solver.JointKind = solver.JointKind;
+export type JointKind = (typeof JointKind)[keyof typeof JointKind];
 
 /** Scene-facing rigid-body controls. */
 export interface PhysicsController {
