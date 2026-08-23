@@ -45,13 +45,16 @@ const START_X = 120;
 const WHEEL_RADIUS = 15;
 const AXLE_X = 26;
 const AXLE_Y = 9;
+/** Where the swingarm hinges, and how far above the axle the spring pulls. */
+const PIVOT_X = 6;
+const SPRING_TOP = 16;
 
 /** Ground height at a point, with bumps that grow along the track. */
 function height(x: number): number {
   if (x < 320) return GROUND_Y;
   const along = (x - 320) / (TRACK_LENGTH - 320);
   // Amplitude ramps from a ripple to something that needs committing to.
-  const amplitude = 6 + along * 40;
+  const amplitude = 6 + along * 24;
   const wavelength = 230 - along * 30;
   const bump = Math.sin(((x - 320) / wavelength) * Math.PI * 2);
   // Squared and signed keeps the troughs shallow and the crests sharp, which
@@ -88,10 +91,33 @@ function buildBike(world: World, x: number): Bike {
     });
   const rear = wheel(-AXLE_X);
   const front = wheel(AXLE_X);
-  // A pin holds the axle and leaves the wheel free to turn, which is what an
-  // axle is. No suspension: this bike is as rigid as its frame.
-  world.addPinJoint({ a: chassis, b: rear, anchorAX: -AXLE_X, anchorAY: AXLE_Y });
-  world.addPinJoint({ a: chassis, b: front, anchorAX: AXLE_X, anchorAY: AXLE_Y });
+
+  // Suspension out of two joints and no extra bodies. The rigid one is a
+  // swingarm: it holds the wheel a fixed distance from a pivot near the
+  // middle of the frame, so the wheel can only travel along an arc. The soft
+  // one is the spring and damper across that arc. Pin the wheel straight to
+  // the frame instead and every bump arrives at the rider intact.
+  for (const [side, wheelBody] of [
+    [-1, rear],
+    [1, front],
+  ] as const) {
+    world.addDistanceJoint({
+      a: chassis,
+      b: wheelBody,
+      anchorAX: side * PIVOT_X,
+      anchorAY: AXLE_Y,
+      length: AXLE_X - PIVOT_X,
+    });
+    world.addDistanceJoint({
+      a: chassis,
+      b: wheelBody,
+      anchorAX: side * AXLE_X,
+      anchorAY: -SPRING_TOP,
+      length: SPRING_TOP + AXLE_Y,
+      stiffness: 6,
+      damping: 0.9,
+    });
+  }
   return { chassis, rear, front };
 }
 
@@ -145,12 +171,12 @@ export function bike(parent: HTMLElement): HazumiApp<PhysicsApi> {
           if (keyJustPressed("r") || keyJustPressed("R")) restart();
 
           const { chassis, rear, front } = rider;
-          if (keyIsDown("ArrowRight")) world.applyTorque(rear, 60_000_000);
-          if (keyIsDown("ArrowLeft")) world.applyTorque(rear, -30_000_000);
+          if (keyIsDown("ArrowRight")) world.applyTorque(rear, 20_000_000);
+          if (keyIsDown("ArrowLeft")) world.applyTorque(rear, -12_000_000);
           // Leaning only bites in the air, where there is no ground to push
           // against — same as the game this borrows from.
-          if (keyIsDown("ArrowUp")) world.applyTorque(chassis, -14_000_000);
-          if (keyIsDown("ArrowDown")) world.applyTorque(chassis, 14_000_000);
+          if (keyIsDown("ArrowUp")) world.applyTorque(chassis, -5_000_000);
+          if (keyIsDown("ArrowDown")) world.applyTorque(chassis, 5_000_000);
 
           const clearance = Math.min(
             height(rear.x) - rear.y - WHEEL_RADIUS,

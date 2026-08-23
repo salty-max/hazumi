@@ -126,6 +126,20 @@ export interface JointOptions {
 export interface DistanceJointOptions extends JointOptions {
   /** Defaults to however far apart the anchors are when the joint is made. */
   readonly length?: number;
+  /**
+   * Springiness, in oscillations per second. 0, the default, is a rigid rod.
+   *
+   * A rigid joint transmits every bump straight through, which is what a
+   * vehicle has suspension to avoid. Give it a frequency and it becomes a
+   * spring: 4 is a soft mattress, 12 is a firm one, and the wheel it holds
+   * can move without the frame following.
+   */
+  readonly stiffness?: number;
+  /**
+   * How quickly the spring stops ringing, as a fraction of critical damping.
+   * 1, the default, settles without overshooting. Only used with `stiffness`.
+   */
+  readonly damping?: number;
 }
 
 export const JointKind = {
@@ -153,6 +167,10 @@ export interface Joint {
   anchorBY: number;
   /** Rest length. Zero for a pin. */
   length: number;
+  /** Oscillations per second, or 0 for a rigid joint. */
+  stiffness: number;
+  /** Fraction of critical damping, used only when `stiffness` is set. */
+  damping: number;
   /** Whether the two bodies still collide. */
   readonly collideConnected: boolean;
 }
@@ -1064,6 +1082,9 @@ function joinIslands(bodies: readonly InternalBody[], a: number, b: number): voi
  * the drift the solve leaves behind.
  */
 function correctJoint(joint: InternalJoint): void {
+  // A spring is supposed to sit away from its rest length; pulling it back
+  // here would quietly undo the suspension it exists to provide.
+  if (joint.stiffness > 0) return;
   const { a, b } = joint;
   const invSum = a.invMass + (b === null ? 0 : b.invMass);
   if (invSum === 0) return;
@@ -1342,7 +1363,7 @@ function warmStartJoint(joint: InternalJoint): void {
   applyJointImpulse(joint.b, ix, iy, JOINT_B.x, JOINT_B.y);
 }
 
-function solveDistanceJoint(joint: InternalJoint): void {
+function solveDistanceJoint(joint: InternalJoint, dt: number): void {
   const { a, b } = joint;
   jointAnchor(a, joint.anchorAX, joint.anchorAY, JOINT_A);
   jointAnchor(b, joint.anchorBX, joint.anchorBY, JOINT_B);
@@ -1374,7 +1395,24 @@ function solveDistanceJoint(joint: InternalJoint): void {
     (b === null ? 0 : b.invInertia * rnB * rnB);
   if (invMass === 0) return;
 
-  const lambda = -vn / invMass;
+  let lambda: number;
+  if (joint.stiffness > 0) {
+    // A soft constraint rather than a rigid one: the spring's stiffness and
+    // damping become an added compliance (gamma) and a pull towards the rest
+    // length (bias), which is what lets the joint be wrong on purpose without
+    // the solver fighting to make it right this step.
+    const omega = 2 * Math.PI * joint.stiffness;
+    const mass = 1 / invMass;
+    const springConstant = mass * omega * omega;
+    const damper = 2 * mass * joint.damping * omega;
+    const denominator = dt * (damper + dt * springConstant);
+    const gamma = denominator === 0 ? 0 : 1 / denominator;
+    const bias = (separation - joint.length) * dt * springConstant * gamma;
+    const softMass = 1 / (invMass + gamma);
+    lambda = -softMass * (vn + bias + gamma * joint.impulse);
+  } else {
+    lambda = -vn / invMass;
+  }
   joint.impulse += lambda;
   applyJointImpulse(a, -nx * lambda, -ny * lambda, JOINT_A.x, JOINT_A.y);
   applyJointImpulse(b, nx * lambda, ny * lambda, JOINT_B.x, JOINT_B.y);
@@ -1502,6 +1540,8 @@ export class PhysicsWorld implements World {
 
   addDistanceJoint(options: DistanceJointOptions): Joint {
     const joint = this.#createJoint(JointKind.Distance, options);
+    joint.stiffness = nonNegative(options.stiffness ?? 0, "stiffness");
+    joint.damping = nonNegative(options.damping ?? 1, "damping");
     if (options.length !== undefined) {
       joint.length = nonNegative(options.length, "length");
     } else {
@@ -1553,6 +1593,8 @@ export class PhysicsWorld implements World {
       anchorBX: finite(options.anchorBX ?? (b === null ? a.x : 0), "anchorBX"),
       anchorBY: finite(options.anchorBY ?? (b === null ? a.y : 0), "anchorBY"),
       length: 0,
+      stiffness: 0,
+      damping: 1,
       impulse: 0,
       impulseX: 0,
       impulseY: 0,
@@ -1741,7 +1783,7 @@ export class PhysicsWorld implements World {
         if (contact !== undefined) solveContact(contact);
       }
       for (const joint of this.#joints) {
-        if (joint.kind === JointKind.Distance) solveDistanceJoint(joint);
+        if (joint.kind === JointKind.Distance) solveDistanceJoint(joint, dt);
         else solvePinJoint(joint);
       }
     }

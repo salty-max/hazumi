@@ -770,6 +770,64 @@ describe("joints", () => {
     expect(body.y).toBeCloseTo(0, 0);
   });
 
+  test("a stiffness turns a rod into a spring at the frequency asked for", () => {
+    const world = physics.world({ gravityY: 1000 });
+    const weight = world.addCircle({ x: 0, y: 100, radius: 10 });
+    world.addDistanceJoint({
+      a: weight,
+      anchorBX: 0,
+      anchorBY: 0,
+      length: 100,
+      stiffness: 1,
+      damping: 0.1,
+    });
+
+    // Time between the two lowest points is the period.
+    let previous = weight.y;
+    let rising = false;
+    const dips: number[] = [];
+    for (let frame = 0; frame < 900; frame++) {
+      world.step(1 / 60);
+      const goingUp = weight.y < previous;
+      if (goingUp && !rising) dips.push(frame);
+      rising = goingUp;
+      previous = weight.y;
+    }
+    expect(dips.length).toBeGreaterThan(1);
+    const period = ((dips[1] as number) - (dips[0] as number)) / 60;
+    expect(period).toBeCloseTo(1, 1);
+    // It hangs below the rest length, the way a loaded spring does.
+    expect(weight.y).toBeGreaterThan(110);
+  });
+
+  test("damping of 1 settles without overshooting, and no stiffness stays rigid", () => {
+    const world = physics.world({ gravityY: 1000 });
+    const damped = world.addCircle({ x: 0, y: 100, radius: 10 });
+    world.addDistanceJoint({
+      a: damped,
+      anchorBX: 0,
+      anchorBY: 0,
+      length: 100,
+      stiffness: 3,
+      damping: 1,
+    });
+    const rigid = world.addCircle({ x: 200, y: 100, radius: 10 });
+    world.addDistanceJoint({ a: rigid, anchorBX: 200, anchorBY: 0, length: 100 });
+
+    let lowest = 0;
+    let rigidLowest = 0;
+    for (let frame = 0; frame < 600; frame++) {
+      world.step(1 / 60);
+      lowest = Math.max(lowest, damped.y);
+      rigidLowest = Math.max(rigidLowest, rigid.y);
+    }
+    // Critically damped: where it ends is the furthest it ever went.
+    expect(lowest).toBeCloseTo(damped.y, 1);
+    expect(damped.y).toBeGreaterThan(101);
+    // A rod does not stretch under the same load at all.
+    expect(rigidLowest).toBeCloseTo(100, 1);
+  });
+
   test("a joint needs two different bodies", () => {
     const world = physics.world();
     const only = world.addCircle({ x: 0, y: 0, radius: 4 });

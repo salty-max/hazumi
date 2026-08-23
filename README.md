@@ -506,8 +506,33 @@ world.addPinJoint({ a: arm, anchorAX: -65, anchorBX: 55, anchorBY: 120 });
 ```
 
 A distance joint is a rod or a taut rope; a pin is a hinge, holding a point
-while leaving rotation free. Both are rigid rather than springy: a chain
+while leaving rotation free. A distance joint is rigid by default: a chain
 stretches under a shock and comes back, rather than staying long.
+
+Give it a `stiffness` in oscillations per second and it becomes a spring
+instead, with `damping` as a fraction of critical — 1 settles without
+overshoot, 0.1 rings for a while. Measured against a hanging weight: 1Hz
+oscillates at 1.0Hz, 10Hz sits within a quarter unit of its rest length.
+Suspension is a rigid joint holding a wheel a fixed distance from a pivot, so
+it travels along an arc, and a spring across that arc:
+
+```ts
+world.addDistanceJoint({ a: chassis, b: wheel, anchorAX: 6, anchorAY: 9, length: 20 });
+world.addDistanceJoint({
+  a: chassis,
+  b: wheel,
+  anchorAX: 26,
+  anchorAY: -16,
+  length: 25,
+  stiffness: 6,
+  damping: 0.9,
+});
+```
+
+Bodies a joint holds together do not collide with each other — a wheel's axle
+sits inside the chassis it turns on — which `collideConnected: true` puts back.
+`applyTorque` spins a body without pushing it anywhere, which is what driving a
+wheel needs and what a force at an offset point cannot do.
 
 How well it holds depends on what it is holding. A load up to a few dozen
 times a link's own mass hangs at the rest length exactly; past a couple of
