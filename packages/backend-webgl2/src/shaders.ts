@@ -17,6 +17,20 @@
  * rectangle, matching Canvas2D exactly.
  */
 
+/**
+ * The narrowest edge any fragment shader will fade an antialiased edge across.
+ *
+ * `smoothstep(-aa, aa, d)` is only defined while `aa` is positive, and a
+ * derivative of zero is not hypothetical: a software rasteriser magnifying a
+ * texture samples one texel for all four fragments of a 2x2 quad and reports
+ * `fwidth` as exactly 0. Flooring the width costs nothing where the derivative
+ * is real — it is orders of magnitude smaller than any true one — and turns the
+ * degenerate case into a hard edge rather than an undefined one.
+ */
+const MIN_AA = `
+const float MIN_AA = 1e-4;
+`;
+
 export const SDF_VERTEX_SHADER: string = `#version 300 es
 
 // Unit quad corner in -1..1, shared by every instance.
@@ -64,6 +78,7 @@ void main() {
 
 export const SDF_FRAGMENT_SHADER: string = `#version 300 es
 precision highp float;
+${MIN_AA}
 
 in vec2 v_local;
 in vec2 v_half;
@@ -96,7 +111,10 @@ void main() {
   // A stroke is the band around the boundary: |d| - halfWidth.
   if (v_edge > 0.0) d = abs(d) - v_edge;
 
-  float aa = fwidth(d);
+  // Floored: smoothstep is undefined when edge0 >= edge1, and a rasteriser
+  // that reports a zero derivative would land exactly there. See the glyph
+  // shader, where that is not hypothetical.
+  float aa = max(fwidth(d), MIN_AA);
   float alpha = 1.0 - smoothstep(-aa, aa, d);
 
   if (alpha <= 0.0) discard;
@@ -145,6 +163,7 @@ void main() {
 
 export const GLYPH_FRAGMENT_SHADER: string = `#version 300 es
 precision highp float;
+${MIN_AA}
 
 in vec2 v_uv;
 in vec4 v_color;
@@ -160,7 +179,14 @@ void main() {
 
   // Screen-space derivative, so the edge stays one pixel wide at any size.
   // This is what SDF buys over a plain coverage atlas.
-  float aa = fwidth(d);
+  //
+  // Floored, because the derivative is not always usable: magnifying the atlas
+  // makes a software rasteriser sample the same texel for all four fragments of
+  // a 2x2 quad, and fwidth then returns exactly 0. smoothstep is undefined once
+  // edge0 >= edge1, and the answer it picks there is the inverse of the glyph —
+  // a solid block with the letter punched out of it. Falling back to a hard
+  // edge is aliased but right.
+  float aa = max(fwidth(d), MIN_AA);
   float alpha = smoothstep(-aa, aa, d);
 
   if (alpha <= 0.0) discard;

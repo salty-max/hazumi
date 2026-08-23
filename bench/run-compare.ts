@@ -11,9 +11,11 @@
  * and runs on an ordinary CI box. That is worth stating plainly, because the
  * repo previously assumed the opposite and left the harness unautomated for it.
  *
- * The bundle is rebuilt every run on purpose: `bench/dist/*.js` inlines the
- * packages, so a stale bundle happily reports that a bug you just fixed is
- * still there — or worse, that one you just introduced is not.
+ * Everything is rebuilt every run on purpose. `bench/dist/*.js` inlines the
+ * packages, and it inlines them from their `dist`, so either being stale makes
+ * the harness happily report that a bug you just fixed is still there — or
+ * worse, that one you just introduced is not. Turbo caches the workspace build,
+ * so the honesty costs a couple of seconds when nothing moved.
  *
  *   bun run compare
  *
@@ -41,22 +43,28 @@ interface Comparison {
   readonly table: string;
 }
 
-function build(): Promise<void> {
+function run(command: string, args: readonly string[], what: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      "bun",
-      ["build", "bench/compare.ts", "--outfile", "bench/dist/compare.js", "--target", "browser"],
-      { cwd: REPO, stdio: ["ignore", "ignore", "pipe"] },
-    );
+    const child = spawn(command, [...args], { cwd: REPO, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
     child.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`Bundling bench/compare.ts failed:\n${stderr}`));
+      else reject(new Error(`${what} failed:\n${stderr}`));
     });
   });
+}
+
+/** The packages first, then the bundle that inlines them. */
+async function build(): Promise<void> {
+  await run("bun", ["run", "build"], "Building the workspace");
+  await run(
+    "bun",
+    ["build", "bench/compare.ts", "--outfile", "bench/dist/compare.js", "--target", "browser"],
+    "Bundling bench/compare.ts",
+  );
 }
 
 /**
