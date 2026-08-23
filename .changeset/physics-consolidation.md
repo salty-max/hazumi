@@ -34,4 +34,10 @@ had swapped places matched no warm-start entry, leaving the solver to
 rediscover every accumulated impulse from nothing — a heap of 80 boxes took
 until frame 417 to settle instead of 175, and 160 never settled at all.
 
+Joint length is restored by a position pass that runs four times a step. Once
+is not enough: the velocity solve only removes relative motion along the joint,
+so a chain struck side-on sat 1.5% long and stayed there while it swung.
+Measured residual after ten seconds — one pass 1.5%, four passes 0.23% — and
+the pendulum's worst anchor drift fell from 1.13 units to 0.22 with it.
+
 `world.joints` lists the constraints, and the debug overlay draws them.

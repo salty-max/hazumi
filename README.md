@@ -506,7 +506,8 @@ world.addPinJoint({ a: arm, anchorAX: -65, anchorBX: 55, anchorBY: 120 });
 ```
 
 A distance joint is a rod or a taut rope; a pin is a hinge, holding a point
-while leaving rotation free. Anchors are local to each body and default to its
+while leaving rotation free. Both are rigid rather than springy: a chain
+stretches under a shock and comes back, rather than staying long. Anchors are local to each body and default to its
 centre. `removeJoint` cuts one, and removing a body takes its joints with it —
 solving against a body the world no longer owns is a ghost constraint. Joints
 join sleep islands, so a rope sleeps and wakes as one piece.
