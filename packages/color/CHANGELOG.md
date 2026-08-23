@@ -1,5 +1,12 @@
 # @hazumi/color
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [be750e6]
+  - @hazumi/math@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

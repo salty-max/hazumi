@@ -1,5 +1,63 @@
 # @hazumi/graphics
 
+## 0.5.0
+
+### Minor Changes
+
+- 408df7e: Order drawing by depth with `layer()`.
+
+  Draw order was call order, full stop. That is the right default and it is what
+  keeps overlapping transparency correct — batching merges only _adjacent_
+  commands — but it left no way to say a player passes behind a tree, or that a
+  HUD belongs above everything, without restructuring the scene around the
+  painter's algorithm.
+
+  `layer(depth, body)` overrides call order and only call order: within one depth,
+  and inside a block, calls still paint in sequence, so sorting entities by y and
+  drawing them in a loop behaves as written. Unlayered drawing sits at depth 0.
+
+  Style and transform are scoped to the block, which is load-bearing rather than
+  tidy — a layer that leaked a fill would change another layer's colour depending
+  on which depth sorted first.
+
+  The sort happens once, on the buffer, before any backend sees the stream:
+  `CommandBuffer.reorderSegments` rewrites the recorded words into paint order, so
+  the stream every backend walks is still a linear list and none of them change.
+  It is stable, reuses its scratch across frames, and leaves the side tables
+  alone — strings and images are referenced by index, and moving the words that
+  hold those indices does not move what they point at.
+
+- 510ae40: Measure text, and wrap it.
+
+  `measureText`, `textWidth` and `wrapText` in `hazumi/draw`. Until now the API
+  could draw a string but not ask how wide it was, which left no way to fit a
+  label to a button, centre a caption, or lay out a dialogue box — the kind of
+  thing every game needs and no scene could compute for itself.
+
+  Measurement belongs to the backend, because only the backend knows the font, so
+  `Renderer` gains an optional `measureText` returning the new `TextMetrics`
+  (`width`, `ascent`, `descent`, `lineHeight`). The GPU path sums advances from
+  the same SDF atlas it draws with, so the number a scene lays out against is the
+  number that gets drawn; Canvas2D and SVG ask a canvas. All three take `ascent`
+  and `descent` from a fixed "Hg" sample so they describe the line box rather than
+  whichever glyphs are in this particular string — and so they agree with each
+  other. Measured at 20px, WebGL2 and Canvas2D both report 45.6px for "Hello" and
+  break the same sentence at the same word.
+
+  `wrapText` splits on spaces, preserves newlines you wrote, and gives a word
+  wider than the box its own line rather than cutting it.
+
+  A backend with no font context cannot answer, and says so:
+  `TextMeasurementUnavailableError` rather than a guessed width that would
+  silently misplace every layout built on it.
+
+### Patch Changes
+
+- Updated dependencies [be750e6]
+  - @hazumi/math@0.5.0
+  - @hazumi/color@0.5.0
+  - @hazumi/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

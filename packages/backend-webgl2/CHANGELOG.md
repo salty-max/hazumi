@@ -1,5 +1,62 @@
 # @hazumi/backend-webgl2
 
+## 0.5.0
+
+### Minor Changes
+
+- 510ae40: Measure text, and wrap it.
+
+  `measureText`, `textWidth` and `wrapText` in `hazumi/draw`. Until now the API
+  could draw a string but not ask how wide it was, which left no way to fit a
+  label to a button, centre a caption, or lay out a dialogue box — the kind of
+  thing every game needs and no scene could compute for itself.
+
+  Measurement belongs to the backend, because only the backend knows the font, so
+  `Renderer` gains an optional `measureText` returning the new `TextMetrics`
+  (`width`, `ascent`, `descent`, `lineHeight`). The GPU path sums advances from
+  the same SDF atlas it draws with, so the number a scene lays out against is the
+  number that gets drawn; Canvas2D and SVG ask a canvas. All three take `ascent`
+  and `descent` from a fixed "Hg" sample so they describe the line box rather than
+  whichever glyphs are in this particular string — and so they agree with each
+  other. Measured at 20px, WebGL2 and Canvas2D both report 45.6px for "Hello" and
+  break the same sentence at the same word.
+
+  `wrapText` splits on spaces, preserves newlines you wrote, and gives a word
+  wider than the box its own line rather than cutting it.
+
+  A backend with no font context cannot answer, and says so:
+  `TextMeasurementUnavailableError` rather than a guessed width that would
+  silently misplace every layout built on it.
+
+### Patch Changes
+
+- 241c4b4: Draw text correctly where the rasteriser reports no derivative.
+
+  The glyph shader softened its edge with `smoothstep(-aa, aa, d)`, where `aa` is
+  `fwidth(d)`. That range is only valid while `aa` is positive, and GLSL leaves
+  `smoothstep` undefined once `edge0 >= edge1` — so the shader was relying on a
+  derivative it never checked.
+
+  A zero derivative is not hypothetical. Magnifying the atlas makes a software
+  rasteriser sample the same texel for all four fragments of a 2x2 quad:
+  measured under SwiftShader, `fwidth` came back as exactly 0 — never negative,
+  never NaN — on 9128 of 16384 pixels of one glyph. The undefined answer it then
+  picked was the inverse of the letter, so text rendered as a solid block with
+  the glyph punched out of it. Every still in `examples/assets/previews` was
+  captured that way, since those run in headless Chromium.
+
+  Both fragment shaders now floor the width at `MIN_AA`, orders of magnitude
+  below any real derivative, so nothing changes where the derivative is usable
+  and the degenerate case falls back to a hard edge instead of an undefined one.
+
+- Updated dependencies [408df7e]
+- Updated dependencies [be750e6]
+- Updated dependencies [510ae40]
+  - @hazumi/graphics@0.5.0
+  - @hazumi/math@0.5.0
+  - @hazumi/color@0.5.0
+  - @hazumi/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
