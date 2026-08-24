@@ -1,4 +1,4 @@
-import type { CommandBuffer } from "./command-buffer";
+import type { CommandBuffer, ImageSource } from "./command-buffer";
 
 /** A top-down snapshot of a raster backend's physical RGBA pixels. */
 export interface PixelData {
@@ -20,6 +20,20 @@ export interface ShaderPass {
   readonly fragment: string;
   /** Custom uniforms, set before the pass draws. */
   readonly uniforms?: Readonly<Record<string, number | readonly number[]>>;
+  /**
+   * Images the pass may sample, bound to the sampler names given here.
+   *
+   * For what a shader cannot work out from the frame. A screen-space glow can
+   * spread light but cannot know that a wall is in the way; occlusion is a
+   * property of the map, and the map has to arrive as data. Same for a palette
+   * to look colours up in, a noise field, a mask.
+   *
+   * Filtered, always, whatever the renderer's `smoothing` is set to: these are
+   * data rather than art, and a light map sampled with nearest is a grid of
+   * squares. Draw them at whatever resolution the data deserves and let the
+   * hardware interpolate.
+   */
+  readonly textures?: Readonly<Record<string, ImageSource>>;
 }
 
 /**

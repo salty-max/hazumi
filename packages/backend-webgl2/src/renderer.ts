@@ -261,6 +261,7 @@ export class Webgl2Renderer {
   // string built from a variable would be far more expensive than the colour
   // cache equivalent. Failing loudly beats degrading silently.
   #atlases = new Map<string, { atlas: SdfAtlas; textureId: ResourceId }>();
+  #passTextures = new Map<ImageSource, ResourceId>();
   #imageProgramId: ResourceId;
   #imageAtlasLocation: WebGLUniformLocation | null = null;
   #imageViewProjLocation: WebGLUniformLocation | null = null;
@@ -732,13 +733,13 @@ export class Webgl2Renderer {
     let source = scene;
     for (const pass of this.#chain) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, targets.write.framebuffer);
-      this.#drawPass(gl, pass.fragment, source, scene, pass.uniforms);
+      this.#drawPass(gl, pass.fragment, source, scene, pass.uniforms, pass.textures);
       targets.swap();
       source = targets.read.texture;
     }
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    this.#drawPass(gl, COPY_PASS_FRAGMENT_BODY, source, scene, undefined);
+    this.#drawPass(gl, COPY_PASS_FRAGMENT_BODY, source, scene, undefined, undefined);
 
     gl.enable(gl.BLEND);
     state.invalidate();
@@ -750,6 +751,7 @@ export class Webgl2Renderer {
     texture: WebGLTexture,
     scene: WebGLTexture,
     uniforms: Readonly<Record<string, number | readonly number[]>> | undefined,
+    textures: Readonly<Record<string, ImageSource>> | undefined,
   ): void {
     const compiled = this.#passes.get(gl, fragment);
     const program = this.#registry.program(compiled.programId);
@@ -772,6 +774,20 @@ export class Webgl2Renderer {
       for (const [name, value] of Object.entries(uniforms)) {
         setUniform(gl, program, compiled, name, value);
       }
+    }
+
+    if (textures !== undefined) {
+      // From unit two: nought is the previous pass and one is the scene.
+      let unit = 2;
+      for (const [name, source] of Object.entries(textures)) {
+        const id = this.#passTextureFor(source);
+        if (id === null) continue;
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, this.#registry.texture(id));
+        setUniformInt(gl, program, compiled, name, unit);
+        unit++;
+      }
+      gl.activeTexture(gl.TEXTURE0);
     }
 
     // No vertex buffer: the full-screen triangle comes from gl_VertexID.
@@ -1165,6 +1181,25 @@ export class Webgl2Renderer {
       smoothing: this.#smoothing,
     });
     this.#imageTextures.set(source, id);
+    return id;
+  }
+
+  /**
+   * Upload a pass texture once and reuse it.
+   *
+   * Its own cache and always filtered, because a pass texture is data. A
+   * renderer set to `smoothing: false` for pixel art would otherwise sample a
+   * light map with nearest and hand back a grid of squares.
+   */
+  #passTextureFor(source: ImageSource): ResourceId | null {
+    const gl = this.#gl;
+    if (gl === null) return null;
+
+    const existing = this.#passTextures.get(source);
+    if (existing !== undefined) return existing;
+
+    const id = this.#registry.add(gl, { kind: "image-texture", source, smoothing: true });
+    this.#passTextures.set(source, id);
     return id;
   }
 

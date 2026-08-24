@@ -96,58 +96,41 @@ const CAST = [
 ] as const;
 
 /**
- * The light, taken from the frame rather than from a list.
+ * How finely the light is worked out, per tile.
  *
- * The first version passed torch coordinates in as uniforms, which works and is
- * a lie: the scene then knows two things — where the sconces are drawn, and
- * where the light comes from — and they are free to drift apart. Here the flame
- * *is* the emitter. The chain keeps the bright warm pixels of the frame, blurs
- * them wide, and multiplies the result back over the scene, so moving a torch
- * moves its light and nothing has to be told.
- *
- * Reading the scene back at the end is what `u_scene` is for. Without it a pass
- * only ever sees the pass before it, so by the time the light map exists the
- * picture it was meant to light is gone.
+ * The map is computed once and handed to the shader as a texture, so this is
+ * only about how sharp a wall's shadow edge is allowed to be — four samples a
+ * tile is a 100x100 image for a 25x25 floor, which the hardware then filters up
+ * to the frame for free.
  */
-const EMITTERS = `
-void main() {
-  vec3 c = texture(u_texture, v_uv).rgb;
-  float bright = max(c.r, max(c.g, c.b));
-  // Bright *and* warm. Thresholding on brightness alone would also catch a
-  // knight's helmet, and the room would light up wherever anyone stood.
-  float warm = c.r - c.b;
-  float keep = smoothstep(0.5, 0.8, bright) * smoothstep(0.04, 0.2, warm);
-  fragColor = vec4(c * keep, 1.0);
-}
-`;
+const LIGHT_STEPS = 4;
+/** How far a torch carries, in tiles. */
+const REACH = 9;
 
 /**
- * Separable, and run twice per axis at two widths.
+ * The light, computed against the map and multiplied back over the scene.
  *
- * A five-tap blur reaches about three texels. A torch has to reach six tiles,
- * so the pass runs three times per axis at falling widths: the wide one carries
- * the light out, and the two after it dissolve the bands five taps leave when
- * they are spread that far apart. Two stages were not enough — the haloes came
- * out square, with the taps visible as stripes across them.
+ * The version before this took the light from the frame — threshold the bright
+ * warm pixels, blur them wide — which is a lovely trick and cannot be made to
+ * respect a wall. A glow in screen space has no idea what it is spreading
+ * across; light stops at a wall because of where the wall *is*, and that is in
+ * the map, not in the picture. So the map is where it is worked out: line of
+ * sight from every torch to every sample, once, at load.
+ *
+ * The flame is still what says where a torch is. Both the sprite and the light
+ * read the same list, so they cannot drift apart.
  */
-const blur = (dx: number, dy: number, spread: number): string => `
-void main() {
-  vec2 step = texelSize() * vec2(${dx.toFixed(1)}, ${dy.toFixed(1)}) * ${spread.toFixed(1)};
-  vec4 sum = texture(u_texture, v_uv) * 0.227;
-  sum += (texture(u_texture, v_uv + step * 1.38) + texture(u_texture, v_uv - step * 1.38)) * 0.316;
-  sum += (texture(u_texture, v_uv + step * 3.23) + texture(u_texture, v_uv - step * 3.23)) * 0.070;
-  fragColor = sum;
-}
-`;
-
-/** Multiply the light map back over the scene it came from. */
 const COMPOSITE = `
-uniform float u_gain;
+uniform sampler2D u_light;
 
 void main() {
   vec3 scene = texture(u_scene, v_uv).rgb;
-  vec3 glow = texture(u_texture, v_uv).rgb;
-  float light = min(1.15, max(glow.r, max(glow.g, glow.b)) * u_gain);
+  vec2 lit = texture(u_light, v_uv).rg;
+
+  // Red carries the light, green carries which torch is nearest — so each pool
+  // gutters on its own phase instead of the whole floor breathing as one.
+  float gutter = 0.9 + 0.1 * sin(u_time * 6.5 + lit.g * 44.0);
+  float light = min(1.15, lit.r * 1.55 * gutter);
 
   // Cold where nothing reaches, warm where something does. The flame is well
   // off white: the stone is blue-grey, and a light that only just leans warm
@@ -298,6 +281,86 @@ function generate(): Floor {
     torches,
     creatures,
   };
+}
+
+/**
+ * Work the light out against the map, once, and draw it into an image.
+ *
+ * Line of sight is a walk along the ray from the sample to the torch, stepping
+ * half a tile at a time and stopping at the first rock. It is O(samples x
+ * torches x steps) and it runs exactly once: a hundred by a hundred against
+ * nine torches is a few milliseconds at load, and nothing at all per frame.
+ *
+ * Red is how much light lands. Green names the nearest torch, so the shader can
+ * gutter each pool on its own phase rather than pulsing the whole floor.
+ */
+function bakeLight(floor: Floor): HTMLCanvasElement {
+  const width = COLUMNS * LIGHT_STEPS;
+  const height = ROWS * LIGHT_STEPS;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (context === null) throw new Error("Could not get a 2D context to bake the light into.");
+  const pixels = context.createImageData(width, height);
+
+  const solid = floor.ground.map((row) => [...row].map((cell) => cell === "#"));
+  const blocked = (x: number, y: number): boolean => {
+    const column = Math.floor(x);
+    const row = Math.floor(y);
+    if (row < 0 || row >= ROWS || column < 0 || column >= COLUMNS) return true;
+    return solid[row]?.[column] === true;
+  };
+
+  for (let sy = 0; sy < height; sy++) {
+    for (let sx = 0; sx < width; sx++) {
+      // The centre of this sample, in tiles.
+      const x = (sx + 0.5) / LIGHT_STEPS;
+      const y = (sy + 0.5) / LIGHT_STEPS;
+      let total = 0;
+      let nearest = 0;
+      let best = Infinity;
+
+      for (const [index, torch] of floor.torches.entries()) {
+        const dx = torch.x + 0.5 - x;
+        const dy = torch.y + 0.5 - y;
+        const distance = Math.hypot(dx, dy);
+        if (distance > REACH) continue;
+
+        // Walk towards the torch, and stop testing a tile short of it. A
+        // sconce sits *in* the rock of the wall it is mounted on, so a ray
+        // that tested all the way to the flame would find that rock and put
+        // every torch in the room out.
+        const steps = Math.ceil(distance * 2);
+        let clear = true;
+        for (let step = 1; step < steps; step++) {
+          const t = step / steps;
+          if ((1 - t) * distance < 1.1) break;
+          if (blocked(x + dx * t, y + dy * t)) {
+            clear = false;
+            break;
+          }
+        }
+        if (!clear) continue;
+
+        const fall = 1 - distance / REACH;
+        total += fall * fall;
+        if (distance < best) {
+          best = distance;
+          nearest = index;
+        }
+      }
+
+      const offset = (sy * width + sx) * 4;
+      pixels.data[offset] = Math.min(255, Math.round(total * 255));
+      pixels.data[offset + 1] = Math.round(((nearest % 8) / 8) * 255);
+      pixels.data[offset + 2] = 0;
+      pixels.data[offset + 3] = 255;
+    }
+  }
+
+  context.putImageData(pixels, 0, 0);
+  return canvas;
 }
 
 export function dungeon(parent: HTMLElement): HazumiApp {
@@ -462,18 +525,7 @@ export function dungeon(parent: HTMLElement): HazumiApp {
       // rather than sorted on every frame.
       const standing = floor.creatures.toSorted((a, b) => a.y - b.y);
 
-      // Emit, spread, spread again, and put it back over the scene. Nothing
-      // in here is told where the torches are.
-      setPasses([
-        { fragment: EMITTERS },
-        { fragment: blur(1, 0, 12) },
-        { fragment: blur(0, 1, 12) },
-        { fragment: blur(1, 0, 5) },
-        { fragment: blur(0, 1, 5) },
-        { fragment: blur(1, 0, 2) },
-        { fragment: blur(0, 1, 2) },
-        { fragment: COMPOSITE, uniforms: { u_gain: 48 } },
-      ]);
+      setPasses([{ fragment: COMPOSITE, textures: { u_light: bakeLight(floor) } }]);
 
       return {
         draw: (): void => {
