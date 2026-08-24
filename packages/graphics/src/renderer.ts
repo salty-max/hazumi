@@ -69,9 +69,23 @@ export interface TextMetrics {
  * only way to learn that implementing `setPasses` unlocks post-processing was
  * to read the runtime's source.
  */
+/** How one call to `render` should treat the post-processing chain. */
+export interface RenderOptions {
+  /**
+   * Run the shader chain over this stream. Defaults to true.
+   *
+   * False draws straight to the canvas without clearing it, which is what an
+   * overlay wants: post-processing belongs to the world, and a heads-up display
+   * that goes through the same chain is dimmed by the world's lighting, warped
+   * by its warp and bloomed by its bloom. A backend without a chain may ignore
+   * this — for it, every stream is already drawn the same way.
+   */
+  readonly passes?: boolean;
+}
+
 export interface Renderer {
   /** Draw one frame from the command stream. */
-  render: (buffer: CommandBuffer) => void;
+  render: (buffer: CommandBuffer, options?: RenderOptions) => void;
   /** Called on construction and whenever the canvas is resized. */
   setViewport: (width: number, height: number) => void;
   /** Read physical canvas pixels, when the backend is raster-based. */

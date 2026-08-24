@@ -30,19 +30,19 @@
  * arithmetic a lighting model does and the reason the frame has somewhere dark
  * to be.
  *
- * There is no caption on this one, and that is the light's doing rather than
- * an oversight. The composite multiplies the whole frame, so anything drawn
- * into the scene is lit along with it — a line of text in an unlit corridor
- * comes out at an eighth of its brightness. A scene with a post chain has no
- * unlit layer to put a label in, which is worth knowing before reaching for one.
+ * The caption is in `overlay` rather than in `draw`, and that is the light's
+ * doing. The composite multiplies the whole frame, so a line of text sitting in
+ * an unlit corridor came out at an eighth of the brightness it was drawn with.
+ * `overlay` runs after the chain has presented, which is where anything meant
+ * for the reader rather than for the world belongs.
  *
  * Art: Oryx Design Lab, 16-bit fantasy. See examples/assets/CREDITS.md.
  */
 import { loadImage, spritesheet, tilemap } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
-import { background, ellipse, fill, image, noStroke } from "hazumi/draw";
-import { camera, random, setPasses, time } from "hazumi/scene";
+import { background, ellipse, fill, image, noStroke, text, textSize } from "hazumi/draw";
+import { camera, random, screen, setPasses, time } from "hazumi/scene";
 
 const TILE = 24;
 const COLUMNS = 25;
@@ -512,6 +512,16 @@ export function dungeon(parent: HTMLElement): HazumiApp {
               TILE,
             );
           }
+        },
+
+        overlay: (): void => {
+          fill("oklch(0.9 0.03 80 / 0.8)");
+          textSize(13);
+          text(
+            `${floor.rooms.length} rooms · ${floor.creatures.length} creatures · 2 sheets`,
+            16,
+            screen.height - 18,
+          );
         },
       };
     },

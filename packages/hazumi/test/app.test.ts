@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { record, type RecordedCommand } from "@hazumi/backend-headless";
 import { createPluginHost, definePlugin } from "@hazumi/core";
-import type { CommandBuffer, Renderer, ShaderPass } from "@hazumi/graphics";
+import type { CommandBuffer, RenderOptions, Renderer, ShaderPass } from "@hazumi/graphics";
 import { ShaderPassesUnavailableError, TextMeasurementUnavailableError, start } from "../src/app";
 import { PixelAccessUnavailableError, Pixels } from "../src/pixels";
 import { background, circle, fill, measureText, textSize, textWidth } from "../src/draw";
@@ -51,6 +51,8 @@ class TestCanvas extends EventTarget {
 interface RuntimeHarness {
   readonly canvas: HTMLCanvasElement;
   readonly frames: RecordedCommand[][];
+  /** The options each `render` was called with, in the same order as frames. */
+  readonly renderOptions: (RenderOptions | undefined)[];
   readonly viewports: Array<readonly [number, number]>;
   readonly renderer: Renderer;
   runFrame: (nowMs: number) => void;
@@ -106,10 +108,12 @@ function harness(): RuntimeHarness {
   const fakeCanvas = new TestCanvas();
   const canvas = fakeCanvas as unknown as HTMLCanvasElement;
   const frames: RecordedCommand[][] = [];
+  const renderOptions: (RenderOptions | undefined)[] = [];
   const viewports: Array<readonly [number, number]> = [];
   const renderer: Renderer = {
-    render: (buffer: CommandBuffer): void => {
+    render: (buffer: CommandBuffer, options?: RenderOptions): void => {
       frames.push(record(buffer));
+      renderOptions.push(options);
     },
     setViewport: (width: number, height: number): void => {
       viewports.push([width, height]);
@@ -127,6 +131,7 @@ function harness(): RuntimeHarness {
   return {
     canvas,
     frames,
+    renderOptions,
     viewports,
     renderer,
     runFrame: (nowMs: number): void => {
@@ -1503,6 +1508,50 @@ describe("backend capability contract", () => {
     h.runFrame(0);
     expect(installed).toEqual([[pass]]);
     expect(times.length).toBeGreaterThan(0);
+    app.stop();
+  });
+});
+
+describe("overlay", () => {
+  test("draws as its own stream, after the frame and outside the chain", async () => {
+    const h = harness();
+    const seen: string[] = [];
+    const app = start(
+      { backend: () => h.renderer, canvas: h.canvas },
+      {
+        draw: (): void => {
+          seen.push("world");
+          fill("white");
+          circle(10, 10, 4);
+        },
+        overlay: (): void => {
+          seen.push("overlay");
+          textSize(12);
+          fill("white");
+        },
+      },
+    );
+
+    await app.ready;
+    h.runFrame(0);
+
+    // Two streams, in that order, and only the second one opts out of the
+    // chain — post-processing belongs to the world, not to the furniture.
+    expect(seen).toEqual(["world", "overlay"]);
+    expect(h.frames).toHaveLength(2);
+    expect(h.renderOptions).toEqual([undefined, { passes: false }]);
+    expect(h.frames[0]?.some((command) => command.op === "circle")).toBe(true);
+    expect(h.frames[1]?.some((command) => command.op === "circle")).toBe(false);
+    app.stop();
+  });
+
+  test("a scene without one renders a single stream", async () => {
+    const h = harness();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, { draw: (): void => {} });
+    await app.ready;
+    h.runFrame(0);
+    expect(h.frames).toHaveLength(1);
+    expect(h.renderOptions).toEqual([undefined]);
     app.stop();
   });
 });
