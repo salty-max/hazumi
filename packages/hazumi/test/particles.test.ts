@@ -40,9 +40,9 @@ function makeState(): ContextState {
   };
 }
 
-function makeContext(): { ctx: HazumiContext; buffer: CommandBuffer } {
+function makeContext(): { ctx: HazumiContext; buffer: CommandBuffer; beginFrame: () => void } {
   const buffer = new CommandBuffer();
-  const { context } = createContext({
+  const { context, beginFrame } = createContext({
     buffer,
     colors: new ColorCache(),
     state: makeState(),
@@ -57,7 +57,7 @@ function makeContext(): { ctx: HazumiContext; buffer: CommandBuffer } {
       lineHeight: size * 1.2,
     }),
   });
-  return { ctx: context, buffer };
+  return { ctx: context, buffer, beginFrame };
 }
 
 function withScene(body: () => void): void {
@@ -248,6 +248,25 @@ describe("particles", () => {
       expect(ops.find((c) => c.op === "setBlend")?.args).toEqual([Blend.Add]);
       expect(ops.filter((c) => c.op === "setFill")).toHaveLength(1);
       expect(ops.filter((c) => c.op === "circle")).toHaveLength(4);
+    } finally {
+      restoreContext(previous);
+    }
+  });
+
+  test("drawing does not leave the scene in the particle blend mode", () => {
+    const h = makeContext();
+    const previous = enterContext(h.ctx);
+    try {
+      const dust = particles({ capacity: 4, random: seeded(1) });
+      dust.emit({ x: 0, y: 0, count: 4, speed: 0, size: 8, life: 1, color: "#ff0000" });
+      dust.draw();
+
+      // The next frame opens by re-emitting the context's own copy of the
+      // style. If a burst of sparks left additive behind there, everything
+      // drawn from that frame on would stop being able to paint over anything.
+      h.buffer.reset();
+      h.beginFrame();
+      expect(record(h.buffer).find((c) => c.op === "setBlend")?.args).toEqual([Blend.Normal]);
     } finally {
       restoreContext(previous);
     }
