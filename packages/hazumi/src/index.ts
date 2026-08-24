@@ -46,6 +46,7 @@ export {
   sliceFrame,
   UnknownFrameError,
   UnknownClipError,
+  InvalidFrameError,
 } from "./spritesheet";
 export { particles } from "./particles";
 export type {
@@ -62,7 +63,18 @@ export { createClip, ClipEnd, EmptyClipError, InvalidClipError } from "./animati
 export { tween, sequence, InvalidTweenError } from "./tween";
 export type { Tween, TweenOptions } from "./tween";
 export type { AnimationClip, ClipOptions } from "./animation";
+export type { NinePatch, NinePatchOptions, Border } from "./nine-patch";
+export type { PixelSource, SliceRect, SheetGrid, ScanOptions, GridScanOptions } from "./slice";
 export { tilemap, EMPTY_TILE } from "./tilemap";
+export { ninePatch, InvalidBorderError } from "./nine-patch";
+export {
+  findGrid,
+  findGridIn,
+  findSprites,
+  findSpritesIn,
+  readImagePixels,
+  SheetScanError,
+} from "./slice";
 export type {
   Tilemap,
   TilemapDraw,
@@ -70,6 +82,7 @@ export type {
   TilemapLayer,
   TilemapLayerOptions,
   TilemapOptions,
+  TileKey,
 } from "./tilemap";
 export type {
   Spritesheet,
@@ -78,6 +91,11 @@ export type {
   GridOptions,
   NamedOptions,
   ClipsOption,
+  FrameRef,
+  FrameMap,
+  ClipMap,
+  Track,
+  Axes,
 } from "./spritesheet";
 export type { ColorLike, Rgba } from "./color-cache";
 

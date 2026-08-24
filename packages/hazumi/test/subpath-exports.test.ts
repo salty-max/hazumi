@@ -19,6 +19,16 @@ describe("capability subpath exports", () => {
     expect(typeof assets.fromAseprite).toBe("function");
     expect(typeof assets.fromTiled).toBe("function");
     expect(typeof assets.spritesheet).toBe("function");
+    expect(typeof assets.tilemap).toBe("function");
+    expect(typeof assets.ninePatch).toBe("function");
+    expect(typeof assets.findGrid).toBe("function");
+    expect(typeof assets.findGridIn).toBe("function");
+    expect(typeof assets.findSprites).toBe("function");
+    expect(typeof assets.findSpritesIn).toBe("function");
+    expect(typeof assets.readImagePixels).toBe("function");
+    expect(typeof assets.InvalidFrameError).toBe("function");
+    expect(typeof assets.InvalidBorderError).toBe("function");
+    expect(typeof assets.SheetScanError).toBe("function");
     expect(typeof draw.circle).toBe("function");
     expect(typeof draw.tint).toBe("function");
     expect(typeof draw.noTint).toBe("function");

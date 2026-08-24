@@ -5,9 +5,10 @@ import type { Spritesheet } from "../src/spritesheet";
 import { EMPTY_TILE } from "../src/tilemap";
 
 /** Tile indices as a plain array, without spreading through an optional. */
-function tilesOf(layer: { tiles: ArrayLike<number> } | undefined): number[] {
+function tilesOf(layer: { tiles: ArrayLike<number> | readonly string[] } | undefined): number[] {
   if (layer === undefined) throw new Error("expected a layer");
-  return Array.from(layer.tiles);
+  // The Tiled importer always emits indices; the drawn form is for hand-written maps.
+  return Array.from(layer.tiles as ArrayLike<number>);
 }
 
 /** Only identity matters here — the importer never reads into a sheet. */

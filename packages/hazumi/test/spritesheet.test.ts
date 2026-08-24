@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { InvalidClipError } from "../src/animation";
 import {
+  InvalidFrameError,
   isSpriteFrame,
   sliceFrame,
   spritesheet,
@@ -106,8 +107,12 @@ describe("named frames", () => {
   });
 
   test("an unknown name throws and lists what exists", () => {
+    // The sheet is typed on its own names, so this is a compile error too —
+    // the throw is the backstop for a name that arrived as data.
+    // @ts-expect-error "jump" is not one of this sheet's frames
     expect(() => sheet.named("jump")).toThrow(UnknownFrameError);
     try {
+      // @ts-expect-error "jump" is not one of this sheet's frames
       sheet.named("jump");
     } catch (error) {
       expect((error as Error).message).toContain("idle");
@@ -181,8 +186,10 @@ describe("animation clips", () => {
   });
 
   test("an unknown clip throws and lists what exists", () => {
+    // @ts-expect-error "fly" is not one of this sheet's clips
     expect(() => sheet.clip("fly")).toThrow(UnknownClipError);
     try {
+      // @ts-expect-error "fly" is not one of this sheet's clips
       sheet.clip("fly");
     } catch (error) {
       expect((error as Error).message).toContain("run");
@@ -193,6 +200,7 @@ describe("animation clips", () => {
   test("a sheet without clips has none, and says so", () => {
     const plain = spritesheet(image(32, 32), { frame: [16, 16] });
     expect(plain.clipNames()).toEqual([]);
+    // @ts-expect-error a sheet that declares no clips has no clip names at all
     expect(() => plain.clip("run")).toThrow(/\(none\)/);
   });
 
@@ -304,5 +312,106 @@ describe("clips from a run of frames", () => {
         clips: { run: { row: 0 } },
       }),
     ).toThrow(/named rectangles/);
+  });
+});
+
+describe("frames are checked against the sheet", () => {
+  test("a rectangle that hangs off the edge says by how much", () => {
+    // The bug this exists for: reading 12x13 icons as 16x16 tiles is in range
+    // for the first few and then quietly picks up the neighbour's edge.
+    expect(() => spritesheet(image(198, 112), { frames: { play: [188, 0, 16, 16] } })).toThrow(
+      InvalidFrameError,
+    );
+    try {
+      spritesheet(image(198, 112), { frames: { play: [188, 0, 16, 16] } });
+    } catch (error) {
+      expect((error as Error).message).toContain("6px on the right");
+      expect((error as InvalidFrameError).frameName).toBe("play");
+    }
+  });
+
+  test("a frame with no area is refused", () => {
+    expect(() => spritesheet(image(32, 32), { frames: { blank: [0, 0, 0, 8] } })).toThrow(
+      /draws nothing/,
+    );
+  });
+
+  test("a negative origin is refused", () => {
+    expect(() => spritesheet(image(32, 32), { frames: { off: [-1, 0, 8, 8] } })).toThrow(
+      InvalidFrameError,
+    );
+  });
+
+  test("explicit tracks that run past the image are refused", () => {
+    expect(() => spritesheet(image(32, 32), { frame: [16, 16], columns: [0, 24] })).toThrow(
+      InvalidFrameError,
+    );
+  });
+});
+
+describe("grids that are not on one cadence", () => {
+  // The interface sheet that started this: 12x13 cells, in threes, with a
+  // column of gutter between each three and none inside one.
+  const ui = spritesheet(image(198, 112), {
+    frame: [12, 13],
+    columns: [88, 100, 112, 125, 137, 149, 162, 174, 186],
+    rows: [0, 14, 28, 42, 56, 70, 84, 98],
+    frames: {
+      play: [3, 0],
+      trophy: [0, 3],
+      panel: [0, 0, 16, 16],
+    },
+  });
+
+  test("explicit offsets become the grid", () => {
+    expect(ui.columns).toBe(9);
+    expect(ui.rows).toBe(8);
+    expect(ui.length).toBe(72);
+    expect(ui.at(3, 0)).toMatchObject({ x: 125, y: 0, width: 12, height: 13 });
+    expect(ui.at(8, 7)).toMatchObject({ x: 186, y: 98 });
+  });
+
+  test("a name may point at a cell, and it is the same frame", () => {
+    expect(ui.named("play")).toBe(ui.at(3, 0));
+    expect(ui.named("trophy")).toBe(ui.at(0, 3));
+  });
+
+  test("a name may also be a rectangle of its own, off the grid", () => {
+    expect(ui.named("panel")).toMatchObject({ x: 0, y: 0, width: 16, height: 16 });
+    // Off the grid means off the index: the panel is not one of the 72 cells.
+    expect(ui.frames()).toHaveLength(72);
+  });
+
+  test("the cell size is on the sheet, so callers stop recomputing it", () => {
+    expect(ui.cellWidth).toBe(12);
+    expect(ui.cellHeight).toBe(13);
+  });
+
+  test("a cell reference needs a grid to look it up on", () => {
+    expect(() => spritesheet(image(64, 64), { frames: { play: [3, 0] } })).toThrow(/no grid/);
+  });
+
+  test("a cell past the end of the grid is refused", () => {
+    expect(() => spritesheet(image(64, 32), { frame: [16, 16], frames: { far: [9, 0] } })).toThrow(
+      /grid of 4 by 2/,
+    );
+  });
+
+  test("spacing and margin may differ per axis", () => {
+    // 3 cells of 16 across with 1px gaps, 2 down with none, inset by [4, 0].
+    const sheet = spritesheet(image(54, 32), {
+      frame: [16, 16],
+      spacing: [1, 0],
+      margin: [4, 0],
+    });
+    expect(sheet.columns).toBe(2);
+    expect(sheet.rows).toBe(2);
+    expect(sheet.at(1, 1)).toMatchObject({ x: 21, y: 16 });
+  });
+
+  test("a count caps the grid short of what would fit", () => {
+    const sheet = spritesheet(image(64, 32), { frame: [16, 16], columns: 3 });
+    expect(sheet.columns).toBe(3);
+    expect(sheet.length).toBe(6);
   });
 });
