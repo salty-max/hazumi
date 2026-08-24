@@ -126,12 +126,26 @@ describe("createRenderTarget", () => {
 });
 
 describe("PingPongTargets", () => {
-  test("allocates exactly two targets whatever the chain length", () => {
+  test("allocates three targets whatever the chain length", () => {
+    // Two to ping-pong between, and one that keeps the scene as it was drawn
+    // so a later pass can still reach it. Three however long the chain is.
     const gl = fakeTargetGl();
     const targets = new PingPongTargets(gl, 64, 64);
     expect(targets.width).toBe(64);
-    expect(gl.created.textures).toBe(2);
-    expect(gl.created.framebuffers).toBe(2);
+    expect(gl.created.textures).toBe(3);
+    expect(gl.created.framebuffers).toBe(3);
+  });
+
+  test("the scene target is never one of the pair that swaps", () => {
+    // A pass renders into `write` and samples `u_scene`; if they were ever the
+    // same target that is a read and a write of one texture in one draw, which
+    // is undefined in GL and looks like nothing being wrong most frames.
+    const targets = new PingPongTargets(fakeTargetGl(), 64, 64);
+    for (let i = 0; i < 5; i++) {
+      expect(targets.scene).not.toBe(targets.read);
+      expect(targets.scene).not.toBe(targets.write);
+      targets.swap();
+    }
   });
 
   test("read and write are never the same target", () => {
@@ -162,13 +176,13 @@ describe("PingPongTargets", () => {
     expect(targets.read).toBe(start);
   });
 
-  test("dispose releases every attachment of both", () => {
+  test("dispose releases every attachment of all three", () => {
     const gl = fakeTargetGl();
     const targets = new PingPongTargets(gl, 64, 64);
     targets.dispose(gl);
-    expect(gl.deleted.textures).toBe(2);
-    expect(gl.deleted.framebuffers).toBe(2);
-    expect(gl.deleted.renderbuffers).toBe(2);
+    expect(gl.deleted.textures).toBe(3);
+    expect(gl.deleted.framebuffers).toBe(3);
+    expect(gl.deleted.renderbuffers).toBe(3);
   });
 });
 
