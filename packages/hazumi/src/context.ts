@@ -6,6 +6,7 @@ import {
   type ImageSource,
   type ShaderPass,
   type TextMetrics,
+  type Capabilities,
 } from "@hazumi/graphics";
 import { isSpriteFrame, type SpriteFrame } from "./spritesheet";
 import { createNoise, type Noise, type Rng, seeded } from "@hazumi/math";
@@ -187,6 +188,15 @@ export interface HazumiContext {
    */
   setPasses: (passes: readonly ShaderPass[]) => void;
 
+  /**
+   * What this backend can do, so a scene can ask instead of being thrown at.
+   *
+   * ```ts
+   * if (capabilities.shaders) setPasses([{ fragment: GRADE }]);
+   * ```
+   */
+  readonly capabilities: Capabilities;
+
   // --- images ---
   /**
    * Decode an image.
@@ -322,6 +332,7 @@ export interface ContextDeps {
   readonly setPasses: (passes: readonly ShaderPass[]) => void;
   /** Measure at the family and size the context currently holds. */
   readonly measureText: (content: string, font: string, size: number) => TextMetrics;
+  readonly capabilities: Capabilities;
 }
 
 /**
@@ -419,6 +430,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
   };
 
   const context: HazumiContext = {
+    capabilities: deps.capabilities,
     get width() {
       return state.width;
     },

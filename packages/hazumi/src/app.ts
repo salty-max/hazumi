@@ -353,6 +353,14 @@ export function start<Api extends object = Record<never, never>>(
     state,
     seed: options.seed ?? 1,
     setPasses: applyPasses,
+    // Derived from what the backend implements, once, rather than sniffed at
+    // every call site. A backend cannot lie about this: it is the same test the
+    // runtime already used to decide whether to throw.
+    capabilities: {
+      shaders: supportsPasses(renderer),
+      pixels: supportsPixels(renderer),
+      text: measuresText(renderer),
+    },
     measureText: (content, font, size) => {
       if (!measuresText(renderer)) throw new TextMeasurementUnavailableError();
       return renderer.measureText(content, font, size);

@@ -50,6 +50,7 @@ function makeContext(): { ctx: HazumiContext; buffer: CommandBuffer } {
     state: makeState(),
     seed: 1,
     setPasses: () => {},
+    capabilities: { shaders: true, pixels: false, text: true },
     measureText: (content: string, _font: string, size: number) => ({
       width: [...content].length * size * 0.5,
       ascent: size * 0.8,

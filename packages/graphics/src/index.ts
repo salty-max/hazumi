@@ -28,6 +28,7 @@ export type {
   PixelData,
   ShaderPass,
   RenderOptions,
+  Capabilities,
   FrameStats,
   TextMetrics,
 } from "./renderer";

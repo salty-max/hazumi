@@ -1555,3 +1555,74 @@ describe("overlay", () => {
     app.stop();
   });
 });
+
+interface Seen {
+  shaders: boolean;
+  pixels: boolean;
+  text: boolean;
+}
+
+/** Deliberately all true, so a false in the result came from the runtime. */
+function blank(): Seen {
+  return { shaders: true, pixels: true, text: true };
+}
+
+describe("capabilities", () => {
+  test("report what the backend actually implements", async () => {
+    const h = harness();
+    const seen = blank();
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, (context) => {
+      Object.assign(seen, context.capabilities);
+      return { draw: (): void => {} };
+    });
+
+    await app.ready;
+    // The harness renderer implements render and setViewport and nothing else,
+    // which is exactly the backend a scene has to be able to ask about.
+    expect(seen).toEqual({ shaders: false, pixels: false, text: false });
+    app.stop();
+  });
+
+  test("a backend that implements the optional members reports them", async () => {
+    const h = harness();
+    const capable: Renderer = {
+      ...h.renderer,
+      setPasses: (): void => {},
+      setTime: (): void => {},
+      readPixels: (): never => ({}) as never,
+      writePixels: (): void => {},
+      measureText: () => ({ width: 0, ascent: 0, descent: 0, lineHeight: 0 }),
+    };
+    const seen = blank();
+    const app = start({ backend: () => capable, canvas: h.canvas }, (context) => {
+      Object.assign(seen, context.capabilities);
+      return { draw: (): void => {} };
+    });
+
+    await app.ready;
+    expect(seen).toEqual({ shaders: true, pixels: true, text: true });
+    app.stop();
+  });
+
+  test("what they report is what the runtime throws on", async () => {
+    // The point of the flag is that it agrees with the error. A scene that
+    // checks and skips is right to skip, and one that calls anyway is thrown at.
+    const h = harness();
+    const seen = blank();
+    let threw: unknown = null;
+    const app = start({ backend: () => h.renderer, canvas: h.canvas }, (context) => {
+      Object.assign(seen, context.capabilities);
+      try {
+        setPasses([{ fragment: "void main() {}" }]);
+      } catch (error) {
+        threw = error;
+      }
+      return { draw: (): void => {} };
+    });
+
+    await app.ready;
+    expect(seen.shaders).toBe(false);
+    expect(threw).toBeInstanceOf(ShaderPassesUnavailableError);
+    app.stop();
+  });
+});

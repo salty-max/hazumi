@@ -97,6 +97,29 @@ export interface RenderOptions {
   readonly passes?: boolean;
 }
 
+/**
+ * What the backend a scene is running on can actually do.
+ *
+ * Every backend draws. Not every backend can run a shader over the frame, hand
+ * back its own pixels, or measure a line of text — the SVG one has no raster to
+ * read, and the headless recorder has no font to measure against.
+ *
+ * These were already the shape of the contract, as optional members on
+ * `Renderer` that the runtime sniffed for at the call site. What was missing is
+ * that a *scene* could not ask. It found out by calling and being thrown at,
+ * which is fine for a mistake and no use at all for a decision: a scene that
+ * wants a light pass where it can have one, and a flatter look where it cannot,
+ * had nowhere to put the question.
+ */
+export interface Capabilities {
+  /** `setPasses` runs a shader chain over the frame. */
+  readonly shaders: boolean;
+  /** `pixels()` reads and writes the canvas. */
+  readonly pixels: boolean;
+  /** `measureText` and `textWidth` can answer. */
+  readonly text: boolean;
+}
+
 export interface Renderer {
   /** Draw one frame from the command stream. */
   render: (buffer: CommandBuffer, options?: RenderOptions) => void;

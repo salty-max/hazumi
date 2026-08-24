@@ -1,12 +1,13 @@
 import type { Noise, Rng } from "@hazumi/math";
 import { getActiveContext, NoActiveSceneError } from "./active-context";
 import type { Camera2D, CameraPoint } from "./camera";
-import type { ShaderPass } from "./app";
+import type { Capabilities, ShaderPass } from "@hazumi/graphics";
 
 export { NoActiveSceneError };
 export { tween, sequence, InvalidTweenError } from "./tween";
 export type { Tween, TweenOptions } from "./tween";
 export type { Camera2D, CameraPoint };
+export type { Capabilities };
 
 /** Live logical and physical dimensions for the active scene. */
 export interface ScreenState {
@@ -21,6 +22,28 @@ export interface TimeState {
   readonly elapsed: number;
   readonly delta: number;
 }
+
+/**
+ * What the backend this scene is running on can do.
+ *
+ * Ask before reaching for something only some backends have, rather than
+ * finding out by being thrown at:
+ *
+ * ```ts
+ * if (capabilities.shaders) setPasses([{ fragment: GRADE }]);
+ * ```
+ */
+export const capabilities: Capabilities = {
+  get shaders(): boolean {
+    return getActiveContext().capabilities.shaders;
+  },
+  get pixels(): boolean {
+    return getActiveContext().capabilities.pixels;
+  },
+  get text(): boolean {
+    return getActiveContext().capabilities.text;
+  },
+};
 
 export const screen: ScreenState = {
   get width(): number {
