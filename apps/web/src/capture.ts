@@ -9,6 +9,7 @@ import { gridWaves } from "../../../examples/grid-waves";
 import { petals } from "../../../examples/petals";
 import { postBloom } from "../../../examples/post-bloom";
 import { raycaster } from "../../../examples/raycaster";
+import { shmup } from "../../../examples/shmup";
 import type { HazumiApp } from "hazumi/app";
 
 type ExampleFn = (parent: HTMLElement) => HazumiApp;
@@ -21,6 +22,7 @@ const SCENES: Readonly<Record<string, ExampleFn>> = {
   petals,
   "post-bloom": postBloom,
   raycaster,
+  starfall: shmup,
 };
 
 function waitFrame(): Promise<void> {
@@ -42,7 +44,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
-async function capturePreview(name: string, warmupMs: number): Promise<string> {
+async function capturePreview(name: string, warmupMs: number, hold?: string): Promise<string> {
   const run = SCENES[name];
   if (run === undefined) throw new Error(`Unknown scene: ${name}`);
 
@@ -51,10 +53,17 @@ async function capturePreview(name: string, warmupMs: number): Promise<string> {
   const app = run(host);
   try {
     await app.ready;
+    // A game opens on its menu and stays there. Holding the key that starts it
+    // — and, for a shooter, the same key that fires — gets the gallery a still
+    // of the game being played rather than of its title card.
+    if (hold !== undefined) {
+      globalThis.dispatchEvent(new KeyboardEvent("keydown", { key: hold }));
+    }
     await waitUntil(performance.now() + warmupMs);
     app.redraw();
     return blobToBase64(await app.capturePng());
   } finally {
+    if (hold !== undefined) globalThis.dispatchEvent(new KeyboardEvent("keyup", { key: hold }));
     app.stop();
     host.remove();
   }

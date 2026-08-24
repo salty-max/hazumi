@@ -6,21 +6,7 @@
  * mentioned here.
  */
 import { sliceFrame } from "hazumi/assets";
-import {
-  Align,
-  background,
-  fill,
-  image,
-  noStroke,
-  rect,
-  pop,
-  push,
-  rotate,
-  text,
-  textAlign,
-  textSize,
-  translate,
-} from "hazumi/draw";
+import { background, fill, image, noStroke, pop, push, rect, rotate, translate } from "hazumi/draw";
 import { screen } from "hazumi/scene";
 
 import type { ShmupArt } from "./sprites";
@@ -34,14 +20,18 @@ export const SHIELD = "oklch(0.82 0.14 195)";
 const SHIP = 34;
 const SHOT = 16;
 
+/** The interface tiles are twelve of face plus a pixel of shadow. */
+const ICON_WIDTH = 12;
+const ICON_HEIGHT = 13;
+
 /** Two star fields at different speeds, which is the whole parallax. */
 export function drawSky(art: ShmupArt, near: number, far: number): void {
   background("oklch(0.10 0.02 265)");
-  drawLayer(art, 3, far, 1);
-  drawLayer(art, 0, near, 1);
+  drawLayer(art, 3, far);
+  drawLayer(art, 0, near);
 }
 
-function drawLayer(art: ShmupArt, index: number, offset: number, alpha: number): void {
+function drawLayer(art: ShmupArt, index: number, offset: number): void {
   const tile = art.sky.frame(index);
   const height = screen.height + 8;
   const scale = screen.width / tile.width;
@@ -49,7 +39,6 @@ function drawLayer(art: ShmupArt, index: number, offset: number, alpha: number):
   // Two copies chase each other down the screen; one is always covering the
   // seam the other leaves.
   const y = offset % tall;
-  void alpha;
   image(tile, 0, y - tall, screen.width, tall);
   image(tile, 0, y, screen.width, tall);
   if (y + tall < height) image(tile, 0, y + tall, screen.width, tall);
@@ -58,6 +47,25 @@ function drawLayer(art: ShmupArt, index: number, offset: number, alpha: number):
 export function drawPlayer(art: ShmupArt, x: number, y: number, tilt: number): void {
   const name = tilt < -0.35 ? "playerLeft" : tilt > 0.35 ? "playerRight" : "player";
   image(art.ships.named(name), x - SHIP / 2, y - SHIP / 2, SHIP, SHIP);
+}
+
+/**
+ * The core the ship is actually hit on, drawn so the player can see it.
+ *
+ * A shmup that hides its hitbox is asking you to learn it by dying. Every
+ * bullet-hell since the mid nineties has shown the dot instead.
+ */
+export function drawCore(x: number, y: number, radius: number, pulse: number): void {
+  noStroke();
+  // Exactly the radius the game collides on, landed on whole pixels: a dot
+  // that overstates the hitbox teaches the wrong thing.
+  fill(SHIELD);
+  const left = Math.round(x - radius);
+  const top = Math.round(y - radius);
+  rect(left, top, radius * 2, radius * 2);
+  fill(INK);
+  const core = Math.round(radius * (0.6 + pulse * 0.4));
+  rect(left + core, top + core, radius * 2 - core * 2, radius * 2 - core * 2);
 }
 
 const ENEMY_FRAMES = ["darter", "weaver", "gunship", "hulk"] as const;
@@ -93,14 +101,18 @@ export function drawPickup(art: ShmupArt, x: number, y: number, kind: number, sp
  * A panel from one 16x16 tile, cut into nine and stretched only in the middle.
  *
  * Scaling the tile whole would smear its border; the corners have to stay the
- * size they were drawn and only the spans between them may grow.
+ * size they were drawn and only the spans between them may grow. The corner is
+ * enlarged a whole number of times, because a 2.4x pixel is two pixels here and
+ * three there, and the eye finds that edge immediately.
  */
+const PANEL_EDGE = 5;
+const PANEL_SCALE = 3;
+const PANEL_BORDER = PANEL_EDGE * PANEL_SCALE;
+
 export function panel(art: ShmupArt, x: number, y: number, w: number, h: number): void {
   const tile = art.ui.named("panel");
-  const edge = 5;
-  const drawn = 12;
-  const midW = Math.max(0, w - drawn * 2);
-  const midH = Math.max(0, h - drawn * 2);
+  const midW = Math.max(0, w - PANEL_BORDER * 2);
+  const midH = Math.max(0, h - PANEL_BORDER * 2);
   const piece = (
     sx: number,
     sy: number,
@@ -113,24 +125,34 @@ export function panel(art: ShmupArt, x: number, y: number, w: number, h: number)
   ): void => {
     image(sliceFrame(tile, sx, sy, sw, sh), dx, dy, dw, dh);
   };
-  const far = 16 - edge;
-  piece(0, 0, edge, edge, x, y, drawn, drawn);
-  piece(far, 0, edge, edge, x + w - drawn, y, drawn, drawn);
-  piece(0, far, edge, edge, x, y + h - drawn, drawn, drawn);
-  piece(far, far, edge, edge, x + w - drawn, y + h - drawn, drawn, drawn);
-  piece(edge, 0, 16 - edge * 2, edge, x + drawn, y, midW, drawn);
-  piece(edge, far, 16 - edge * 2, edge, x + drawn, y + h - drawn, midW, drawn);
-  piece(0, edge, edge, 16 - edge * 2, x, y + drawn, drawn, midH);
-  piece(far, edge, edge, 16 - edge * 2, x + w - drawn, y + drawn, drawn, midH);
-  piece(edge, edge, 16 - edge * 2, 16 - edge * 2, x + drawn, y + drawn, midW, midH);
+  const far = 16 - PANEL_EDGE;
+  const span = 16 - PANEL_EDGE * 2;
+  const right = x + w - PANEL_BORDER;
+  const bottom = y + h - PANEL_BORDER;
+  piece(0, 0, PANEL_EDGE, PANEL_EDGE, x, y, PANEL_BORDER, PANEL_BORDER);
+  piece(far, 0, PANEL_EDGE, PANEL_EDGE, right, y, PANEL_BORDER, PANEL_BORDER);
+  piece(0, far, PANEL_EDGE, PANEL_EDGE, x, bottom, PANEL_BORDER, PANEL_BORDER);
+  piece(far, far, PANEL_EDGE, PANEL_EDGE, right, bottom, PANEL_BORDER, PANEL_BORDER);
+  piece(PANEL_EDGE, 0, span, PANEL_EDGE, x + PANEL_BORDER, y, midW, PANEL_BORDER);
+  piece(PANEL_EDGE, far, span, PANEL_EDGE, x + PANEL_BORDER, bottom, midW, PANEL_BORDER);
+  piece(0, PANEL_EDGE, PANEL_EDGE, span, x, y + PANEL_BORDER, PANEL_BORDER, midH);
+  piece(far, PANEL_EDGE, PANEL_EDGE, span, right, y + PANEL_BORDER, PANEL_BORDER, midH);
+  piece(PANEL_EDGE, PANEL_EDGE, span, span, x + PANEL_BORDER, y + PANEL_BORDER, midW, midH);
 }
 
-export function icon(art: ShmupArt, name: string, x: number, y: number, size: number): void {
-  image(art.ui.named(name), x, y, size, size);
+/** Width of an interface tile at a whole-number scale. */
+export function iconWidth(scale: number): number {
+  return ICON_WIDTH * scale;
+}
+
+/** One interface tile, centred on x, at its own aspect rather than squared. */
+export function icon(art: ShmupArt, name: string, x: number, y: number, scale: number): void {
+  const w = ICON_WIDTH * scale;
+  image(art.ui.named(name), Math.round(x - w / 2), Math.round(y), w, ICON_HEIGHT * scale);
 }
 
 /** The cabinet either side of the playfield, and the seams that frame it. */
-export function drawSides(art: ShmupArt, fieldX: number, fieldRight: number): void {
+export function drawSides(fieldX: number, fieldRight: number): void {
   noStroke();
   fill("oklch(0.14 0.02 265)");
   rect(0, 0, fieldX, screen.height);
@@ -138,14 +160,4 @@ export function drawSides(art: ShmupArt, fieldX: number, fieldRight: number): vo
   fill("oklch(0.42 0.06 265)");
   rect(fieldX - 2, 0, 2, screen.height);
   rect(fieldRight, 0, 2, screen.height);
-  void art;
-}
-
-export function centred(content: string, y: number, size: number, color: string = INK): void {
-  noStroke();
-  fill(color);
-  textSize(size);
-  textAlign(Align.Center);
-  text(content, screen.width / 2, y);
-  textAlign(Align.Left);
 }

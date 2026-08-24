@@ -20,6 +20,8 @@ const CAPTURE_URL = `${ORIGIN}/capture.html`;
 interface Preview {
   readonly slug: string;
   readonly warmupMs: number;
+  /** Key held down for the whole capture, for a scene that waits for input. */
+  readonly hold?: string;
 }
 
 const PREVIEWS: readonly Preview[] = [
@@ -30,6 +32,7 @@ const PREVIEWS: readonly Preview[] = [
   { slug: "characters", warmupMs: 700 },
   { slug: "blood-mage", warmupMs: 700 },
   { slug: "raycaster", warmupMs: 500 },
+  { slug: "starfall", warmupMs: 3200, hold: " " },
 ];
 
 async function serverUp(): Promise<boolean> {
@@ -97,15 +100,23 @@ async function main(): Promise<void> {
       await previous;
       process.stdout.write(`capturing ${job.slug}… `);
       const base64 = await page.evaluate(
-        async ({ slug, warmupMs }: { slug: string; warmupMs: number }): Promise<string> => {
+        async ({
+          slug,
+          warmupMs,
+          hold,
+        }: {
+          slug: string;
+          warmupMs: number;
+          hold: string | undefined;
+        }): Promise<string> => {
           const capture = (
             globalThis as unknown as {
-              capturePreview: (name: string, warmup: number) => Promise<string>;
+              capturePreview: (name: string, warmup: number, hold?: string) => Promise<string>;
             }
           ).capturePreview;
-          return capture(slug, warmupMs);
+          return capture(slug, warmupMs, hold);
         },
-        { slug: job.slug, warmupMs: job.warmupMs },
+        { slug: job.slug, warmupMs: job.warmupMs, hold: job.hold },
       );
       const file = join(OUT, `${job.slug}.png`);
       writeFileSync(file, Buffer.from(base64, "base64"));

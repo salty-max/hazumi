@@ -57,7 +57,7 @@ const SCENES: readonly SceneSpec[] = [
   { name: "rigid bodies", run: rigidBodies },
   { name: "chain", run: chain },
   { name: "bike", run: bike },
-  { name: "starfall", run: shmup, heavy: true },
+  { name: "starfall", run: shmup, heavy: true, preview: `${PREVIEW}/starfall.png` },
   { name: "raycaster", run: raycaster, heavy: true, preview: `${PREVIEW}/raycaster.png` },
 ];
 

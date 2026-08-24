@@ -9,6 +9,8 @@
  */
 import { loadImage, spritesheet, type Spritesheet } from "hazumi/assets";
 
+import { pixelFont, type PixelFont } from "./font";
+
 const SHEETS = "/examples/assets/schmup";
 
 export interface ShmupArt {
@@ -16,10 +18,12 @@ export interface ShmupArt {
   readonly ships: Spritesheet;
   /** Shots and bursts, 8x8. */
   readonly shots: Spritesheet;
-  /** Panels, icons and bars, mostly 16x16. */
+  /** Panels on a 16x16 grid, icons on a 12x13 one. */
   readonly ui: Spritesheet;
   /** Five 128x256 star fields, to be tiled and scrolled. */
   readonly sky: Spritesheet;
+  /** The 5x7 face every word on screen is set in. */
+  readonly font: PixelFont;
 }
 
 export async function loadArt(): Promise<ShmupArt> {
@@ -59,15 +63,23 @@ export async function loadArt(): Promise<ShmupArt> {
     }),
     ui: spritesheet(ui, {
       frames: {
-        // A 16x16 frame with a three-pixel border, cut into nine on the fly.
+        // A 16x16 frame with a two-pixel border, cut into nine on the fly.
         panel: [0, 0, 16, 16],
-        panelLight: [0, 64, 16, 16],
-        play: [136, 0, 16, 16],
-        pause: [168, 0, 16, 16],
-        trophy: [88, 48, 16, 16],
-        cross: [88, 32, 16, 16],
+        // The icons are not on the panels' grid, and not on a tidy one of
+        // their own either: twelve wide, thirteen tall — twelve of face and a
+        // pixel of drop shadow — laid out in threes with a column of gap
+        // between each three. Reading them as 16x16 tiles is what put a slice
+        // of the neighbouring icon inside every button.
+        play: [125, 0, 12, 13],
+        cross: [88, 28, 12, 13],
+        up: [125, 28, 12, 13],
+        down: [162, 28, 12, 13],
+        trophy: [88, 42, 12, 13],
+        right: [125, 42, 12, 13],
+        left: [162, 42, 12, 13],
       },
     }),
     sky: spritesheet(sky, { frame: [128, 256], spacing: 1 }),
+    font: pixelFont(),
   };
 }
