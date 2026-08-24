@@ -9,6 +9,23 @@ import { noise, random, screen, time } from "hazumi/scene";
 
 const COUNT = 4000;
 
+/**
+ * Trail colours, built once and picked by the direction a particle is going.
+ *
+ * Two reasons, and both matter. A template string per particle is four thousand
+ * strings a frame, which is exactly the per-frame allocation this repo rules
+ * out; and colouring by angle rather than by index draws the field itself —
+ * where the flow turns, the colour turns with it, so the structure is visible
+ * instead of being a uniform blue haze.
+ */
+const PALETTE = Array.from(
+  { length: 24 },
+  (_, i) => `oklch(0.86 0.19 ${Math.round((i * 360) / 24)} / 0.16)`,
+);
+
+const TAU = Math.PI * 2;
+const PALETTE_STEP = PALETTE.length / TAU;
+
 export function flowField(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 7 }, () => {
     const xs = new Float32Array(COUNT);
@@ -18,13 +35,13 @@ export function flowField(parent: HTMLElement): HazumiApp {
       ys[i] = random.range(0, screen.height);
     }
 
-    background("oklch(0.15 0.03 260)");
+    background("oklch(0.09 0.02 265)");
 
     return {
       draw: (): void => {
         // Translucent background: fades the previous frame instead of clearing
         // it, which is what leaves trails behind the particles.
-        background("oklch(0.15 0.03 260 / 0.06)");
+        background("oklch(0.09 0.02 265 / 0.045)");
         blendMode(Blend.Add);
         for (let i = 0; i < COUNT; i++) {
           const x = xs[i] as number;
@@ -36,8 +53,9 @@ export function flowField(parent: HTMLElement): HazumiApp {
           xs[i] = nx < 0 ? screen.width : nx > screen.width ? 0 : nx;
           ys[i] = ny < 0 ? screen.height : ny > screen.height ? 0 : ny;
 
-          fill(i % 3 === 0 ? "oklch(0.7 0.15 200 / 0.06)" : "oklch(0.6 0.18 300 / 0.05)");
-          circle(nx, ny, 2.5);
+          const bucket = Math.floor((((angle % TAU) + TAU) % TAU) * PALETTE_STEP) % PALETTE.length;
+          fill(PALETTE[bucket] as string);
+          circle(nx, ny, 2.2);
         }
       },
     };
