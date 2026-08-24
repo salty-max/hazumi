@@ -577,12 +577,37 @@ to step it yourself. Platformers that slide on tiles still use `slideAabb`.
 
 ## Backends
 
-| Import                     | Role                              |
-| -------------------------- | --------------------------------- |
-| `hazumi/backends/webgl2`   | Default renderer                  |
-| `hazumi/backends/canvas2d` | 2D canvas                         |
-| `hazumi/backends/svg`      | Vector export                     |
-| `hazumi/backends/headless` | Recorded command stream for tests |
+There are four, and only one of them is a renderer. The other three are tools
+that happen to speak the same command stream.
+
+| Import                     | Role                                               |
+| -------------------------- | -------------------------------------------------- |
+| `hazumi/backends/webgl2`   | The renderer. Ship this one.                       |
+| `hazumi/backends/canvas2d` | The oracle: a reference rasteriser to diff against |
+| `hazumi/backends/svg`      | Vector export, for print and for plotters          |
+| `hazumi/backends/headless` | A recorded command stream, for tests               |
+
+**Canvas2D is not a fallback.** WebGL2 has been everywhere for years, and a
+scene that needs one draw call per sprite, no batching and no shader stage is
+not a graceful degradation of one that has all three — it is a different, slower
+picture. What Canvas2D is good for is being _right_: it is the browser's own
+rasteriser, so `bun run compare` renders a scene through both and diffs them,
+and a disagreement is a bug in the WebGL2 path. That is worth a whole backend,
+and it is worth it at development time rather than in production.
+
+Which is why `create-hazumi` never asks you to choose one. It asks what you are
+making, and writes `webgl2()`.
+
+The three tools cannot all do everything the renderer can — SVG has no raster to
+read back, the recorder has no font to measure against — so a scene that wants
+something only some of them offer can ask instead of finding out by being thrown
+at:
+
+```ts
+import { capabilities, setPasses } from "hazumi/scene";
+
+if (capabilities.shaders) setPasses([{ fragment: GRADE }]);
+```
 
 ## Try it
 
