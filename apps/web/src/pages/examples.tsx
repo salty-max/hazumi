@@ -16,13 +16,14 @@ import { shmup } from "../../../../examples/shmup";
 import { staticPoster } from "../../../../examples/static-poster";
 import { tileField } from "../../../../examples/tile-field";
 import { typeSpecimen } from "../../../../examples/type-specimen";
-import { Play } from "lucide-react";
+import { Maximize2, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Container } from "../components/container";
 import { PageHeader } from "../components/page-header";
 import { AspectRatio } from "../components/ui/aspect-ratio";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { fitToScreen, type Viewport } from "../lib/fullscreen";
 import { cn } from "../lib/utils";
 
 interface RunningScene {
@@ -61,6 +62,11 @@ const SCENES: readonly SceneSpec[] = [
   { name: "raycaster", run: raycaster, heavy: true, preview: `${PREVIEW}/raycaster.png` },
 ];
 
+/** The window, as the two numbers the fit needs. */
+function screenSize(): Viewport {
+  return { width: window.innerWidth, height: window.innerHeight };
+}
+
 function SceneCard({
   name,
   run,
@@ -71,8 +77,30 @@ function SceneCard({
   readonly onReady: (name: string, app: RunningScene | null) => void;
 }): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [running, setRunning] = useState(!heavy);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    const host = hostRef.current;
+    if (stage === null || host === null) return;
+    const onChange = (): void =>
+      fitToScreen(host, document.fullscreenElement === stage, screenSize());
+    const onResize = (): void => {
+      if (document.fullscreenElement === stage) fitToScreen(host, true, screenSize());
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    window.addEventListener("resize", onResize);
+    return (): void => {
+      document.removeEventListener("fullscreenchange", onChange);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
+  const goFullscreen = useCallback((): void => {
+    void stageRef.current?.requestFullscreen?.();
+  }, []);
 
   useEffect(() => {
     if (!running) return;
@@ -109,9 +137,24 @@ function SceneCard({
           }
         />
         <CardTitle>{error === null ? name : `${name} — failed`}</CardTitle>
+        {running && error === null ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="ml-auto size-7"
+            onClick={goFullscreen}
+            aria-label={`Show ${name} fullscreen`}
+            title="Fullscreen"
+          >
+            <Maximize2 className="size-3.5" />
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent className="overflow-hidden p-0">
         <AspectRatio ratio={1}>
+          {/* The element that goes fullscreen, so the canvas keeps a parent
+              that centres it on a ground of our own rather than on white. */}
           {!running && preview !== undefined ? (
             <img
               src={preview}
@@ -124,14 +167,22 @@ function SceneCard({
             />
           ) : null}
           <div
-            ref={hostRef}
-            className={cn(
-              "absolute inset-0 grid place-items-center",
-              running
-                ? "bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px]"
-                : undefined,
-            )}
-          />
+            ref={stageRef}
+            // An inset outline rather than a ring: the card clips its content,
+            // and a ring drawn outside the stage would be cut off exactly where
+            // it is meant to be read.
+            className="absolute inset-0 bg-background outline-primary/80 focus-within:-outline-offset-2 focus-within:outline-2"
+          >
+            <div
+              ref={hostRef}
+              className={cn(
+                "grid size-full place-items-center [&>canvas]:outline-none",
+                running
+                  ? "bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px]"
+                  : undefined,
+              )}
+            />
+          </div>
           {!running && error === null ? (
             <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-md">
               <Button type="button" onClick={() => setRunning(true)} aria-label={`Run ${name}`}>
