@@ -2,6 +2,7 @@ import { Blend, type ImageSource } from "@hazumi/graphics";
 import { type Rng } from "@hazumi/math";
 import { getActiveContext } from "./active-context";
 import { ColorCache, type ColorLike } from "./color-cache";
+import type { StyleOverrides } from "./context";
 import type { SpriteFrame } from "./spritesheet";
 
 /** A number, or a closed interval sampled uniformly at emit time. */
@@ -374,12 +375,24 @@ export function particles(options: ParticleSystemOptions): ParticleSystem {
     }
   };
 
-  const drawImpl = (paint: ((particle: Particle) => void) | undefined, alpha: number): void => {
-    const painter = paint ?? paintDefault;
-    const automatic = paint === undefined;
+  /**
+   * The pass, hoisted out of `drawImpl` along with its arguments.
+   *
+   * `with` wants an overrides object and a callback, and a system that
+   * allocated both on every frame would undo the point of pooling the
+   * particles. Neither changes between frames, so both are built once and the
+   * three per-call arguments are handed over in these three slots.
+   */
+  const passOverrides: StyleOverrides = { blendMode: blend };
+  let passPainter: (particle: Particle) => void = paintDefault;
+  let passAutomatic = false;
+  let passAlpha = 1;
+
+  const runPass = (): void => {
+    const painter = passPainter;
+    const automatic = passAutomatic;
+    const alpha = passAlpha;
     const ctx = getActiveContext();
-    ctx.push();
-    ctx.blendMode(blend);
     if (automatic) {
       ctx.noStroke();
       ctx.noTint();
@@ -426,7 +439,23 @@ export function particles(options: ParticleSystemOptions): ParticleSystem {
       }
       painter(view);
     }
-    ctx.pop();
+  };
+
+  /**
+   * Draw the live particles.
+   *
+   * Through `with` rather than `push`/`blendMode`/`pop`: those restore what the
+   * backend holds but leave the context's own copy of the style set to the
+   * particle blend, and the next frame opens by re-emitting that copy. One
+   * burst of sparks would turn the whole scene additive from the following
+   * frame on — which reads as a scene that quietly stops being able to paint
+   * over anything.
+   */
+  const drawImpl = (paint: ((particle: Particle) => void) | undefined, alpha: number): void => {
+    passPainter = paint ?? paintDefault;
+    passAutomatic = paint === undefined;
+    passAlpha = alpha;
+    getActiveContext().with(passOverrides, runPass);
   };
 
   const draw = ((
