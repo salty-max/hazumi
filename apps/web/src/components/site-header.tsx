@@ -10,6 +10,7 @@ import { cn } from "../lib/utils";
 
 const links = [
   { to: "/examples", label: "Examples" },
+  { to: "/slicer", label: "Slicer" },
   { to: "/reference", label: "Reference" },
   { to: "/playground", label: "Playground" },
 ] as const;

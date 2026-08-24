@@ -11,6 +11,10 @@ const ExamplesPage = lazy(async () => {
   const mod = await import("./pages/examples");
   return { default: mod.ExamplesPage };
 });
+const SlicerPage = lazy(async () => {
+  const mod = await import("./pages/slicer");
+  return { default: mod.SlicerPage };
+});
 const ReferencePage = lazy(async () => {
   const mod = await import("./pages/reference");
   return { default: mod.ReferencePage };
@@ -65,6 +69,16 @@ export function App(): JSX.Element {
             <SiteShell>
               <Suspense fallback={<PageFallback />}>
                 <ExamplesPage />
+              </Suspense>
+            </SiteShell>
+          }
+        />
+        <Route
+          path="/slicer"
+          element={
+            <SiteShell>
+              <Suspense fallback={<PageFallback />}>
+                <SlicerPage />
               </Suspense>
             </SiteShell>
           }
