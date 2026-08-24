@@ -41,6 +41,23 @@ const level = tilemap(
   fromTiled(await loadJson('level-1.tmj'), { terrain }),
 );`;
 
+const SHEETS = `const ui = spritesheet(sheet, {
+  frame: [12, 13],
+  columns: [88, 100, 112, 125, 137, 149, 162, 174, 186],
+  rows: [0, 14, 28, 42, 56, 70, 84, 98],
+  frames: { play: [3, 0], trophy: [0, 3] },
+});
+ui.named('play');   // typed: 'play' | 'trophy'
+
+const room = tilemap({
+  tileWidth: 16, tileHeight: 16,
+  layers: [{
+    name: 'ground', sheet: tiles,
+    key: { '#': 'wall', '.': 'floor', ' ': null },
+    tiles: ['#####', '#...#', '##.##'],
+  }],
+});`;
+
 const POINTS: ReadonlyArray<{ readonly title: string; readonly body: string }> = [
   {
     title: "One buffer",
@@ -131,6 +148,35 @@ export function HomePage(): JSX.Element {
             </p>
           </div>
           <CodeBlock source={ASSETS} className="p-5 leading-7" />
+        </div>
+      </Container>
+
+      <Container className="pb-28">
+        <div className="grid gap-8 lg:grid-cols-[1.15fr_.85fr] lg:items-center">
+          <CodeBlock source={SHEETS} className="p-5 leading-7" />
+          <div>
+            <p className="mb-3 font-mono text-[0.65rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+              Sheets
+            </p>
+            <h2 className="max-w-md font-display text-3xl leading-tight font-semibold tracking-tight">
+              And when there is no exporter
+            </h2>
+            <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+              A sheet built from a literal knows its own frame names, so a typo is a compile error
+              rather than a scene that throws on the frame it first draws. Grids take explicit
+              offsets for art laid out in blocks, a name can point at a cell, and a rectangle that
+              hangs off the edge says which edge and by how much. A tilemap layer takes a picture
+              instead of eighty numbers.
+            </p>
+            <div className="mt-6">
+              <ButtonLink to="/slicer" variant="outline">
+                Open the Slicer
+              </ButtonLink>
+            </div>
+            <p className="mt-3 max-w-md text-sm text-muted-foreground">
+              Drop a sheet and it tells you how it is cut, then writes the call for you.
+            </p>
+          </div>
         </div>
       </Container>
     </main>
