@@ -12,6 +12,7 @@ import { petals } from "../../../../examples/petals";
 import { postBloom } from "../../../../examples/post-bloom";
 import { raycaster } from "../../../../examples/raycaster";
 import { rigidBodies } from "../../../../examples/rigid-bodies";
+import { shmup } from "../../../../examples/shmup";
 import { staticPoster } from "../../../../examples/static-poster";
 import { tileField } from "../../../../examples/tile-field";
 import { typeSpecimen } from "../../../../examples/type-specimen";
@@ -56,6 +57,7 @@ const SCENES: readonly SceneSpec[] = [
   { name: "rigid bodies", run: rigidBodies },
   { name: "chain", run: chain },
   { name: "bike", run: bike },
+  { name: "starfall", run: shmup, heavy: true },
   { name: "raycaster", run: raycaster, heavy: true, preview: `${PREVIEW}/raycaster.png` },
 ];
 
