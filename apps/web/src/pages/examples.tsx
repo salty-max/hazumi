@@ -98,8 +98,19 @@ function SceneCard({
     };
   }, []);
 
+  /**
+   * Go fullscreen, starting the scene if it was still waiting for a click.
+   *
+   * The request goes first and the scene starts second, because a heavy scene
+   * costs a frame or two to build and the browser only honours the request
+   * while the click that caused it is still recent. The overlay that offers
+   * "Run" sits on the card rather than on the stage, so a heavy scene taken
+   * fullscreen before starting would be a black screen with no way out but
+   * Escape — which is why the same control does both.
+   */
   const goFullscreen = useCallback((): void => {
     void stageRef.current?.requestFullscreen?.();
+    setRunning(true);
   }, []);
 
   useEffect(() => {
@@ -111,6 +122,11 @@ function SceneCard({
     try {
       app = run(host);
       onReady(name, app);
+      // A scene started by the fullscreen control arrives after the stage is
+      // already fullscreen, so it lands at its card size until it is refitted.
+      if (document.fullscreenElement === stageRef.current) {
+        fitToScreen(host, true, screenSize());
+      }
     } catch (caught) {
       setError(String(caught));
       onReady(name, null);
@@ -137,7 +153,7 @@ function SceneCard({
           }
         />
         <CardTitle>{error === null ? name : `${name} — failed`}</CardTitle>
-        {running && error === null ? (
+        {error === null ? (
           <Button
             type="button"
             size="icon"
