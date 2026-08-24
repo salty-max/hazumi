@@ -6,6 +6,12 @@
  * for any chain length because passes ping-pong between them — a pass never
  * reads and writes the same texture, which is undefined behaviour in GL.
  *
+ * A third target holds the scene itself, and is never written to by a pass. It
+ * costs one texture, and it is what lets a pass reach past the one before it:
+ * without it, a chain can only ever transform its own output, so anything that
+ * needs the original alongside a processed version of it — a bloom added back
+ * over the frame, a light map multiplied into it — could not be written at all.
+ *
  * This is what makes user shaders a normal feature rather than an escape
  * hatch: a pass is a fragment shader plus uniforms, and the plumbing is here.
  */
@@ -147,11 +153,18 @@ export function deleteRenderTarget(gl: TargetGl, target: RenderTarget): void {
 export class PingPongTargets {
   #a: RenderTarget;
   #b: RenderTarget;
+  #scene: RenderTarget;
   #swapped = false;
 
   constructor(gl: TargetGl, width: number, height: number) {
     this.#a = createRenderTarget(gl, width, height);
     this.#b = createRenderTarget(gl, width, height);
+    this.#scene = createRenderTarget(gl, width, height);
+  }
+
+  /** Where the scene is drawn, and what every pass can read as `u_scene`. */
+  get scene(): RenderTarget {
+    return this.#scene;
   }
 
   get read(): RenderTarget {
@@ -181,5 +194,6 @@ export class PingPongTargets {
   dispose(gl: TargetGl): void {
     deleteRenderTarget(gl, this.#a);
     deleteRenderTarget(gl, this.#b);
+    deleteRenderTarget(gl, this.#scene);
   }
 }

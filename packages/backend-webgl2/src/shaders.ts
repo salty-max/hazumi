@@ -251,6 +251,15 @@ out vec4 fragColor;
 
 /** The previous pass, or the scene for the first pass. */
 uniform sampler2D u_texture;
+/**
+ * The scene as it was drawn, whatever the chain has done to it since.
+ *
+ * The same as u_texture in the first pass, and the reason a later one can put
+ * something back: a bloom is the blurred bright parts added over u_scene, and a
+ * light map is the blurred lights multiplied into it. Without this a chain can
+ * only transform its own output, and both of those are unwritable.
+ */
+uniform sampler2D u_scene;
 /** Viewport size in pixels. */
 uniform vec2 u_resolution;
 /** Seconds since the application started. */

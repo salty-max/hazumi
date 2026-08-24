@@ -30,13 +30,19 @@
  * arithmetic a lighting model does and the reason the frame has somewhere dark
  * to be.
  *
+ * There is no caption on this one, and that is the light's doing rather than
+ * an oversight. The composite multiplies the whole frame, so anything drawn
+ * into the scene is lit along with it — a line of text in an unlit corridor
+ * comes out at an eighth of its brightness. A scene with a post chain has no
+ * unlit layer to put a label in, which is worth knowing before reaching for one.
+ *
  * Art: Oryx Design Lab, 16-bit fantasy. See examples/assets/CREDITS.md.
  */
 import { loadImage, spritesheet, tilemap } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
-import { background, ellipse, fill, image, noStroke, text, textSize } from "hazumi/draw";
-import { camera, random, screen, setPasses, time } from "hazumi/scene";
+import { background, ellipse, fill, image, noStroke } from "hazumi/draw";
+import { camera, random, setPasses, time } from "hazumi/scene";
 
 const TILE = 24;
 const COLUMNS = 25;
@@ -90,41 +96,64 @@ const CAST = [
 ] as const;
 
 /**
- * The light pass.
+ * The light, taken from the frame rather than from a list.
  *
- * Torch positions arrive in texture coordinates, so the shader never has to
- * know the tile size. A torch reaches six tiles and then stops — far enough
- * to light the room it is in, short enough to leave the corridor between two
- * of them dark.
+ * The first version passed torch coordinates in as uniforms, which works and is
+ * a lie: the scene then knows two things — where the sconces are drawn, and
+ * where the light comes from — and they are free to drift apart. Here the flame
+ * *is* the emitter. The chain keeps the bright warm pixels of the frame, blurs
+ * them wide, and multiplies the result back over the scene, so moving a torch
+ * moves its light and nothing has to be told.
+ *
+ * Reading the scene back at the end is what `u_scene` is for. Without it a pass
+ * only ever sees the pass before it, so by the time the light map exists the
+ * picture it was meant to light is gone.
  */
-const MAX_TORCHES = 24;
-const LIGHT = `
-const int MAX_TORCHES = ${MAX_TORCHES};
-uniform float u_torches[${MAX_TORCHES * 2}];
-uniform float u_count;
+const EMITTERS = `
+void main() {
+  vec3 c = texture(u_texture, v_uv).rgb;
+  float bright = max(c.r, max(c.g, c.b));
+  // Bright *and* warm. Thresholding on brightness alone would also catch a
+  // knight's helmet, and the room would light up wherever anyone stood.
+  float warm = c.r - c.b;
+  float keep = smoothstep(0.5, 0.8, bright) * smoothstep(0.04, 0.2, warm);
+  fragColor = vec4(c * keep, 1.0);
+}
+`;
+
+/**
+ * Separable, and run twice per axis at two widths.
+ *
+ * A five-tap blur reaches about three texels. A torch has to reach six tiles,
+ * so the pass runs three times per axis at falling widths: the wide one carries
+ * the light out, and the two after it dissolve the bands five taps leave when
+ * they are spread that far apart. Two stages were not enough — the haloes came
+ * out square, with the taps visible as stripes across them.
+ */
+const blur = (dx: number, dy: number, spread: number): string => `
+void main() {
+  vec2 step = texelSize() * vec2(${dx.toFixed(1)}, ${dy.toFixed(1)}) * ${spread.toFixed(1)};
+  vec4 sum = texture(u_texture, v_uv) * 0.227;
+  sum += (texture(u_texture, v_uv + step * 1.38) + texture(u_texture, v_uv - step * 1.38)) * 0.316;
+  sum += (texture(u_texture, v_uv + step * 3.23) + texture(u_texture, v_uv - step * 3.23)) * 0.070;
+  fragColor = sum;
+}
+`;
+
+/** Multiply the light map back over the scene it came from. */
+const COMPOSITE = `
+uniform float u_gain;
 
 void main() {
-  vec3 scene = texture(u_texture, v_uv).rgb;
+  vec3 scene = texture(u_scene, v_uv).rgb;
+  vec3 glow = texture(u_texture, v_uv).rgb;
+  float light = min(1.15, max(glow.r, max(glow.g, glow.b)) * u_gain);
 
-  float light = 0.0;
-  for (int i = 0; i < MAX_TORCHES; i++) {
-    if (float(i) >= u_count) break;
-    vec2 at = vec2(u_torches[i * 2], u_torches[i * 2 + 1]);
-    vec2 offset = v_uv - at;
-    // Guttering, each on its own phase, so no two flare together.
-    float gutter = 0.88 + 0.12 * sin(u_time * 7.0 + float(i) * 1.7);
-    // Falls to nothing at a fixed reach rather than trailing off for ever.
-    // An inverse-square torch never quite stops, and nine of them summing at
-    // a distance is not moody, it is overcast — the whole floor came up the
-    // same flat grey. A hard reach is what puts the dark back between rooms.
-    float reach = max(0.0, 1.0 - length(offset) / 0.24);
-    light += 2.0 * gutter * reach * reach;
-  }
-  light = min(light, 2.2);
-
-  // Cold where nothing reaches, warm where something does.
-  vec3 ambient = vec3(0.13, 0.15, 0.23);
-  vec3 flame = vec3(1.0, 0.66, 0.33);
+  // Cold where nothing reaches, warm where something does. The flame is well
+  // off white: the stone is blue-grey, and a light that only just leans warm
+  // comes back out of it grey, which is a lit room rather than a torchlit one.
+  vec3 ambient = vec3(0.12, 0.14, 0.22);
+  vec3 flame = vec3(1.25, 0.58, 0.18);
   float edge = 1.0 - 0.4 * pow(clamp(length(v_uv - 0.5) * 1.5, 0.0, 1.0), 2.0);
 
   fragColor = vec4(scene * (ambient + flame * light) * edge, 1.0);
@@ -433,16 +462,18 @@ export function dungeon(parent: HTMLElement): HazumiApp {
       // rather than sorted on every frame.
       const standing = floor.creatures.toSorted((a, b) => a.y - b.y);
 
-      // The torches, handed to the shader in texture coordinates and padded to
-      // the length it declares — the array size is fixed in GLSL, so the pass
-      // is told how many of the slots are real rather than reading the rest.
-      const lights: number[] = Array.from({ length: MAX_TORCHES * 2 }, () => 0);
-      const lit = floor.torches.slice(0, MAX_TORCHES);
-      for (const [i, torch] of lit.entries()) {
-        lights[i * 2] = (map.xOf(torch.x) + TILE / 2) / map.width;
-        lights[i * 2 + 1] = (map.yOf(torch.y) + TILE / 2) / map.height;
-      }
-      setPasses([{ fragment: LIGHT, uniforms: { u_torches: lights, u_count: lit.length } }]);
+      // Emit, spread, spread again, and put it back over the scene. Nothing
+      // in here is told where the torches are.
+      setPasses([
+        { fragment: EMITTERS },
+        { fragment: blur(1, 0, 12) },
+        { fragment: blur(0, 1, 12) },
+        { fragment: blur(1, 0, 5) },
+        { fragment: blur(0, 1, 5) },
+        { fragment: blur(1, 0, 2) },
+        { fragment: blur(0, 1, 2) },
+        { fragment: COMPOSITE, uniforms: { u_gain: 48 } },
+      ]);
 
       return {
         draw: (): void => {
@@ -481,16 +512,6 @@ export function dungeon(parent: HTMLElement): HazumiApp {
               TILE,
             );
           }
-
-          camera.screen(() => {
-            fill("oklch(0.9 0.03 80 / 0.8)");
-            textSize(13);
-            text(
-              `${floor.rooms.length} rooms · ${floor.creatures.length} creatures · 2 sheets`,
-              16,
-              screen.height - 18,
-            );
-          });
         },
       };
     },

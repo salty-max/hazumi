@@ -548,7 +548,9 @@ export class Webgl2Renderer {
     if (usePasses) {
       const targets = this.#ensureTargets(gl);
       targets.reset();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, targets.write.framebuffer);
+      // Into the scene target, not a ping-pong one: the chain overwrites those
+      // as it goes, and every pass is entitled to the original.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, targets.scene.framebuffer);
     } else {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
@@ -708,10 +710,12 @@ export class Webgl2Renderer {
   /**
    * Run the chain, then present.
    *
-   * Each pass reads the last output and writes the other target. The final
-   * result is copied to the canvas by an identity pass rather than by making
-   * the last user pass render straight to it — that keeps every user pass
-   * identical in shape, whether or not it happens to be last.
+   * Each pass reads the last output and writes a ping-pong target, and every
+   * pass is also handed the scene as it was drawn. The first pass reads the
+   * scene for both, which is why a one-pass chain never has to know the
+   * difference. The final result is copied to the canvas by an identity pass
+   * rather than by making the last user pass render straight to it — that keeps
+   * every user pass identical in shape, whether or not it happens to be last.
    */
   #runPasses(gl: WebGL2RenderingContext): void {
     const targets = this.#targets;
@@ -721,15 +725,17 @@ export class Webgl2Renderer {
     // Passes composite whole images; source-over would double-darken.
     gl.disable(gl.BLEND);
 
+    const scene = targets.scene.texture;
+    let source = scene;
     for (const pass of this.#chain) {
-      targets.swap();
       gl.bindFramebuffer(gl.FRAMEBUFFER, targets.write.framebuffer);
-      this.#drawPass(gl, pass.fragment, targets.read.texture, pass.uniforms);
+      this.#drawPass(gl, pass.fragment, source, scene, pass.uniforms);
+      targets.swap();
+      source = targets.read.texture;
     }
 
-    targets.swap();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    this.#drawPass(gl, COPY_PASS_FRAGMENT_BODY, targets.read.texture, undefined);
+    this.#drawPass(gl, COPY_PASS_FRAGMENT_BODY, source, scene, undefined);
 
     gl.enable(gl.BLEND);
     state.invalidate();
@@ -739,6 +745,7 @@ export class Webgl2Renderer {
     gl: WebGL2RenderingContext,
     fragment: string,
     texture: WebGLTexture,
+    scene: WebGLTexture,
     uniforms: Readonly<Record<string, number | readonly number[]>> | undefined,
   ): void {
     const compiled = this.#passes.get(gl, fragment);
@@ -748,6 +755,13 @@ export class Webgl2Renderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     setUniformInt(gl, program, compiled, "u_texture", 0);
+    // Bound whether or not the pass declares it: a sampler left unset reads
+    // unit zero, so a pass that mentions u_scene without this would silently
+    // get its own input back and look almost right.
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, scene);
+    setUniformInt(gl, program, compiled, "u_scene", 1);
+    gl.activeTexture(gl.TEXTURE0);
     setUniform(gl, program, compiled, "u_resolution", [this.#canvas.width, this.#canvas.height]);
     setUniform(gl, program, compiled, "u_time", this.#elapsed);
 
