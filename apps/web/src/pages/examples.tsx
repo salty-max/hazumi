@@ -1,7 +1,7 @@
 import { bloodMage } from "../../../../examples/blood-mage";
 import { bike } from "../../../../examples/bike";
 import { chain } from "../../../../examples/chain";
-import { characters } from "../../../../examples/characters";
+import { dungeon } from "../../../../examples/dungeon";
 import { flowField } from "../../../../examples/flow-field";
 import { gridWaves } from "../../../../examples/grid-waves";
 import { imageGrid } from "../../../../examples/image-grid";
@@ -14,7 +14,6 @@ import { raycaster } from "../../../../examples/raycaster";
 import { rigidBodies } from "../../../../examples/rigid-bodies";
 import { shmup } from "../../../../examples/shmup";
 import { staticPoster } from "../../../../examples/static-poster";
-import { tileField } from "../../../../examples/tile-field";
 import { typeSpecimen } from "../../../../examples/type-specimen";
 import { Maximize2, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
@@ -59,8 +58,7 @@ const SCENES: readonly SceneSpec[] = [
   { name: "image grid", run: imageGrid },
   { name: "post bloom", run: postBloom },
   { name: "petals", run: petals },
-  { name: "tile field", run: tileField },
-  { name: "characters", run: characters },
+  { name: "dungeon", run: dungeon },
   { name: "blood mage", run: bloodMage },
   { name: "rigid bodies", run: rigidBodies },
   { name: "chain", run: chain },

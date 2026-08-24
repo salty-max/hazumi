@@ -11,8 +11,8 @@ showing.
 
 © 2013 Oryx Design Lab · <https://www.oryxdesignlab.com>
 
-Twenty-four pixel cells on a twenty-four pixel margin. Used by `tile-field`,
-`characters` and the floor under `blood-mage`.
+Twenty-four pixel cells on a twenty-four pixel margin. Used by `dungeon` and
+for the floor under `blood-mage`.
 
 ## Minifantasy — Blood Mage
 

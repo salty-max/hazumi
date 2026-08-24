@@ -5,7 +5,7 @@
 import { bike } from "../../../examples/bike";
 import { bloodMage } from "../../../examples/blood-mage";
 import { chain } from "../../../examples/chain";
-import { characters } from "../../../examples/characters";
+import { dungeon } from "../../../examples/dungeon";
 import { flowField } from "../../../examples/flow-field";
 import { gridWaves } from "../../../examples/grid-waves";
 import { imageGrid } from "../../../examples/image-grid";
@@ -18,7 +18,6 @@ import { raycaster } from "../../../examples/raycaster";
 import { rigidBodies } from "../../../examples/rigid-bodies";
 import { shmup } from "../../../examples/shmup";
 import { staticPoster } from "../../../examples/static-poster";
-import { tileField } from "../../../examples/tile-field";
 import { typeSpecimen } from "../../../examples/type-specimen";
 /**
  * The part of an application a capture uses.
@@ -41,7 +40,7 @@ const SCENES: Readonly<Record<string, ExampleFn>> = {
   bike,
   "blood-mage": bloodMage,
   chain,
-  characters,
+  dungeon,
   "flow-field": flowField,
   "grid-waves": gridWaves,
   "image-grid": imageGrid,
@@ -54,7 +53,6 @@ const SCENES: Readonly<Record<string, ExampleFn>> = {
   "rigid-bodies": rigidBodies,
   starfall: shmup,
   "static-poster": staticPoster,
-  "tile-field": tileField,
   "type-specimen": typeSpecimen,
 };
 
