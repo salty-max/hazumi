@@ -12,15 +12,14 @@
  */
 import { start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
-import { Align, fill, text, textAlign, textSize } from "hazumi/draw";
 import { keyIsDown, keyJustPressed, pointerJustPressed } from "hazumi/input";
 import { particles, type ParticleSystem } from "hazumi/particles";
 import { random, screen, time } from "hazumi/scene";
 
 import {
-  centred,
   DIM,
   drawBoss,
+  drawCore,
   drawEnemy,
   drawPickup,
   drawPlayer,
@@ -30,20 +29,39 @@ import {
   ENEMY,
   GOLD,
   icon,
+  iconWidth,
   INK,
   panel,
   SHIELD,
 } from "./art";
-import { loadArt } from "./sprites";
+import type { PixelFont } from "./font";
+import { loadArt, type ShmupArt } from "./sprites";
 
 const MAX_SHOTS = 120;
 const MAX_ENEMIES = 40;
 const MAX_PICKUPS = 8;
 const PLAYER_SPEED = 300;
-const PLAYER_RADIUS = 12;
+/**
+ * The ship is drawn thirty-four pixels across and hit on three.
+ *
+ * That gap is the genre rather than a fudge. An arcade shooter puts the
+ * collision on the pilot, not on the hull, so a wall of fire can be threaded
+ * through gaps far narrower than the sprite and a near miss reads as skill.
+ * Sizing the hitbox to the artwork instead — which is what this was doing —
+ * makes the same wall unsurvivable and every death feel arbitrary.
+ */
+const PLAYER_HIT_RADIUS = 3;
+/** A bolt is hit on its centre too, for the same reason. */
+const BOLT_HIT_RADIUS = 4;
+/** Pickups get the opposite treatment: missing one by a pixel is no fun. */
+const PICKUP_REACH = 30;
+/** Half the drawn hull, which is what the playfield edge has to hold back. */
+const PLAYER_HALF = 18;
 const INVULNERABLE_FOR = 1.6;
 const STARTING_LIVES = 3;
 const BOSS_EVERY = 6;
+/** Body copy and button labels, in whole 5x7 pixels. */
+const LABEL_SCALE = 2;
 /**
  * The playfield is a portrait strip down the middle of a square scene.
  *
@@ -94,6 +112,35 @@ const KINDS = [
   { health: 3, score: 350, speed: 130, size: 32 },
   { health: 6, score: 700, speed: 62, size: 40 },
 ] as const;
+
+/**
+ * A number as large as the cabinet margin will take.
+ *
+ * A score climbs a digit at a time and the margin does not, so the size has to
+ * give way rather than the text running out over the playfield.
+ */
+function fitted(font: PixelFont, value: string, x: number, y: number, color: string): void {
+  const scale = font.width(value, 3) <= FIELD_X - 16 ? 3 : 2;
+  font.centred(value, x, y, scale, color);
+}
+
+/** An interface tile and a label, centred together as one row. */
+function iconAndText(
+  art: ShmupArt,
+  name: string,
+  label: string,
+  x: number,
+  y: number,
+  color: string,
+): void {
+  const gap = 8;
+  const tile = iconWidth(LABEL_SCALE);
+  const from = x - (tile + gap + art.font.width(label, LABEL_SCALE)) / 2;
+  icon(art, name, from + tile / 2, y, LABEL_SCALE);
+  // Six pixels lower, which is where a fourteen-pixel line sits against a
+  // twenty-six-pixel tile.
+  art.font.draw(label, from + tile + gap, y + 6, LABEL_SCALE, color);
+}
 
 export function shmup(parent: HTMLElement): HazumiApp {
   return start(
@@ -273,7 +320,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
           const length = Math.hypot(dx, dy) || 1;
           playerX += (dx / length) * PLAYER_SPEED * dt;
           playerY += (dy / length) * PLAYER_SPEED * dt;
-          playerX = Math.min(Math.max(playerX, FIELD_X + 20), FIELD_RIGHT - 20);
+          playerX = Math.min(Math.max(playerX, FIELD_X + PLAYER_HALF), FIELD_RIGHT - PLAYER_HALF);
           playerY = Math.min(Math.max(playerY, 60), screen.height - 26);
           tilt += (dx - tilt) * Math.min(1, dt * 12);
 
@@ -340,7 +387,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
 
             if (!enemy.boss && enemy.y > screen.height + 40) enemy.live = false;
 
-            const reach = (enemy.boss ? 54 : spec.size * 0.42) + PLAYER_RADIUS;
+            const reach = (enemy.boss ? 54 : spec.size * 0.42) + PLAYER_HIT_RADIUS;
             if (Math.hypot(enemy.x - playerX, enemy.y - playerY) < reach) {
               if (!enemy.boss) {
                 enemy.live = false;
@@ -364,7 +411,10 @@ export function shmup(parent: HTMLElement): HazumiApp {
               continue;
             }
             if (shot.hostile) {
-              if (Math.hypot(shot.x - playerX, shot.y - playerY) < PLAYER_RADIUS + 5) {
+              if (
+                Math.hypot(shot.x - playerX, shot.y - playerY) <
+                PLAYER_HIT_RADIUS + BOLT_HIT_RADIUS
+              ) {
                 shot.live = false;
                 hitPlayer();
               }
@@ -404,7 +454,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
               pickup.live = false;
               continue;
             }
-            if (Math.hypot(pickup.x - playerX, pickup.y - playerY) < PLAYER_RADIUS + 14) {
+            if (Math.hypot(pickup.x - playerX, pickup.y - playerY) < PICKUP_REACH) {
               pickup.live = false;
               if (pickup.kind === 0) spread = 14;
               else shield = 1;
@@ -432,71 +482,59 @@ export function shmup(parent: HTMLElement): HazumiApp {
             }
             // Blink while invulnerable, the way every arcade ship has.
             const hidden = invulnerable > 0 && Math.floor(invulnerable * 12) % 2 === 0;
-            if (phase === "playing" && !hidden) drawPlayer(art, playerX, playerY, tilt);
+            if (phase === "playing" && !hidden) {
+              drawPlayer(art, playerX, playerY, tilt);
+              drawCore(playerX, playerY, PLAYER_HIT_RADIUS, Math.sin(time.elapsed * 7) * 0.5 + 0.5);
+            }
           }
           sparks.draw();
 
           // The cabinet: everything outside the strip is furniture, drawn over
           // the sky so ships that stray look like they went behind it.
-          drawSides(art, FIELD_X, FIELD_RIGHT);
+          drawSides(FIELD_X, FIELD_RIGHT);
 
           if (phase !== "menu") {
-            fill(INK);
-            textSize(13);
-            textAlign(Align.Center);
-            text("SCORE", FIELD_X / 2, 60);
-            textSize(20);
-            text(`${score}`, FIELD_X / 2, 84);
-            textSize(13);
-            text("WAVE", FIELD_X / 2, 130);
-            textSize(20);
-            text(`${wave}`, FIELD_X / 2, 154);
-            textSize(13);
-            text("SHIPS", FIELD_X / 2, 210);
-            textAlign(Align.Left);
-            for (let i = 0; i < lives; i++) drawPlayer(art, FIELD_X / 2, 244 + i * 34, 0);
+            const left = FIELD_X / 2;
+            const right = FIELD_RIGHT + FIELD_X / 2;
+            art.font.centred("SCORE", left, 56, 2, DIM);
+            fitted(art.font, `${score}`, left, 74, GOLD);
+            art.font.centred("WAVE", left, 126, 2, DIM);
+            fitted(art.font, `${wave}`, left, 144, INK);
+            art.font.centred("SHIPS", left, 198, 2, DIM);
+            for (let i = 0; i < lives; i++) drawPlayer(art, left, 236 + i * 38, 0);
 
-            textAlign(Align.Center);
-            if (spread > 0) {
-              fill(GOLD);
-              textSize(12);
-              text("SPREAD", FIELD_RIGHT + FIELD_X / 2, 84);
-            }
-            if (shield > 0) {
-              fill(SHIELD);
-              textSize(12);
-              text("SHIELD", FIELD_RIGHT + FIELD_X / 2, 110);
-            }
-            textAlign(Align.Left);
+            if (spread > 0) art.font.centred("SPREAD", right, 74, 2, GOLD);
+            if (shield > 0) art.font.centred("SHIELD", right, 98, 2, SHIELD);
           }
 
+          const middle = screen.width / 2;
+          const blink = Math.floor(time.elapsed * 2) % 2 === 0;
+
           if (phase === "menu") {
-            panel(art, FIELD_X + 12, 150, FIELD_W - 24, 250);
-            centred("STARFALL", 216, 38);
-            centred("arrows or WASD to fly", 262, 13, DIM);
-            centred("space to fire", 282, 13, DIM);
-            centred("pick up spread and shields", 302, 13, DIM);
-            centred("a bigger one every sixth wave", 322, 13, DIM);
-            icon(art, "play", screen.width / 2 - 16, 340, 32);
-            centred(
-              Math.floor(time.elapsed * 2) % 2 === 0 ? "press space to begin" : " ",
-              392,
-              15,
-              GOLD,
-            );
+            panel(art, FIELD_X + 12, 150, FIELD_W - 24, 268);
+            art.font.centred("STARFALL", middle, 186, 6, GOLD);
+
+            // The stick is spelled with the sheet's own arrows: it is the one
+            // instruction that reads faster as a picture than as the word.
+            const step = 28;
+            icon(art, "left", middle - step * 1.5, 244, 2);
+            icon(art, "up", middle - step * 0.5, 244, 2);
+            icon(art, "down", middle + step * 0.5, 244, 2);
+            icon(art, "right", middle + step * 1.5, 244, 2);
+            art.font.centred("OR WASD TO FLY", middle, 282, 2, DIM);
+            art.font.centred("SPACE TO FIRE", middle, 304, 2, DIM);
+            art.font.centred("GRAB SPREAD AND SHIELDS", middle, 326, 2, DIM);
+            art.font.centred("A BOSS EVERY SIXTH WAVE", middle, 348, 2, DIM);
+
+            if (blink) iconAndText(art, "play", "PRESS SPACE", middle, 378, GOLD);
           }
 
           if (phase === "over") {
-            panel(art, FIELD_X + 12, 190, FIELD_W - 24, 200);
-            centred("YOU DIED", 250, 32, ENEMY);
-            centred(`score ${score}`, 292, 16);
-            centred(`best ${Math.max(best, score)}`, 318, 14, DIM);
-            centred(
-              Math.floor(time.elapsed * 2) % 2 === 0 ? "space to try again" : " ",
-              364,
-              15,
-              GOLD,
-            );
+            panel(art, FIELD_X + 12, 190, FIELD_W - 24, 210);
+            art.font.centred("GAME OVER", middle, 226, 5, ENEMY);
+            art.font.centred(`SCORE ${score}`, middle, 286, 3, INK);
+            iconAndText(art, "trophy", `BEST ${Math.max(best, score)}`, middle, 322, GOLD);
+            if (blink) art.font.centred("SPACE TO TRY AGAIN", middle, 364, 2, DIM);
           }
         },
       };
