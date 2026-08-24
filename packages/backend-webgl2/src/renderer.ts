@@ -16,6 +16,7 @@ import {
   scaleAffine,
   scaleFactor,
   translateAffine,
+  type RenderOptions,
 } from "@hazumi/graphics";
 import { mat4 } from "@hazumi/math";
 import { BatchList, Pipeline } from "./batch";
@@ -522,7 +523,7 @@ export class Webgl2Renderer {
     return this.#gl;
   }
 
-  render(buffer: CommandBuffer): void {
+  render(buffer: CommandBuffer, options?: RenderOptions): void {
     const gl = this.#gl;
     this.#drawCalls = 0;
     this.#count = 0;
@@ -544,7 +545,9 @@ export class Webgl2Renderer {
     const batches = this.#batches.finish();
 
     // With a chain, the scene renders into a target instead of the canvas.
-    const usePasses = this.#chain.length > 0;
+    // An overlay opts out: it is drawn after the chain has already presented,
+    // straight onto the canvas, and must not be put through it a second time.
+    const usePasses = this.#chain.length > 0 && options?.passes !== false;
     if (usePasses) {
       const targets = this.#ensureTargets(gl);
       targets.reset();

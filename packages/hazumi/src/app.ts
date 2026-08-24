@@ -84,6 +84,23 @@ export type SceneDraw<Api extends object = Record<never, never>> = (
 export interface Scene<Api extends object = Record<never, never>> {
   readonly update?: SceneUpdate<Api>;
   readonly draw: SceneDraw<Api>;
+  /**
+   * Drawn after the shader chain, straight onto the canvas.
+   *
+   * Post-processing belongs to the world. A heads-up display that goes through
+   * the same chain is dimmed by the world's lighting, warped by its warp and
+   * bloomed by its bloom — a scene lit by a multiply pass finds this at once,
+   * because its caption comes out at a fraction of the brightness it was drawn
+   * with. Anything that belongs to the reader rather than to the world goes
+   * here: a score, a control legend, a debug overlay.
+   *
+   * It is a second stream, so it costs a second decode. Draw the world in
+   * `draw` and only the furniture here.
+   *
+   * A backend without a chain draws it exactly as it draws everything else, so
+   * a scene written this way looks the same on all four.
+   */
+  readonly overlay?: SceneDraw<Api>;
   /** Release resources owned by this scene before it is replaced or stopped. */
   readonly dispose?: (context: HazumiContext & Api) => void;
 }
@@ -452,6 +469,24 @@ export function start<Api extends object = Record<never, never>>(
       endFrame();
       if (supportsPasses(renderer)) renderer.setTime(state.t);
       renderer.render(buffer);
+
+      const overlay = activeScene?.overlay;
+      if (overlay !== undefined) {
+        // A second stream, drawn straight to the canvas over what the chain
+        // just presented. It does not clear, because nothing in it calls
+        // background() — and if something did, it would be asking to paint over
+        // the frame, which is its right.
+        buffer.reset();
+        beginFrame();
+        const previousOverlay = enterContext(sceneContext);
+        try {
+          if (!stopped) overlay(clock.alpha(), sceneContext);
+        } finally {
+          restoreContext(previousOverlay);
+        }
+        endFrame();
+        if (!stopped) renderer.render(buffer, { passes: false });
+      }
     } catch (error) {
       // Stop before reporting: a throwing scene throws every frame, and the
       // loop would otherwise bury the first error under sixty a second.

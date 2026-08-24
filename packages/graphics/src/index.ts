@@ -27,6 +27,7 @@ export type {
   BackendFactory,
   PixelData,
   ShaderPass,
+  RenderOptions,
   FrameStats,
   TextMetrics,
 } from "./renderer";
