@@ -17,28 +17,26 @@
  * would have drawn by hand — and the tilemap reads them through a key. Nothing
  * about the map knows it was generated.
  *
- * Nobody walks. Each creature stands where it was placed and plays its own two
+ * Nobody walks. Each creature stands on its own tile and plays its own two
  * frames on its own phase, so the room is alive without anything pretending to
- * have somewhere to be. What moves is the light.
+ * have somewhere to be. Everything is drawn at one tile square, creature and
+ * stone alike, because a knight twice the size of the flagstone he stands on
+ * is the first thing that stops a top-down scene reading as a place.
+ *
+ * The dark is a shader. Additive discs stacked over the frame were the first
+ * attempt and they only ever add — nine rooms' worth turned the floor to
+ * daylight. A light pass *multiplies* instead: unlit stone falls to a cold
+ * ambient and only what a torch reaches comes back warm, which is the same
+ * arithmetic a lighting model does and the reason the frame has somewhere dark
+ * to be.
  *
  * Art: Oryx Design Lab, 16-bit fantasy. See examples/assets/CREDITS.md.
  */
 import { loadImage, spritesheet, tilemap } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
-import {
-  Blend,
-  background,
-  blendMode,
-  circle,
-  ellipse,
-  fill,
-  image,
-  noStroke,
-  text,
-  textSize,
-} from "hazumi/draw";
-import { camera, random, screen, time } from "hazumi/scene";
+import { background, ellipse, fill, image, noStroke, text, textSize } from "hazumi/draw";
+import { camera, random, screen, setPasses, time } from "hazumi/scene";
 
 const TILE = 24;
 const COLUMNS = 25;
@@ -71,29 +69,76 @@ function centre(room: Area): Point {
   return { x: room.x + Math.floor(room.width / 2), y: room.y + Math.floor(room.height / 2) };
 }
 
-/** Who stands in the rooms, and how large each is drawn. */
+/**
+ * Who stands in the rooms.
+ *
+ * No sizes: the sheets are both twenty-four pixel cells and everything is drawn
+ * at one tile, so a creature occupies exactly the square it is standing on.
+ */
 const CAST = [
-  { clip: "knight", scale: 2 },
-  { clip: "guard", scale: 2 },
-  { clip: "ranger", scale: 1.9 },
-  { clip: "mage", scale: 1.9 },
-  { clip: "goblin", scale: 1.7 },
-  { clip: "goblinSpear", scale: 1.7 },
-  { clip: "skeleton", scale: 1.8 },
-  { clip: "slime", scale: 1.6 },
-  { clip: "bat", scale: 1.4 },
-  { clip: "rat", scale: 1.3 },
-  { clip: "wolf", scale: 1.8 },
+  "knight",
+  "guard",
+  "ranger",
+  "mage",
+  "goblin",
+  "goblinSpear",
+  "skeleton",
+  "slime",
+  "bat",
+  "rat",
+  "wolf",
 ] as const;
+
+/**
+ * The light pass.
+ *
+ * Torch positions arrive in texture coordinates, so the shader never has to
+ * know the tile size. A torch reaches six tiles and then stops — far enough
+ * to light the room it is in, short enough to leave the corridor between two
+ * of them dark.
+ */
+const MAX_TORCHES = 24;
+const LIGHT = `
+const int MAX_TORCHES = ${MAX_TORCHES};
+uniform float u_torches[${MAX_TORCHES * 2}];
+uniform float u_count;
+
+void main() {
+  vec3 scene = texture(u_texture, v_uv).rgb;
+
+  float light = 0.0;
+  for (int i = 0; i < MAX_TORCHES; i++) {
+    if (float(i) >= u_count) break;
+    vec2 at = vec2(u_torches[i * 2], u_torches[i * 2 + 1]);
+    vec2 offset = v_uv - at;
+    // Guttering, each on its own phase, so no two flare together.
+    float gutter = 0.88 + 0.12 * sin(u_time * 7.0 + float(i) * 1.7);
+    // Falls to nothing at a fixed reach rather than trailing off for ever.
+    // An inverse-square torch never quite stops, and nine of them summing at
+    // a distance is not moody, it is overcast — the whole floor came up the
+    // same flat grey. A hard reach is what puts the dark back between rooms.
+    float reach = max(0.0, 1.0 - length(offset) / 0.24);
+    light += 2.0 * gutter * reach * reach;
+  }
+  light = min(light, 2.2);
+
+  // Cold where nothing reaches, warm where something does.
+  vec3 ambient = vec3(0.13, 0.15, 0.23);
+  vec3 flame = vec3(1.0, 0.66, 0.33);
+  float edge = 1.0 - 0.4 * pow(clamp(length(v_uv - 0.5) * 1.5, 0.0, 1.0), 2.0);
+
+  fragColor = vec4(scene * (ambient + flame * light) * edge, 1.0);
+}
+`;
 
 /** Things to leave lying about, and how often each turns up. */
 const DRESSING = ["c", "C", "b", "r", "k", "h", "H", "a", "g", "G", "R", "p", "P", "t", "w", "o"];
 
 interface Creature {
+  /** Tile column and row: everything stands squarely on a square. */
   readonly x: number;
   readonly y: number;
-  readonly clip: (typeof CAST)[number]["clip"];
-  readonly scale: number;
+  readonly clip: (typeof CAST)[number];
   readonly offset: number;
   readonly hover: number;
 }
@@ -203,18 +248,17 @@ function generate(): Floor {
     // pools ran together into daylight; a dungeon wants the dark between them.
     torches.push({ x: room.x + random.int(1, Math.max(2, room.width - 1)), y: room.y - 1 });
 
-    // And its inhabitants, on the floor and clear of the walls.
+    // And its inhabitants, one to a tile and no two on the same one.
     const population = Math.min(4, Math.max(1, Math.floor((room.width * room.height) / 12)));
+    const taken = new Set<string>();
     for (let i = 0; i < population; i++) {
-      const part = CAST[random.int(0, CAST.length)] as (typeof CAST)[number];
-      creatures.push({
-        x: room.x + random.range(0.6, room.width - 0.6),
-        y: room.y + random.range(1, room.height - 0.2),
-        clip: part.clip,
-        scale: part.scale,
-        offset: random.range(0, 4),
-        hover: part.clip === "bat" ? 22 : 0,
-      });
+      const clip = CAST[random.int(0, CAST.length)] as (typeof CAST)[number];
+      const x = room.x + random.int(0, room.width);
+      const y = room.y + random.int(0, room.height);
+      const key = `${x},${y}`;
+      if (taken.has(key)) continue;
+      taken.add(key);
+      creatures.push({ x, y, clip, offset: random.range(0, 4), hover: clip === "bat" ? 6 : 0 });
     }
   }
 
@@ -389,6 +433,17 @@ export function dungeon(parent: HTMLElement): HazumiApp {
       // rather than sorted on every frame.
       const standing = floor.creatures.toSorted((a, b) => a.y - b.y);
 
+      // The torches, handed to the shader in texture coordinates and padded to
+      // the length it declares — the array size is fixed in GLSL, so the pass
+      // is told how many of the slots are real rather than reading the rest.
+      const lights: number[] = Array.from({ length: MAX_TORCHES * 2 }, () => 0);
+      const lit = floor.torches.slice(0, MAX_TORCHES);
+      for (const [i, torch] of lit.entries()) {
+        lights[i * 2] = (map.xOf(torch.x) + TILE / 2) / map.width;
+        lights[i * 2 + 1] = (map.yOf(torch.y) + TILE / 2) / map.height;
+      }
+      setPasses([{ fragment: LIGHT, uniforms: { u_torches: lights, u_count: lit.length } }]);
+
       return {
         draw: (): void => {
           background("oklch(0.05 0.01 265)");
@@ -409,42 +464,23 @@ export function dungeon(parent: HTMLElement): HazumiApp {
 
           // Shadows, in one fill, before anything stands on them.
           noStroke();
-          fill("oklch(0.03 0.01 60 / 0.5)");
+          fill("oklch(0.03 0.01 60 / 0.45)");
           for (const creature of standing) {
-            ellipse(
-              map.xOf(creature.x),
-              map.yOf(creature.y) + 1,
-              13 * creature.scale,
-              4.5 * creature.scale,
-            );
+            ellipse(map.xOf(creature.x) + TILE / 2, map.yOf(creature.y) + TILE - 3, 14, 5);
           }
 
-          // The cast, from the other sheet, lowest last.
+          // The cast, from the other sheet, lowest last. One tile square, on
+          // the tile it was placed on.
           for (const creature of standing) {
-            const size = TILE * creature.scale;
-            const bob = creature.hover === 0 ? 0 : Math.sin(time.elapsed * 6 + creature.offset) * 3;
+            const bob = creature.hover === 0 ? 0 : Math.sin(time.elapsed * 6 + creature.offset) * 2;
             image(
               cast.clip(creature.clip).at(time.elapsed + creature.offset),
-              map.xOf(creature.x) - size / 2,
-              map.yOf(creature.y) - size - creature.hover + bob,
-              size,
-              size,
+              map.xOf(creature.x),
+              map.yOf(creature.y) - creature.hover + bob,
+              TILE,
+              TILE,
             );
           }
-
-          // The light, last and additive, so it falls on everything.
-          blendMode(Blend.Add);
-          for (const torch of floor.torches) {
-            const x = map.xOf(torch.x) + TILE / 2;
-            const y = map.yOf(torch.y) + TILE / 2;
-            const flicker = 1 + Math.sin(time.elapsed * 7 + torch.x) * 0.05;
-            for (let ring = 0; ring < 6; ring++) {
-              const spread = 1 - ring / 6;
-              fill(`oklch(${0.62 + ring * 0.04} ${0.12 + ring * 0.01} ${68 - ring} / 0.055)`);
-              circle(x, y, 400 * spread * spread * flicker + 32);
-            }
-          }
-          blendMode(Blend.Normal);
 
           camera.screen(() => {
             fill("oklch(0.9 0.03 80 / 0.8)");
