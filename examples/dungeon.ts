@@ -42,7 +42,7 @@ import { loadImage, spritesheet, tilemap } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
 import { background, ellipse, fill, image, noStroke, text, textSize } from "hazumi/draw";
-import { camera, random, screen, setPasses, time } from "hazumi/scene";
+import { camera, capabilities, random, screen, setPasses, time } from "hazumi/scene";
 
 const TILE = 24;
 const COLUMNS = 25;
@@ -525,7 +525,13 @@ export function dungeon(parent: HTMLElement): HazumiApp {
       // rather than sorted on every frame.
       const standing = floor.creatures.toSorted((a, b) => a.y - b.y);
 
-      setPasses([{ fragment: COMPOSITE, textures: { u_light: bakeLight(floor) } }]);
+      // Ask rather than assume. Canvas2D and the SVG exporter draw every one
+      // of these tiles correctly and cannot run a shader over the result, so on
+      // those the chamber is simply an unlit chamber — which is a worse picture
+      // and a working scene, and better than a scene that throws.
+      if (capabilities.shaders) {
+        setPasses([{ fragment: COMPOSITE, textures: { u_light: bakeLight(floor) } }]);
+      }
 
       return {
         draw: (): void => {

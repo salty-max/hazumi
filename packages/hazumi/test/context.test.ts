@@ -65,6 +65,7 @@ function makeContext(): {
     state,
     seed: 42,
     setPasses: () => {},
+    capabilities: { shaders: true, pixels: false, text: true },
     // A monospace stand-in: every glyph half the font size wide, so a test can
     // assert on layout arithmetic without a real font.
     measureText: (content: string, _font: string, size: number) => ({
@@ -233,6 +234,7 @@ describe("style", () => {
       state,
       seed: 1,
       setPasses: () => {},
+      capabilities: { shaders: true, pixels: false, text: true },
       // A monospace stand-in: every glyph half the font size wide, so a test can
       // assert on layout arithmetic without a real font.
       measureText: (content: string, _font: string, size: number) => ({

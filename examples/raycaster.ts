@@ -34,7 +34,7 @@ import {
   tint,
 } from "hazumi/draw";
 import { input, keyIsDown } from "hazumi/input";
-import { camera, screen, setPasses, time } from "hazumi/scene";
+import { camera, capabilities, screen, setPasses, time } from "hazumi/scene";
 
 const MOVE = 3.2;
 const TURN = 2.2;
@@ -216,7 +216,10 @@ export function raycaster(parent: HTMLElement): HazumiApp {
         loadImage("/examples/assets/oryx_16bit_fantasy_creatures_trans.png"),
       ]);
 
-      setPasses([{ fragment: GRADE }]);
+      // The corridor is legible without the grade — dimmer walls, no warmth —
+      // so a backend that cannot run a shader gets the scene rather than an
+      // error.
+      if (capabilities.shaders) setPasses([{ fragment: GRADE }]);
 
       const tiles = spritesheet(worldImage, {
         frame: [24, 24],
