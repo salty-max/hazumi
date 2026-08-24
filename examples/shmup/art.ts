@@ -5,11 +5,10 @@
  * same whether a ship is a sprite or a triangle, and the sheets are only
  * mentioned here.
  */
-import { sliceFrame } from "hazumi/assets";
 import { background, fill, image, noStroke, pop, push, rect, rotate, translate } from "hazumi/draw";
 import { screen } from "hazumi/scene";
 
-import type { ShmupArt } from "./sprites";
+import type { IconFrame, ShmupArt } from "./sprites";
 
 export const INK = "oklch(0.95 0.02 250)";
 export const DIM = "oklch(0.66 0.03 250)";
@@ -71,7 +70,9 @@ export function drawCore(x: number, y: number, radius: number, pulse: number): v
 const ENEMY_FRAMES = ["darter", "weaver", "gunship", "hulk"] as const;
 
 export function drawEnemy(art: ShmupArt, x: number, y: number, kind: number, size: number): void {
-  const name = ENEMY_FRAMES[Math.min(kind, ENEMY_FRAMES.length - 1)] as string;
+  const name = ENEMY_FRAMES[
+    Math.min(kind, ENEMY_FRAMES.length - 1)
+  ] as (typeof ENEMY_FRAMES)[number];
   image(art.ships.named(name), x - size / 2, y - size / 2, size, size);
 }
 
@@ -97,56 +98,13 @@ export function drawPickup(art: ShmupArt, x: number, y: number, kind: number, sp
   pop();
 }
 
-/**
- * A panel from one 16x16 tile, cut into nine and stretched only in the middle.
- *
- * Scaling the tile whole would smear its border; the corners have to stay the
- * size they were drawn and only the spans between them may grow. The corner is
- * enlarged a whole number of times, because a 2.4x pixel is two pixels here and
- * three there, and the eye finds that edge immediately.
- */
-const PANEL_EDGE = 5;
-const PANEL_SCALE = 3;
-const PANEL_BORDER = PANEL_EDGE * PANEL_SCALE;
-
-export function panel(art: ShmupArt, x: number, y: number, w: number, h: number): void {
-  const tile = art.ui.named("panel");
-  const midW = Math.max(0, w - PANEL_BORDER * 2);
-  const midH = Math.max(0, h - PANEL_BORDER * 2);
-  const piece = (
-    sx: number,
-    sy: number,
-    sw: number,
-    sh: number,
-    dx: number,
-    dy: number,
-    dw: number,
-    dh: number,
-  ): void => {
-    image(sliceFrame(tile, sx, sy, sw, sh), dx, dy, dw, dh);
-  };
-  const far = 16 - PANEL_EDGE;
-  const span = 16 - PANEL_EDGE * 2;
-  const right = x + w - PANEL_BORDER;
-  const bottom = y + h - PANEL_BORDER;
-  piece(0, 0, PANEL_EDGE, PANEL_EDGE, x, y, PANEL_BORDER, PANEL_BORDER);
-  piece(far, 0, PANEL_EDGE, PANEL_EDGE, right, y, PANEL_BORDER, PANEL_BORDER);
-  piece(0, far, PANEL_EDGE, PANEL_EDGE, x, bottom, PANEL_BORDER, PANEL_BORDER);
-  piece(far, far, PANEL_EDGE, PANEL_EDGE, right, bottom, PANEL_BORDER, PANEL_BORDER);
-  piece(PANEL_EDGE, 0, span, PANEL_EDGE, x + PANEL_BORDER, y, midW, PANEL_BORDER);
-  piece(PANEL_EDGE, far, span, PANEL_EDGE, x + PANEL_BORDER, bottom, midW, PANEL_BORDER);
-  piece(0, PANEL_EDGE, PANEL_EDGE, span, x, y + PANEL_BORDER, PANEL_BORDER, midH);
-  piece(far, PANEL_EDGE, PANEL_EDGE, span, right, y + PANEL_BORDER, PANEL_BORDER, midH);
-  piece(PANEL_EDGE, PANEL_EDGE, span, span, x + PANEL_BORDER, y + PANEL_BORDER, midW, midH);
-}
-
 /** Width of an interface tile at a whole-number scale. */
 export function iconWidth(scale: number): number {
   return ICON_WIDTH * scale;
 }
 
 /** One interface tile, centred on x, at its own aspect rather than squared. */
-export function icon(art: ShmupArt, name: string, x: number, y: number, scale: number): void {
+export function icon(art: ShmupArt, name: IconFrame, x: number, y: number, scale: number): void {
   const w = ICON_WIDTH * scale;
   image(art.ui.named(name), Math.round(x - w / 2), Math.round(y), w, ICON_HEIGHT * scale);
 }

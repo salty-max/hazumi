@@ -31,11 +31,10 @@ import {
   icon,
   iconWidth,
   INK,
-  panel,
   SHIELD,
 } from "./art";
 import type { PixelFont } from "./font";
-import { loadArt, type ShmupArt } from "./sprites";
+import { loadArt, type IconFrame, type ShmupArt } from "./sprites";
 
 const MAX_SHOTS = 120;
 const MAX_ENEMIES = 40;
@@ -127,7 +126,7 @@ function fitted(font: PixelFont, value: string, x: number, y: number, color: str
 /** An interface tile and a label, centred together as one row. */
 function iconAndText(
   art: ShmupArt,
-  name: string,
+  name: IconFrame,
   label: string,
   x: number,
   y: number,
@@ -511,7 +510,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
           const blink = Math.floor(time.elapsed * 2) % 2 === 0;
 
           if (phase === "menu") {
-            panel(art, FIELD_X + 12, 150, FIELD_W - 24, 268);
+            art.panel.draw(FIELD_X + 12, 150, FIELD_W - 24, 268);
             art.font.centred("STARFALL", middle, 186, 6, GOLD);
 
             // The stick is spelled with the sheet's own arrows: it is the one
@@ -530,7 +529,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
           }
 
           if (phase === "over") {
-            panel(art, FIELD_X + 12, 190, FIELD_W - 24, 210);
+            art.panel.draw(FIELD_X + 12, 190, FIELD_W - 24, 210);
             art.font.centred("GAME OVER", middle, 226, 5, ENEMY);
             art.font.centred(`SCORE ${score}`, middle, 286, 3, INK);
             iconAndText(art, "trophy", `BEST ${Math.max(best, score)}`, middle, 322, GOLD);

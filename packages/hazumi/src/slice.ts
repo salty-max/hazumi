@@ -106,6 +106,20 @@ function inked(pixels: PixelSource, threshold: number): (x: number, y: number) =
 }
 
 /**
+ * Cut each band into whole cells, leaving any remainder alone.
+ *
+ * A partial cell at the end of a band is not a sprite — it is the two pixels
+ * that did not divide, and including it would put a sliver in the sheet.
+ */
+function cut(bands: readonly (readonly [number, number])[], size: number): number[] {
+  const offsets: number[] = [];
+  for (const [start, length] of bands) {
+    for (let i = 0; i + size <= length; i += size) offsets.push(start + i);
+  }
+  return offsets;
+}
+
+/**
  * Find a sheet's grid from its empty columns and rows.
  *
  * The bands of ink are the blocks; each block is then cut into whole cells of
@@ -148,14 +162,6 @@ export function findGridIn(pixels: PixelSource, options: GridScanOptions = {}): 
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return { frame: [0, 0], columns: [], rows: [] };
   }
-
-  const cut = (bands: readonly (readonly [number, number])[], size: number): number[] => {
-    const offsets: number[] = [];
-    for (const [start, length] of bands) {
-      for (let i = 0; i + size <= length; i += size) offsets.push(start + i);
-    }
-    return offsets;
-  };
 
   return { frame: [width, height], columns: cut(columnBands, width), rows: cut(rowBands, height) };
 }
