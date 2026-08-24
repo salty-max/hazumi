@@ -2,27 +2,60 @@
  * Browser harness for `bun run capture:examples`.
  * Not linked from the site — Vite serves it as /capture.html in dev.
  */
+import { bike } from "../../../examples/bike";
 import { bloodMage } from "../../../examples/blood-mage";
+import { chain } from "../../../examples/chain";
 import { characters } from "../../../examples/characters";
 import { flowField } from "../../../examples/flow-field";
 import { gridWaves } from "../../../examples/grid-waves";
+import { imageGrid } from "../../../examples/image-grid";
+import { mouseTrail } from "../../../examples/mouse-trail";
+import { orbits } from "../../../examples/orbits";
+import { sparks } from "../../../examples/particles";
 import { petals } from "../../../examples/petals";
 import { postBloom } from "../../../examples/post-bloom";
 import { raycaster } from "../../../examples/raycaster";
+import { rigidBodies } from "../../../examples/rigid-bodies";
 import { shmup } from "../../../examples/shmup";
-import type { HazumiApp } from "hazumi/app";
+import { staticPoster } from "../../../examples/static-poster";
+import { tileField } from "../../../examples/tile-field";
+import { typeSpecimen } from "../../../examples/type-specimen";
+/**
+ * The part of an application a capture uses.
+ *
+ * Structural rather than `HazumiApp`, because scenes differ in the plugins
+ * they install — the physics ones hand back an application typed on their own
+ * extensions, and a capture has no opinion about that.
+ */
+interface Capturable {
+  readonly ready: Promise<void>;
+  redraw: () => void;
+  capturePng: () => Promise<Blob>;
+  stop: () => void;
+}
 
-type ExampleFn = (parent: HTMLElement) => HazumiApp;
+type ExampleFn = (parent: HTMLElement) => Capturable;
 
+/** Every scene the gallery shows, under the slug its still is filed as. */
 const SCENES: Readonly<Record<string, ExampleFn>> = {
+  bike,
   "blood-mage": bloodMage,
+  chain,
   characters,
   "flow-field": flowField,
   "grid-waves": gridWaves,
+  "image-grid": imageGrid,
+  "mouse-trail": mouseTrail,
+  orbits,
+  particles: sparks,
   petals,
   "post-bloom": postBloom,
   raycaster,
+  "rigid-bodies": rigidBodies,
   starfall: shmup,
+  "static-poster": staticPoster,
+  "tile-field": tileField,
+  "type-specimen": typeSpecimen,
 };
 
 function waitFrame(): Promise<void> {
