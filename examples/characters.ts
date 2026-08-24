@@ -23,11 +23,38 @@ export function characters(parent: HTMLElement): HazumiApp {
   return start({ backend: webgl2(), width: 600, height: 600, parent, seed: 21 }, async (scene) => {
     const { random, width, height } = scene;
     const [tilesImage, heroImage] = await Promise.all([
-      loadImage("/examples/assets/tiles.png"),
+      loadImage("/examples/assets/dungeon-tiles.png"),
       loadImage("/examples/assets/hero.png"),
     ]);
 
-    const tiles = spritesheet(tilesImage, { frame: [16, 16] });
+    // The floor of the sheet, named by what it is. A field of the whole sheet
+    // would be walls, banners and potions strewn flat on the ground, which is
+    // what this scene used to draw and why nobody could see the characters.
+    const tiles = spritesheet(tilesImage, {
+      frame: [16, 16],
+      frames: {
+        cobble: [2, 2],
+        cobbleWorn: [3, 2],
+        cobbleCracked: [4, 2],
+        cobbleChipped: [5, 2],
+        dirt: [2, 3],
+        dirtStones: [3, 3],
+        dirtPebbles: [4, 3],
+        dirtBare: [5, 3],
+      },
+    });
+    const floor = (
+      [
+        "cobble",
+        "cobbleWorn",
+        "cobbleCracked",
+        "cobbleChipped",
+        "dirt",
+        "dirtStones",
+        "dirtPebbles",
+        "dirtBare",
+      ] as const
+    ).map((name) => tiles.indexOf(name));
     const hero = spritesheet(heroImage, {
       frame: [16, 24],
       clips: {
@@ -39,7 +66,10 @@ export function characters(parent: HTMLElement): HazumiApp {
 
     const cols = Math.ceil(width / TILE) + 1;
     const rows = Math.ceil(height / TILE) + 1;
-    const ground = Array.from({ length: cols * rows }, () => random.int(0, tiles.length));
+    const ground = Array.from(
+      { length: cols * rows },
+      () => floor[random.int(0, floor.length)] as number,
+    );
 
     const actors = Array.from({ length: COUNT }, () => ({
       x: random.range(0, width),
