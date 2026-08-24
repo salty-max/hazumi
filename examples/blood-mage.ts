@@ -13,6 +13,14 @@
  * own texture, and batching merges only adjacent instances, so the mages are
  * drawn grouped by the sheet they currently need rather than one at a time.
  * Interleaving would cost a draw call per mage.
+ *
+ * That grouping is also why nobody here is sorted by depth. A crowd can be
+ * ordered by texture or by distance, not by both, and with forty of them the
+ * draw calls are worth more than the handful of overlaps — which is a choice a
+ * real game makes too, usually by keeping its actors on one sheet so it never
+ * has to.
+ *
+ * The floor is a fifth sheet, laid down in one pass before any of them.
  */
 import { ClipEnd, loadImage, spritesheet, type ClipOptions, type Spritesheet } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
@@ -22,7 +30,8 @@ import { screen, time } from "hazumi/scene";
 
 const CELL = 32;
 const SCALE = 4;
-const COUNT = 24;
+const COUNT = 40;
+const TILE = 24;
 
 const FACINGS = ["frontRight", "frontLeft", "backRight", "backLeft"] as const;
 type Facing = (typeof FACINGS)[number];
@@ -68,8 +77,33 @@ export function bloodMage(parent: HTMLElement): HazumiApp {
     async (scene) => {
       const { random, width, height } = scene;
       const names = ["Idle", "Walk", "Attack", "Attack_Effect"] as const;
-      const images = await Promise.all(
-        names.map((n) => loadImage(`/examples/assets/blood-mage/${n}.png`)),
+      const [images, worldImage] = await Promise.all([
+        Promise.all(names.map((n) => loadImage(`/examples/assets/blood-mage/${n}.png`))),
+        loadImage("/examples/assets/oryx_16bit_fantasy_world_trans.png"),
+      ]);
+
+      const stone = spritesheet(worldImage, {
+        frame: [24, 24],
+        margin: 24,
+        frames: {
+          // The brown palette rather than the blue-grey one the chamber uses.
+          // Tinting the blue stone red was the first attempt and it does not
+          // work: tint multiplies, so it can take light out of a colour but it
+          // cannot put a hue in that the texture has none of.
+          floor: [3, 3],
+          floorDotted: [4, 3],
+          floorCracked: [5, 3],
+          floorGrate: [6, 3],
+          stain: [3, 4],
+        },
+      });
+      const slabs = ["floorDotted", "floorCracked", "floorGrate", "stain"] as const;
+      const columns = Math.ceil(width / TILE) + 1;
+      const rows = Math.ceil(height / TILE) + 1;
+      const ground = Array.from({ length: columns * rows }, () =>
+        stone.indexOf(
+          random.range(0, 1) > 0.16 ? "floor" : (slabs[random.int(0, slabs.length)] as "floor"),
+        ),
       );
 
       /** One sheet per animation, each with a clip per facing. */
@@ -108,7 +142,20 @@ export function bloodMage(parent: HTMLElement): HazumiApp {
 
       return {
         draw: (): void => {
-          background("oklch(0.14 0.03 20)");
+          background("oklch(0.1 0.03 25)");
+
+          // The floor, in one pass and one texture.
+          for (let row = 0; row < rows; row++) {
+            for (let column = 0; column < columns; column++) {
+              image(
+                stone.frame(ground[row * columns + column] as number),
+                column * TILE,
+                row * TILE,
+                TILE,
+                TILE,
+              );
+            }
+          }
 
           for (const m of mages) {
             m.since += time.delta;
@@ -146,7 +193,7 @@ export function bloodMage(parent: HTMLElement): HazumiApp {
 
           fill("oklch(0.95 0.03 30)");
           textSize(13);
-          text(`${COUNT} Blood Mages · 4 sheets · grouped by animation`, 14, screen.height - 16);
+          text(`${COUNT} Blood Mages · 5 sheets · grouped by animation`, 14, screen.height - 16);
         },
       };
     },
