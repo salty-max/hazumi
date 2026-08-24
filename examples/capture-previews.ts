@@ -24,15 +24,33 @@ interface Preview {
   readonly hold?: string;
 }
 
+/**
+ * Every scene in the gallery, and how long to let it settle first.
+ *
+ * The gallery shows a still until you ask for the scene, so a missing one is a
+ * blank card. Warmups are per scene because they are not warming up the same
+ * thing: a particle system needs long enough to have particles, a physics pile
+ * needs long enough to have fallen over, and a poster is finished on frame one.
+ */
 const PREVIEWS: readonly Preview[] = [
   { slug: "flow-field", warmupMs: 1600 },
+  { slug: "orbits", warmupMs: 1400 },
+  { slug: "mouse-trail", warmupMs: 600 },
+  { slug: "particles", warmupMs: 1200 },
   { slug: "grid-waves", warmupMs: 400 },
+  { slug: "static-poster", warmupMs: 300 },
+  { slug: "type-specimen", warmupMs: 400 },
+  { slug: "image-grid", warmupMs: 700 },
   { slug: "post-bloom", warmupMs: 500 },
   { slug: "petals", warmupMs: 400 },
+  { slug: "tile-field", warmupMs: 900 },
   { slug: "characters", warmupMs: 700 },
   { slug: "blood-mage", warmupMs: 700 },
-  { slug: "raycaster", warmupMs: 500 },
+  { slug: "rigid-bodies", warmupMs: 2600 },
+  { slug: "chain", warmupMs: 1600 },
+  { slug: "bike", warmupMs: 4200, hold: "ArrowRight" },
   { slug: "starfall", warmupMs: 3200, hold: " " },
+  { slug: "raycaster", warmupMs: 500 },
 ];
 
 async function serverUp(): Promise<boolean> {

@@ -33,33 +33,40 @@ interface RunningScene {
 interface SceneSpec {
   readonly name: string;
   readonly run: (parent: HTMLElement) => RunningScene;
-  /** Skip autoplay: thousands of shapes, extra passes, or a WebGL hog. */
-  readonly heavy?: boolean;
-  /** Still shown under the Run overlay. Capture with `bun run capture:examples`. */
-  readonly preview?: string;
 }
 
 const PREVIEW = "/examples/assets/previews";
 
+/**
+ * The still for a scene, filed under its name.
+ *
+ * Every scene has one, so nothing has to be listed twice and a new scene that
+ * forgets its capture shows an empty frame rather than silently falling back
+ * to something else. Refresh them all with `bun run capture:examples`.
+ */
+function previewOf(name: string): string {
+  return `${PREVIEW}/${name.replaceAll(" ", "-")}.png`;
+}
+
 const SCENES: readonly SceneSpec[] = [
-  { name: "flow field", run: flowField, heavy: true, preview: `${PREVIEW}/flow-field.png` },
+  { name: "flow field", run: flowField },
   { name: "orbits", run: orbits },
   { name: "mouse trail", run: mouseTrail },
   { name: "particles", run: sparks },
-  { name: "grid waves", run: gridWaves, heavy: true, preview: `${PREVIEW}/grid-waves.png` },
+  { name: "grid waves", run: gridWaves },
   { name: "static poster", run: staticPoster },
   { name: "type specimen", run: typeSpecimen },
   { name: "image grid", run: imageGrid },
-  { name: "post bloom", run: postBloom, heavy: true, preview: `${PREVIEW}/post-bloom.png` },
-  { name: "petals", run: petals, heavy: true, preview: `${PREVIEW}/petals.png` },
+  { name: "post bloom", run: postBloom },
+  { name: "petals", run: petals },
   { name: "tile field", run: tileField },
-  { name: "characters", run: characters, heavy: true, preview: `${PREVIEW}/characters.png` },
-  { name: "blood mage", run: bloodMage, heavy: true, preview: `${PREVIEW}/blood-mage.png` },
+  { name: "characters", run: characters },
+  { name: "blood mage", run: bloodMage },
   { name: "rigid bodies", run: rigidBodies },
   { name: "chain", run: chain },
   { name: "bike", run: bike },
-  { name: "starfall", run: shmup, heavy: true, preview: `${PREVIEW}/starfall.png` },
-  { name: "raycaster", run: raycaster, heavy: true, preview: `${PREVIEW}/raycaster.png` },
+  { name: "starfall", run: shmup },
+  { name: "raycaster", run: raycaster },
 ];
 
 /** The window, as the two numbers the fit needs. */
@@ -70,15 +77,13 @@ function screenSize(): Viewport {
 function SceneCard({
   name,
   run,
-  heavy = false,
-  preview,
   onReady,
 }: SceneSpec & {
   readonly onReady: (name: string, app: RunningScene | null) => void;
 }): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const [running, setRunning] = useState(!heavy);
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,12 +106,12 @@ function SceneCard({
   /**
    * Go fullscreen, starting the scene if it was still waiting for a click.
    *
-   * The request goes first and the scene starts second, because a heavy scene
-   * costs a frame or two to build and the browser only honours the request
-   * while the click that caused it is still recent. The overlay that offers
-   * "Run" sits on the card rather than on the stage, so a heavy scene taken
-   * fullscreen before starting would be a black screen with no way out but
-   * Escape — which is why the same control does both.
+   * The request goes first and the scene starts second, because building a
+   * scene costs a frame or two and the browser only honours the request while
+   * the click that caused it is still recent. The overlay that offers "Run"
+   * sits on the card rather than on the stage, so a scene taken fullscreen
+   * before starting would be a black screen with no way out but Escape — which
+   * is why the same control does both.
    */
   const goFullscreen = useCallback((): void => {
     void stageRef.current?.requestFullscreen?.();
@@ -123,7 +128,7 @@ function SceneCard({
       app = run(host);
       onReady(name, app);
       // A scene started by the fullscreen control arrives after the stage is
-      // already fullscreen, so it lands at its card size until it is refitted.
+      // already fullscreen, so it would sit at card size until it is refitted.
       if (document.fullscreenElement === stageRef.current) {
         fitToScreen(host, true, screenSize());
       }
@@ -138,7 +143,7 @@ function SceneCard({
   }, [name, onReady, run, running]);
 
   return (
-    <Card className="transition hover:-translate-y-0.5 hover:border-primary/50">
+    <Card className="group transition hover:-translate-y-0.5 hover:border-primary/50">
       <CardHeader
         className={cn(
           "gap-2.5 font-mono text-[0.65rem] font-semibold tracking-[0.08em] uppercase",
@@ -171,36 +176,42 @@ function SceneCard({
         <AspectRatio ratio={1}>
           {/* The element that goes fullscreen, so the canvas keeps a parent
               that centres it on a ground of our own rather than on white. */}
-          {!running && preview !== undefined ? (
+          {running ? null : (
             <img
-              src={preview}
-              alt=""
+              src={previewOf(name)}
+              alt={`${name}, a frame from the scene`}
               width={600}
               height={600}
+              loading="lazy"
               decoding="async"
-              aria-hidden="true"
               className="absolute inset-0 size-full object-cover"
             />
-          ) : null}
+          )}
+          {/* The element that goes fullscreen, so the canvas keeps a parent
+              that centres it on a ground of our own rather than on white. */}
           <div
-            ref={stageRef}
             // An inset outline rather than a ring: the card clips its content,
             // and a ring drawn outside the stage would be cut off exactly where
             // it is meant to be read.
-            className="absolute inset-0 bg-background outline-primary/80 focus-within:-outline-offset-2 focus-within:outline-2"
+            className="absolute inset-0 outline-primary/80 focus-within:-outline-offset-2 focus-within:outline-2"
           >
-            <div
-              ref={hostRef}
-              className={cn(
-                "grid size-full place-items-center [&>canvas]:outline-none",
-                running
-                  ? "bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px]"
-                  : undefined,
-              )}
-            />
+            <div ref={stageRef} className={cn("size-full", running ? "bg-background" : undefined)}>
+              <div
+                ref={hostRef}
+                className={cn(
+                  "grid size-full place-items-center [&>canvas]:outline-none",
+                  running
+                    ? "bg-[radial-gradient(oklch(0.35_0.015_255_/_0.32)_0.7px,transparent_0.7px)] bg-size-[16px_16px]"
+                    : undefined,
+                )}
+              />
+            </div>
           </div>
           {!running && error === null ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-md">
+            // The still is the card: it stays crisp, and the scrim that makes
+            // the button legible only arrives with the pointer. Focus reveals
+            // it too, or the control would be reachable by tab and invisible.
+            <div className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 backdrop-blur-md transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
               <Button type="button" onClick={() => setRunning(true)} aria-label={`Run ${name}`}>
                 <Play className="fill-current" />
                 Run
@@ -236,7 +247,7 @@ export function ExamplesPage(): JSX.Element {
     <main>
       <Container className="py-16">
         <PageHeader title="Examples">
-          {SCENES.length} scenes. The heavy ones wait for a click.
+          {SCENES.length} scenes, each showing a frame of itself. Hover one and press Run.
         </PageHeader>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {SCENES.map((scene) => (
