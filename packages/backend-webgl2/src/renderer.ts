@@ -33,7 +33,7 @@ import {
 import { PathBuilder } from "./path/builder";
 import { DEFAULT_TOLERANCE } from "./path/flatten";
 import { fanTriangles, quadTriangles, strokeTriangles } from "./path/geometry";
-import { SdfAtlas } from "./text/atlas";
+import { SdfAtlas, type AtlasOptions } from "./text/atlas";
 import { type ResourceId, ResourceRegistry } from "./resource";
 import type { ImageSource } from "@hazumi/graphics";
 import { PingPongTargets } from "./framebuffer";
@@ -135,6 +135,18 @@ export interface Webgl2Options {
    * it is drawn larger than its source, which is most of the time in a game.
    */
   readonly smoothing?: boolean;
+  /**
+   * How the glyph atlas is built.
+   *
+   * The default rasterises at 48 pixels, which is comfortable for body text
+   * and for headings. A distance field derived from a raster carries the edge
+   * to that raster's precision and no further, so a glyph drawn several times
+   * larger than the atlas shows the field's own steps along a diagonal. A
+   * specimen, a title card, a logotype — anything setting type in the
+   * hundreds of pixels — wants the atlas raised to match, at the cost of a
+   * larger texture.
+   */
+  readonly text?: AtlasOptions;
   /**
    * Reserved. Allocating a depth attachment is a config flag rather than a
    * redesign — see "Shipping 2D, staying 3D-capable" in AGENTS.md.
@@ -257,6 +269,7 @@ export class Webgl2Renderer {
   // unloaded image therefore stays on the GPU until `dispose()`.
   #imageTextures = new WeakMap<ImageSource, ResourceId>();
   #smoothing: boolean;
+  readonly #textOptions: AtlasOptions;
 
   #pathProgramId: ResourceId;
   #pathBufferId: ResourceId;
@@ -295,6 +308,7 @@ export class Webgl2Renderer {
   constructor(canvas: HTMLCanvasElement, options: Webgl2Options = {}) {
     this.#canvas = canvas;
     this.#smoothing = options.smoothing ?? true;
+    this.#textOptions = options.text ?? {};
     this.#instanceCapacity = INITIAL_INSTANCES;
     const instanceData = new ArrayBuffer(INITIAL_INSTANCES * SHAPE_INSTANCE_BYTES);
     this.#instances = new Float32Array(instanceData);
@@ -1066,7 +1080,7 @@ export class Webgl2Renderer {
       );
     }
 
-    const atlas = new SdfAtlas(family);
+    const atlas = new SdfAtlas(family, this.#textOptions);
     const textureId = this.#registry.add(gl, {
       kind: "texture",
       width: atlas.width,

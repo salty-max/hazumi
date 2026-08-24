@@ -1,7 +1,18 @@
 /**
- * Text at a range of sizes, drawn through the SDF atlas.
- * Tests: glyph layout, alignment, the second render pipeline, and whether the
- * distance field actually stays crisp as the size climbs.
+ * A specimen, set in a distance field.
+ *
+ * Tests: glyph layout, alignment, per-glyph measurement, the second render
+ * pipeline, and whether the field actually stays crisp as the size climbs.
+ *
+ * The atlas is rasterised once, at one size. Everything here is drawn from that
+ * same set of glyphs — the two-hundred-pixel pair at the centre and the
+ * eight-pixel line under it — which is the claim worth checking: if the field
+ * were wrong, the big one would show it first, and if the layout were wrong,
+ * the small one would.
+ *
+ * The ring is set a glyph at a time. Each letter advances the pen by its own
+ * measured width, turned into an angle, which is the same arithmetic a
+ * justified line does and the reason `textWidth` is on the context at all.
  */
 import { start, type HazumiApp } from "hazumi/app";
 import { webgl2 } from "hazumi/backends/webgl2";
@@ -9,44 +20,101 @@ import {
   Align,
   Baseline,
   background,
-  circle,
   fill,
+  line,
+  pop,
+  push,
+  rotate,
+  stroke,
+  strokeWeight,
   text,
   textAlign,
   textFont,
   textSize,
+  textWidth,
+  translate,
 } from "hazumi/draw";
 import { screen, time } from "hazumi/scene";
 
+const FACE = "Bricolage Grotesque, sans-serif";
+/**
+ * Long enough to close the circle.
+ *
+ * A ring of type that runs out halfway round reads as a bug rather than as a
+ * decision, so the phrase is repeated until it wraps; the seam moves with the
+ * rotation and nobody finds it.
+ */
+const PHRASE = "HANDGLOVES · SET ONCE IN A DISTANCE FIELD · DRAWN AT ANY SIZE · ";
+const RING = PHRASE + PHRASE;
+const LADDER = [8, 12, 17, 24, 33] as const;
+const INK = "oklch(0.95 0.02 90)";
+const DIM = "oklch(0.62 0.03 260)";
+const ACCENT = "oklch(0.72 0.19 40)";
+
 export function typeSpecimen(parent: HTMLElement): HazumiApp {
   return start(
-    { backend: webgl2(), width: 600, height: 600, parent },
+    // The atlas is rasterised at 128 rather than the default 48, and that is
+    // the whole reason the big pair looks like type rather than like a
+    // staircase. The field carries the edge to the precision of the raster it
+    // was measured from, so a glyph set at 210 pixels out of a 48-pixel atlas
+    // steps a texel at a time down every diagonal. Costs a larger texture,
+    // which is the trade a title card should make and body text should not.
+    { backend: webgl2({ text: { fontSize: 128 } }), width: 600, height: 600, parent },
     {
       draw: (): void => {
-        background("oklch(0.96 0.01 90)");
-        textFont("Bricolage Grotesque, sans-serif");
+        background("oklch(0.14 0.02 265)");
+        textFont(FACE);
 
-        fill("oklch(0.25 0.04 260)");
-        textAlign(Align.Left, Baseline.Alphabetic);
-        for (const [i, size] of [12, 18, 26, 38, 56].entries()) {
-          textSize(size);
-          text("Handgloves", 40, 90 + i * 78);
+        push();
+        translate(screen.width / 2, screen.height / 2);
+
+        // The ring, a glyph at a time.
+        const radius = 246;
+        textSize(19);
+        textAlign(Align.Center, Baseline.Middle);
+        fill(DIM);
+        let angle = time.elapsed * 0.12;
+        for (const character of RING) {
+          const advance = textWidth(character);
+          angle += advance / (2 * radius);
+          push();
+          rotate(angle);
+          translate(0, -radius);
+          text(character, 0, 0);
+          pop();
+          angle += advance / (2 * radius);
         }
 
-        // Centred, and moving — proves layout is recomputed, not cached wrong.
+        // The pair, as large as the frame will take it. One atlas, one glyph
+        // each, two hundred pixels of it.
+        textSize(210);
         textAlign(Align.Center, Baseline.Middle);
-        textSize(30);
-        fill("oklch(0.55 0.2 25)");
-        text("centred", screen.width / 2 + Math.sin(time.elapsed) * 90, 520);
+        fill(ACCENT);
+        text("Aa", 0, -46);
 
-        // Shapes and glyphs interleaved: each switch is a pipeline change, so
-        // this is also a check that batching does not reorder them.
-        fill("oklch(0.6 0.15 200 / 0.8)");
-        circle(500, 100, 60);
-        fill("oklch(0.25 0.04 260)");
-        textAlign(Align.Right, Baseline.Alphabetic);
-        textSize(20);
-        text("over", 540, 106);
+        // The ladder, tight, so the small end is right under the large one.
+        textAlign(Align.Center, Baseline.Alphabetic);
+        fill(INK);
+        let y = 96;
+        for (const size of LADDER) {
+          textSize(size);
+          text("Handgloves 0123", 0, y);
+          y += size * 1.55;
+        }
+
+        // A rule and the face's own name, measured rather than guessed.
+        textSize(13);
+        const label = "Bricolage Grotesque";
+        const width = textWidth(label);
+        stroke(DIM);
+        strokeWeight(1);
+        line(-width / 2 - 18, 208, -width / 2 - 8, 208);
+        line(width / 2 + 8, 208, width / 2 + 18, 208);
+        fill(DIM);
+        text(label, 0, 212);
+
+        textAlign(Align.Left, Baseline.Alphabetic);
+        pop();
       },
     },
   );
