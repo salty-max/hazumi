@@ -77,6 +77,17 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
+/**
+ * How many applications are listening for keys right now.
+ *
+ * Pointer events already belong to the canvas they land on. Keys have no such
+ * home — they arrive at the window — so until now every sketch on a page
+ * received every keystroke. A gallery of them answered a single press all at
+ * once: the space bar that fired a shot also restarted the motorbike two cards
+ * down, and the arrow keys stopped scrolling the page entirely.
+ */
+let listening = 0;
+
 function shouldPreventPageScroll(event: KeyboardEvent): boolean {
   if (event.metaKey || event.ctrlKey || event.altKey) return false;
   if (!PAGE_SCROLL_KEYS.has(event.key)) return false;
@@ -295,7 +306,27 @@ export function createInputTracking(state: ContextState, canvas: HTMLCanvasEleme
     pendingWheelX += event.deltaX * scale;
     pendingWheelY += event.deltaY * scale;
   };
+  /**
+   * Whether keys belong to this application at this moment.
+   *
+   * One sketch on a page takes them by default: asking someone to click a
+   * canvas before the arrow keys do anything is a poor first five seconds, and
+   * there is nothing else on the page that could want them — unless they are
+   * typing, which always wins.
+   *
+   * Several sketches have no such default, so the keys go to whichever one was
+   * last clicked and to no other. `pointerdown` focuses the canvas, so that is
+   * the same click that starts playing.
+   */
+  const ownsKeyboard = (): boolean => {
+    const active = globalThis.document?.activeElement ?? null;
+    if (active === canvas) return true;
+    if (listening > 1) return false;
+    return !isEditableTarget(active);
+  };
+
   const onKeyDown = (event: KeyboardEvent): void => {
+    if (!ownsKeyboard()) return;
     if (shouldPreventPageScroll(event)) event.preventDefault();
     if (!state.keysDown.has(event.key)) pendingKeysPressed.add(event.key);
     state.keyIsPressed = true;
@@ -303,6 +334,9 @@ export function createInputTracking(state: ContextState, canvas: HTMLCanvasEleme
     state.keysDown.add(event.key);
   };
   const onKeyUp = (event: KeyboardEvent): void => {
+    // Releases are taken whoever they were meant for. A key held while focus
+    // moves elsewhere would otherwise stay down for good, and letting go of
+    // something that was never pressed is already a no-op below.
     if (state.keysDown.delete(event.key)) pendingKeysReleased.add(event.key);
     state.keyIsPressed = state.keysDown.size > 0;
   };
@@ -387,6 +421,7 @@ export function createInputTracking(state: ContextState, canvas: HTMLCanvasEleme
 
   return {
     attach: (): void => {
+      listening++;
       canvas.addEventListener("pointermove", onPointerMove);
       canvas.addEventListener("pointerleave", onPointerLeave);
       canvas.addEventListener("pointerdown", onPointerDown);
@@ -398,6 +433,7 @@ export function createInputTracking(state: ContextState, canvas: HTMLCanvasEleme
       globalThis.addEventListener("blur", onBlur);
     },
     detach: (): void => {
+      listening = Math.max(0, listening - 1);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("pointerdown", onPointerDown);
