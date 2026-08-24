@@ -5,6 +5,15 @@
  * fog as a per-instance tint rather than a second shape pass, billboard
  * sprites occluded by a z-buffer, async asset loading, and input. Not a 3D
  * API — walls are 1px-wide crops of a tile.
+ *
+ * Lit like the dungeon scene, and by the same reasoning. The player carries the
+ * only light there is, so brightness is distance: the fog ramp runs from a warm
+ * torch-lit near wall to a cold near-black far one, applied as a tint on the
+ * strip rather than as a second pass over it. A grade pass on top seats the
+ * whole frame at the same ambient the chamber sits in.
+ *
+ * The readouts are in `overlay`, so the grade cannot dim them. That is what an
+ * overlay is for — the frame rate belongs to the reader, not to the corridor.
  */
 import { loadImage, spritesheet, type AnimationClip, type SpriteFrame } from "hazumi/assets";
 import { start, type HazumiApp } from "hazumi/app";
@@ -25,19 +34,70 @@ import {
   tint,
 } from "hazumi/draw";
 import { input, keyIsDown } from "hazumi/input";
-import { camera, screen, time } from "hazumi/scene";
+import { camera, screen, setPasses, time } from "hazumi/scene";
 
 const MOVE = 3.2;
 const TURN = 2.2;
 const RADIUS = 0.18;
-const FOG = 14;
-const WALL_TILES = [42, 43, 52] as const;
+const FOG = 12;
+
+/**
+ * Which cells of the Oryx sheet the three wall kinds are cut from.
+ *
+ * Grid positions rather than indices: the sheet is fifty-four columns across
+ * and `[0, 7]` says where to look, where `378` says nothing to anybody.
+ *
+ * Column nought of a palette row is its framed masonry block, which is the one
+ * tile in each row that reads as a wall seen face-on — the same tile the
+ * chamber scene uses for the top of its walls. The first pick here was column
+ * seven, which turns out to be a run of columns drawn in perspective: correct
+ * from above and, stretched up a wall, a set of vertical stripes.
+ */
+const WALL_CELLS = [
+  [0, 7],
+  [0, 3],
+  [0, 6],
+] as const;
+
+function hex(value: number): string {
+  return value.toString(16).padStart(2, "0");
+}
+
+/**
+ * The fog ramp: how much light reaches a wall, and nothing about its colour.
+ *
+ * Tinting the strip amber was the obvious first move and it does not work. The
+ * stone is blue-grey, and `tint` multiplies — it can take light out of a colour
+ * but it cannot put in a hue the texture has none of, which is the same wall
+ * the dungeon's floor ran into. So the ramp stays a dimmer, and the grade
+ * below turns brightness into warmth.
+ */
 const FOG_TINTS: readonly string[] = Array.from({ length: 16 }, (_, i) => {
-  const byte = Math.round((1 - (i / 15) * 0.72) * 255)
-    .toString(16)
-    .padStart(2, "0");
-  return `#${byte}${byte}${byte}`;
+  const level = Math.round(255 * (1 - (i / 15) * 0.84));
+  return `#${hex(level)}${hex(level)}${hex(level)}`;
 });
+
+/**
+ * The grade, which is the chamber's, unchanged.
+ *
+ * There is no light map here and there does not need to be one: a raycaster
+ * already knows how far away every pixel is, and it has written that down as
+ * brightness. Reading it back is enough to say which pixels the torch reached,
+ * and from there it is the same arithmetic — cold ambient underneath, flame
+ * colour on top of whatever the light found.
+ */
+const GRADE = `
+void main() {
+  vec3 scene = texture(u_texture, v_uv).rgb;
+  float lit = smoothstep(0.02, 0.42, max(scene.r, max(scene.g, scene.b)));
+
+  vec3 ambient = vec3(0.12, 0.14, 0.22);
+  vec3 flame = vec3(1.25, 0.58, 0.18);
+  float edge = 1.0 - 0.42 * pow(clamp(length(v_uv - 0.5) * 1.4, 0.0, 1.0), 2.0);
+
+  fragColor = vec4(scene * (ambient + flame * lit) * edge, 1.0);
+}
+`;
 
 const LAYOUT: readonly string[] = [
   "########################",
@@ -151,24 +211,33 @@ export function raycaster(parent: HTMLElement): HazumiApp {
     { backend: webgl2({ smoothing: false }), width: 600, height: 600, parent, seed: 8 },
     async (scene) => {
       const width = scene.width;
-      const [tileImage, spriteImage] = await Promise.all([
-        loadImage("/examples/assets/dungeon-tiles.png"),
-        loadImage("/examples/assets/dungeon-sprites.png"),
+      const [worldImage, creatureImage] = await Promise.all([
+        loadImage("/examples/assets/oryx_16bit_fantasy_world_trans.png"),
+        loadImage("/examples/assets/oryx_16bit_fantasy_creatures_trans.png"),
       ]);
 
-      const tiles = spritesheet(tileImage, { frame: [16, 16] });
-      const sprites = spritesheet(spriteImage, {
-        frame: [16, 16],
-        clips: {
-          slimeMove: { frames: [112, 113, 114, 115, 116, 117], fps: 7 },
-          beacon: { frames: [90, 91, 92, 93, 94, 95], fps: 8 },
+      setPasses([{ fragment: GRADE }]);
+
+      const tiles = spritesheet(worldImage, {
+        frame: [24, 24],
+        margin: 24,
+        frames: {
+          torchA: [40, 0],
+          torchB: [41, 0],
         },
+        clips: { beacon: { frames: ["torchA", "torchB"], fps: 8 } },
+      });
+      const creatures = spritesheet(creatureImage, {
+        frame: [24, 24],
+        margin: 24,
+        frames: { slimeA: [1, 12], slimeB: [1, 13] },
+        clips: { slimeMove: { frames: ["slimeA", "slimeB"], fps: 3 } },
       });
 
       const assets: Assets = {
-        walls: WALL_TILES.map((index) => tiles.frame(index)),
-        slime: sprites.clip("slimeMove"),
-        beacon: sprites.clip("beacon"),
+        walls: WALL_CELLS.map(([column, row]) => tiles.at(column, row)),
+        slime: creatures.clip("slimeMove"),
+        beacon: tiles.clip("beacon"),
       };
       if (assets.walls[0] === undefined) throw new Error("wall tilesheet produced no frames");
 
@@ -354,16 +423,19 @@ export function raycaster(parent: HTMLElement): HazumiApp {
           const viewHeight = screen.height;
           background("oklch(0.16 0.03 265)");
           noStroke();
-          fill("oklch(0.22 0.03 80)");
+          fill("oklch(0.18 0.025 70)");
           rect(0, viewHeight / 2, viewWidth, viewHeight / 2);
 
           lastFog = -1;
           for (let col = 0; col < viewWidth; col++) castColumn(col, viewWidth, viewHeight);
           drawSprites(viewWidth, viewHeight);
           noTint();
+        },
 
+        overlay: (): void => {
+          const viewWidth = screen.width;
           camera.screen(() => {
-            drawMinimap(viewHeight);
+            drawMinimap(screen.height);
             if (time.delta > 0) fps += (1 / time.delta - fps) * 0.15;
             fill("oklch(0.92 0.02 250)");
             textSize(13);
