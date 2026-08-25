@@ -2,6 +2,7 @@ import { findGridIn, findSpritesIn, readImagePixels, type SliceRect } from "hazu
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { CodeBlock } from "../components/code-block";
 import { Container } from "../components/container";
+import { InlineCode } from "../components/inline-code";
 import { PageHeader } from "../components/page-header";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -426,11 +427,18 @@ export function SlicerPage(): JSX.Element {
   return (
     <Container className="py-14">
       <PageHeader title="Slicer">
-        Drop a sheet and it tells you how it is cut. Bands of ink between the gutters become the
-        grid; islands of connected pixels become sprites. Most sheets are packed tight in at least
-        one direction, so give it the cell size and it cuts inside each band. Drag on the sheet to
-        scan one block of it, click a box to name it, and take the call away with you.
+        For a sheet whose measurements you do not have — a pack you downloaded, art from an old
+        project, something ripped from a game. If it came out of Aseprite or Tiled, close this:{" "}
+        <InlineCode>fromAseprite</InlineCode> and <InlineCode>fromTiled</InlineCode> read the
+        numbers from the export and you do not have to look at a single pixel.
       </PageHeader>
+      <p className="mb-10 max-w-[68ch] text-sm leading-6 text-muted-foreground">
+        Bands of ink between the gutters become a grid; islands of connected pixels become sprites,
+        which is the mode with no substitute — nothing else finds art that was never on a grid. Most
+        sheets are packed tight in at least one direction, so give the cell size, and a margin when
+        the art floats inside its cells. Drag to scan one block, click a box to name it, and take
+        the call away with you.
+      </p>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div

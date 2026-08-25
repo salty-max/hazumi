@@ -174,7 +174,9 @@ export function HomePage(): JSX.Element {
               </ButtonLink>
             </div>
             <p className="mt-3 max-w-md text-sm text-muted-foreground">
-              Drop a sheet and it tells you how it is cut, then writes the call for you.
+              For a sheet whose measurements you do not have. Aseprite and Tiled exports already
+              carry theirs — <InlineCode>fromAseprite</InlineCode> and{" "}
+              <InlineCode>fromTiled</InlineCode> read them straight off.
             </p>
           </div>
         </div>
