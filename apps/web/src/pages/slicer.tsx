@@ -7,20 +7,46 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
 
+interface Sample {
+  readonly label: string;
+  readonly url: string;
+  /**
+   * The cell size to open with.
+   *
+   * Almost every real sheet is packed tight in at least one direction — of the
+   * five here, not one has a single empty row from edge to edge — so scanning
+   * for gutters alone finds the columns and then takes the whole height as one
+   * band. That is a true answer to the wrong question, and it made the tool
+   * look broken on its own samples. Given the size, the scan cuts inside each
+   * band and the boxes land on the art.
+   */
+  readonly frame: readonly [number, number];
+}
+
 /**
  * Sheets worth opening the tool on, from the gallery's own art.
  *
- * The interface sheet is first because it is the awkward case the tool exists
- * for: panels on one grid, icons on another, and no single cadence to find.
+ * The dungeon tileset is first because it is what the tool is for: nine
+ * hundred tiles packed edge to edge, which nobody is going to count by hand.
+ * The interface sheet is the awkward one — panels on one grid, icons on
+ * another, and no single cadence to find — and it is where dragging a region
+ * over one block earns its keep.
  */
-const SAMPLES = [
-  { label: "interface", url: "/examples/assets/schmup/ui.png" },
-  { label: "ships", url: "/examples/assets/schmup/ships.png" },
-  { label: "projectiles", url: "/examples/assets/schmup/projectiles.png" },
-  { label: "dungeon tiles", url: "/examples/assets/dungeon-tiles.png" },
-  { label: "dungeon sprites", url: "/examples/assets/dungeon-sprites.png" },
-  { label: "hero", url: "/examples/assets/hero.png" },
-] as const;
+const SAMPLES: readonly Sample[] = [
+  {
+    label: "dungeon",
+    url: "/examples/assets/oryx_16bit_fantasy_world_trans.png",
+    frame: [24, 24],
+  },
+  {
+    label: "creatures",
+    url: "/examples/assets/oryx_16bit_fantasy_creatures_trans.png",
+    frame: [24, 24],
+  },
+  { label: "interface", url: "/examples/assets/schmup/ui.png", frame: [12, 13] },
+  { label: "ships", url: "/examples/assets/schmup/ships.png", frame: [8, 8] },
+  { label: "projectiles", url: "/examples/assets/schmup/projectiles.png", frame: [8, 8] },
+];
 
 type Mode = "grid" | "sprites";
 
@@ -153,21 +179,27 @@ export function SlicerPage(): JSX.Element {
     }
   }, []);
 
-  const openUrl = useCallback(
-    async (label: string, url: string): Promise<void> => {
-      const response = await fetch(url);
+  const openSample = useCallback(
+    async (sample: Sample): Promise<void> => {
+      const response = await fetch(sample.url);
       if (!response.ok) {
-        setError(`Could not load ${url}.`);
+        setError(`Could not load ${sample.url}.`);
         return;
       }
-      await open(label, await response.blob());
+      // The size comes with the sheet. A dropped file has none, and the tool
+      // scans for gutters — which is the right first guess for art nobody has
+      // told it about.
+      setCellW(String(sample.frame[0]));
+      setCellH(String(sample.frame[1]));
+      await open(sample.label, await response.blob());
     },
     [open],
   );
 
   useEffect(() => {
-    void openUrl(SAMPLES[0].label, SAMPLES[0].url);
-  }, [openUrl]);
+    const first = SAMPLES[0];
+    if (first !== undefined) void openSample(first);
+  }, [openSample]);
 
   const pixels = useMemo(() => (sheet === null ? null : readImagePixels(sheet.bitmap)), [sheet]);
 
@@ -335,8 +367,9 @@ export function SlicerPage(): JSX.Element {
     <Container className="py-14">
       <PageHeader title="Slicer">
         Drop a sheet and it tells you how it is cut. Bands of ink between the gutters become the
-        grid; islands of connected pixels become sprites. Drag on the sheet to scan one block of it,
-        click a box to name it, and take the call away with you.
+        grid; islands of connected pixels become sprites. Most sheets are packed tight in at least
+        one direction, so give it the cell size and it cuts inside each band. Drag on the sheet to
+        scan one block of it, click a box to name it, and take the call away with you.
       </PageHeader>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -374,7 +407,7 @@ export function SlicerPage(): JSX.Element {
                   key={sample.url}
                   size="sm"
                   variant={sheet?.label === sample.label ? "default" : "outline"}
-                  onClick={(): void => void openUrl(sample.label, sample.url)}
+                  onClick={(): void => void openSample(sample)}
                 >
                   {sample.label}
                 </Button>
