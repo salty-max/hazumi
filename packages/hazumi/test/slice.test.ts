@@ -44,10 +44,22 @@ describe("findGrid", () => {
     expect(grid.rows).toEqual([0, 14, 28, 42, 56, 70, 84, 98]);
   });
 
-  test("leaves the remainder of a band alone rather than cutting a partial cell", () => {
-    // A 10px band cut into 4px cells is two cells and two pixels spare.
+  test("keeps the last cell when the art in it stops short", () => {
+    // A 10px band of 4px cells is three cells, the last one holding two pixels
+    // of art. Requiring a whole cell to fit dropped it — which on the ORYX
+    // dungeon sheet meant a column of fifty-three tiles and a row of forty
+    // silently missing, because their art is 23 of 24 pixels wide.
     const sheet = painted(10, 4, () => true);
-    expect(findGridIn(sheet, { frame: [4, 4] }).columns).toEqual([0, 4]);
+    expect(findGridIn(sheet, { frame: [4, 4] }).columns).toEqual([0, 4, 8]);
+  });
+
+  test("a band too small for one cell still yields one", () => {
+    // The other side of that trade. A seven-pixel ship in an eight-pixel cell
+    // is a frame; treating the band as too small to describe loses it. A
+    // stray speck gets a box it does not deserve, which is visible on the
+    // sheet in a way a missing frame never is.
+    const sheet = painted(7, 4, () => true);
+    expect(findGridIn(sheet, { frame: [8, 8] }).columns).toEqual([0]);
   });
 
   test("a region picks one layout out of a sheet that holds several", () => {

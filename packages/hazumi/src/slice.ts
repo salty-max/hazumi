@@ -125,10 +125,28 @@ function inked(pixels: PixelSource, threshold: number): (x: number, y: number) =
  * A partial cell at the end of a band is not a sprite — it is the two pixels
  * that did not divide, and including it would put a sliver in the sheet.
  */
+/**
+ * Step each band by the cell size, keeping the last cell even when the art in
+ * it stops short.
+ *
+ * `i + size <= length` was the obvious condition and it silently lost frames:
+ * a cell is only as long as the ink inside it, so a tile drawn 23 pixels wide
+ * in a 24-pixel cell ends its band a pixel early and takes the whole cell with
+ * it. On the ORYX dungeon sheet that was a column of fifty-three tiles and a
+ * row of forty — real art, never shown, with nothing to tell you it was
+ * missing.
+ *
+ * So the walk is over the band's extent rather than over the cells that fit.
+ * The trade is the other way now: a band too small to hold one cell still
+ * yields one, anchored where its ink starts. That is right more often than it
+ * is wrong — a sprite narrower than its cell is common and a stray speck is
+ * rare — and either way the tool draws every box it found, so a wrong one can
+ * be seen and a missing one cannot.
+ */
 function cut(bands: readonly (readonly [number, number])[], size: number): number[] {
   const offsets: number[] = [];
   for (const [start, length] of bands) {
-    for (let i = 0; i + size <= length; i += size) offsets.push(start + i);
+    for (let i = 0; i < length; i += size) offsets.push(start + i);
   }
   return offsets;
 }
