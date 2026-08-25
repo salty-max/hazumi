@@ -29,9 +29,13 @@ export interface Oklch {
  * circle to travel.
  */
 export interface Oklab {
+  /** Perceptual lightness, 0–1. The same value OKLCH carries. */
   readonly l: number;
+  /** Green to red. Negative is green, positive is red. */
   readonly a: number;
+  /** Blue to yellow. Negative is blue, positive is yellow. */
   readonly b: number;
+  /** Opacity, 0–1. */
   readonly alpha: number;
 }
 

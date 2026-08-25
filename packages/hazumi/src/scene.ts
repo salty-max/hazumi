@@ -11,15 +11,26 @@ export type { Capabilities };
 
 /** Live logical and physical dimensions for the active scene. */
 export interface ScreenState {
+  /** Logical width. What you draw in — not the backing store's. */
   readonly width: number;
+  /** Logical height. */
   readonly height: number;
+  /** Physical pixels per logical unit. 2 on a retina display. */
   readonly pixelRatio: number;
 }
 
 /** Live display-frame timing for the active scene. */
 export interface TimeState {
+  /** Frames drawn since the application started, counting from 0. */
   readonly frame: number;
+  /** Seconds since it started. What an animation should be a function of. */
   readonly elapsed: number;
+  /**
+   * Seconds the last frame took, clamped by the clock's `maxDelta`.
+   *
+   * For `draw`, which gets no argument. `update` receives its own fixed step
+   * and should use that instead.
+   */
   readonly delta: number;
 }
 

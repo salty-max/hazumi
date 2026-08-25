@@ -22,6 +22,7 @@ const HUD_FILL = "oklch(0.92 0.02 250)";
 
 /** Scene-facing overlay controls. */
 export interface OverlayController {
+  /** Whether anything is drawn at all. Writable, and what `toggleKey` flips. */
   visible: boolean;
   /** FPS / frame time / body count, drawn in screen space. */
   stats: boolean;
@@ -31,13 +32,17 @@ export interface OverlayController {
 
 /** What the overlay plugin adds to a Hazumi scene context. */
 export interface OverlayApi {
+  /** What the plugin adds to the scene context. */
   readonly overlay: OverlayController;
 }
 
 /** What the overlay shows, and how to toggle it. */
 export interface OverlayOptions {
+  /** Whether it starts shown. Defaults to true. */
   readonly visible?: boolean;
+  /** Show FPS, frame time and body count. Defaults to true. */
   readonly stats?: boolean;
+  /** Wireframe the rigid bodies, when a physics plugin is installed. Defaults to true. */
   readonly physics?: boolean;
   /** `KeyboardEvent.key` that toggles `visible`. Omitted: no toggle. */
   readonly toggleKey?: string;

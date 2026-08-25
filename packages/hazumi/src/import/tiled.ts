@@ -23,13 +23,21 @@ import type { TilemapLayerOptions, TilemapOptions } from "../tilemap";
 
 /** One layer of a Tiled map, as it appears in the JSON export. */
 export interface TiledLayer {
+  /** `"tilelayer"` for the ones that carry tiles. Others are skipped. */
   readonly type?: string;
+  /** Layer name, which becomes the Hazumi layer's name. */
   readonly name?: string;
+  /** Global tile ids, either as an array or base64. Zero means empty. */
   readonly data?: readonly number[] | string;
+  /** Whether Tiled had the layer visible. Carried through to the map. */
   readonly visible?: boolean;
+  /** Layer width in cells. Usually the map's own. */
   readonly width?: number;
+  /** Layer height in cells. */
   readonly height?: number;
+  /** `"base64"` when `data` is encoded rather than an array of numbers. */
   readonly encoding?: string;
+  /** Compression applied inside the base64. Only the empty case is supported. */
   readonly compression?: string;
 }
 
@@ -40,18 +48,26 @@ export interface TiledLayer {
  * particular sheet, which is the whole reason the list matters.
  */
 export interface TiledTileset {
+  /** The first global id this set owns. What turns an id into a local index. */
   readonly firstgid: number;
   readonly name?: string;
+  /** Path to an external `.tsx` tileset, when the set is not embedded. */
   readonly source?: string;
 }
 
 /** A Tiled map's JSON export, as much of it as the importer reads. */
 export interface TiledMap {
+  /** Map width in cells. */
   readonly width: number;
+  /** Map height in cells. */
   readonly height: number;
+  /** Tile width in pixels. Tiled's own lower-case key. */
   readonly tilewidth: number;
+  /** Tile height in pixels. */
   readonly tileheight: number;
+  /** Layers in draw order. Non-tile layers are ignored on import. */
   readonly layers?: readonly TiledLayer[];
+  /** Tilesets the ids index into. */
   readonly tilesets?: readonly TiledTileset[];
 }
 

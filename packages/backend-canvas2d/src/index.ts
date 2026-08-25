@@ -24,6 +24,7 @@ import {
  */
 
 export interface Canvas2dOptions {
+  /** Ask for an alpha channel. Defaults to true. */
   readonly alpha?: boolean;
   /**
    * Hint that the canvas will be read back with getImageData every frame.
@@ -119,6 +120,13 @@ export class Canvas2dRenderer {
     };
   }
 
+  /**
+   * Primitives drawn last frame.
+   *
+   * Not batched — this backend draws one at a time — so the number is the
+   * count of primitives, and comparing it with the GPU backend's is what shows
+   * what batching is worth.
+   */
   get drawCalls(): number {
     return this.#drawCalls;
   }
@@ -156,14 +164,17 @@ export class Canvas2dRenderer {
     };
   }
 
+  /** Record the size to render at. Called on construction and on resize. */
   setViewport(width: number, height: number): void {
     this.#viewport = { width, height };
   }
 
+  /** The size currently being rendered at. */
   get viewport(): { width: number; height: number } {
     return this.#viewport;
   }
 
+  /** Read the canvas back as RGBA bytes, top-down. */
   readPixels(): PixelData {
     const image = this.#ctx.getImageData(0, 0, this.#canvas.width, this.#canvas.height);
     return {
@@ -173,6 +184,7 @@ export class Canvas2dRenderer {
     };
   }
 
+  /** Replace the canvas with RGBA bytes, top-down. */
   writePixels(pixels: PixelData): void {
     if (pixels.width !== this.#canvas.width || pixels.height !== this.#canvas.height) {
       throw new RangeError(
@@ -185,6 +197,7 @@ export class Canvas2dRenderer {
     this.#ctx.putImageData(image, 0, 0);
   }
 
+  /** Drop the 2D context. Nothing else is held. */
   dispose(): void {
     this.#ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.#ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
@@ -192,6 +205,12 @@ export class Canvas2dRenderer {
     this.#tintInk = null;
   }
 
+  /**
+   * Replay the command stream through the 2D context.
+   *
+   * Ignores `RenderOptions`: there is no shader chain here for `passes` to
+   * turn off, so every stream is drawn the same way.
+   */
   render(buffer: CommandBuffer): void {
     const ctx = this.#ctx;
     this.#drawCalls = 0;

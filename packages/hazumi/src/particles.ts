@@ -17,22 +17,35 @@ export type ParticleImage = ImageSource | SpriteFrame;
  * draw: interpolated when `draw` is given an alpha.
  */
 export interface Particle {
+  /** Position in world units, interpolated toward the next update. */
   readonly x: number;
+  /** Position in world units. */
   readonly y: number;
+  /** Velocity, world units per second. */
   readonly vx: number;
+  /** Velocity, world units per second. */
   readonly vy: number;
+  /** Rotation in radians. */
   readonly angle: number;
+  /** Rotation rate, radians per second. */
   readonly spin: number;
   /** Diameter, same as `circle()`. */
   readonly size: number;
+  /** Seconds left before it dies. */
   readonly life: number;
+  /** Seconds it was given at emit. `t` is the ratio of the two. */
   readonly maxLife: number;
   /** Age in 0–1, 0 at emit, 1 at death. */
   readonly t: number;
+  /** Red, 0–1, already interpolated along the burst's colour ramp. */
   readonly r: number;
+  /** Green, 0–1. */
   readonly g: number;
+  /** Blue, 0–1. */
   readonly b: number;
+  /** Opacity, 0–1, with any fade already applied. */
   readonly a: number;
+  /** The frame this particle draws, or undefined for a plain circle. */
   readonly image: ParticleImage | undefined;
 }
 
@@ -45,9 +58,11 @@ export interface Particle {
 export interface ParticleBurst {
   /** Origin. A range sprays across a segment. */
   readonly x: ParticleRange;
+  /** Origin. A range sprays across a segment. */
   readonly y: ParticleRange;
   /** How many to spawn. Defaults to 1. Extra particles are dropped if the pool is full. */
   readonly count?: number;
+  /** Launch speed in world units per second. Defaults to 0. */
   readonly speed?: ParticleRange;
   /** Launch direction in radians. Defaults to a full turn. */
   readonly angle?: ParticleRange;
@@ -56,16 +71,19 @@ export interface ParticleBurst {
    * velocity: `vx: player.vx`, `angle` for the spray.
    */
   readonly vx?: ParticleRange;
+  /** Added after the polar velocity, like `vx`. */
   readonly vy?: ParticleRange;
   /** Sprite angle in radians. Defaults to the launch direction. */
   readonly rotation?: ParticleRange;
   /** Angular velocity in radians per second. */
   readonly spin?: ParticleRange;
+  /** Seconds before death. A range is what stops a burst dying all at once. */
   readonly life?: ParticleRange;
   /** Diameter, same as `circle()`. */
   readonly size?: ParticleRange;
   /** Defaults to `size`. */
   readonly endSize?: ParticleRange;
+  /** Colour at emit. Defaults to white. */
   readonly color?: ColorLike;
   /**
    * Defaults to the same RGB as `color` with alpha 0, so particles fade out
@@ -89,7 +107,9 @@ export interface ParticleDrip extends Omit<ParticleBurst, "count"> {
 
 /** Constant acceleration applied to every live particle, in units per second squared. */
 export interface ParticleGravity {
+  /** Horizontal acceleration, world units per second squared. Defaults to 0. */
   readonly x?: number;
+  /** Vertical acceleration, positive downwards. Defaults to 0. */
   readonly y?: number;
 }
 
@@ -97,6 +117,7 @@ export interface ParticleGravity {
 export interface ParticleSystemOptions {
   /** Maximum live particles. Preallocated. */
   readonly capacity: number;
+  /** Constant acceleration on every particle. None by default. */
   readonly gravity?: ParticleGravity;
   /** Velocity decay per second. 0 is no drag. */
   readonly drag?: number;
@@ -122,12 +143,15 @@ export interface ParticleSystemOptions {
  * keeps the update allocation-free.
  */
 export interface ParticleSystem {
+  /** Maximum live particles. Fixed at construction; the pool never grows. */
   readonly capacity: number;
   /** Currently alive. */
   readonly count: number;
+  /** Spawn a burst now. Particles past the capacity are dropped, not queued. */
   emit: (burst: ParticleBurst) => void;
   /** Spawn `rate * dt` particles, carrying the fractional remainder. */
   drip: (flow: ParticleDrip, dt: number) => void;
+  /** Advance every live particle and retire the expired ones. */
   update: (dt: number) => void;
   /**
    * Draw every live particle. `alpha` interpolates from the previous update,
@@ -138,6 +162,7 @@ export interface ParticleSystem {
     (alpha?: number): void;
     (paint: (particle: Particle) => void, alpha?: number): void;
   };
+  /** Kill every particle at once, without drawing them out. */
   clear: () => void;
 }
 

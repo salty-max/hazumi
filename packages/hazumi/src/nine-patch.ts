@@ -46,6 +46,7 @@ export interface NinePatch {
   readonly border: readonly [number, number, number, number];
   /** Smallest box that draws without the corners having to overlap. */
   readonly minWidth: number;
+  /** Smallest height that draws without the corners having to overlap. */
   readonly minHeight: number;
   /** Draw the patch to fill a box. */
   draw: (x: number, y: number, width: number, height: number) => void;

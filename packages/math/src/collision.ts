@@ -2,25 +2,37 @@ import type { Vec2 } from "./vec2";
 
 /** Axis-aligned bounds stored as normalized minimum and maximum edges. */
 export interface Aabb {
+  /** Left edge. */
   readonly minX: number;
+  /** Top edge, screen-space: y grows downwards. */
   readonly minY: number;
+  /** Right edge. Always at or past `minX` — see `aabb`, which normalizes. */
   readonly maxX: number;
+  /** Bottom edge. Always at or past `minY`. */
   readonly maxY: number;
 }
 
 /** Circle in 2D space. */
 export interface Circle {
+  /** Centre. */
   readonly x: number;
+  /** Centre. */
   readonly y: number;
+  /** Radius, not a diameter — unlike `circle()`, which draws one. */
   readonly radius: number;
 }
 
 /** Intersection between a ray and a shape. Mutable so callers can reuse it. */
 export interface RayHit {
+  /** Where the ray met the surface. */
   x: number;
+  /** Where the ray met the surface. */
   y: number;
+  /** Unit surface normal at the point, pointing back towards the ray. */
   normalX: number;
+  /** Unit surface normal at the point. */
   normalY: number;
+  /** How far along the ray the hit is, in world units. */
   distance: number;
 }
 
@@ -28,7 +40,9 @@ export interface RayHit {
 export interface SweepHit {
   /** Fraction of the supplied movement completed before impact, from 0 to 1. */
   time: number;
+  /** Unit normal of the face that stopped it — what a slide response projects along. */
   normalX: number;
+  /** Unit normal of the face that stopped it. */
   normalY: number;
 }
 

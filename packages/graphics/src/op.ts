@@ -132,8 +132,11 @@ export type MaterialKind = (typeof MaterialKind)[keyof typeof MaterialKind];
 
 /** Horizontal text anchor. */
 export const Align = {
+  /** The x is the left edge of the run. */
   Left: 0,
+  /** The x is the middle of the run. */
   Center: 1,
+  /** The x is the right edge, so the text grows leftwards. */
   Right: 2,
 } as const;
 
@@ -141,9 +144,13 @@ export type Align = (typeof Align)[keyof typeof Align];
 
 /** Vertical text anchor. */
 export const Baseline = {
+  /** The typographic baseline: where descenders start. The default. */
   Alphabetic: 0,
+  /** The top of the font's own box, not of the glyphs actually drawn. */
   Top: 1,
+  /** Halfway between top and bottom — what centring in a button wants. */
   Middle: 2,
+  /** The bottom of the font's box, below the deepest descender. */
   Bottom: 3,
 } as const;
 

@@ -36,7 +36,14 @@ export type Material =
    * Lerp the sprite toward a colour, keeping its own alpha. The hit flash:
    * `{ type: "flash", amount: 1 }` is a white silhouette, `0` is untouched.
    */
-  | { readonly type: "flash"; readonly color?: ColorLike; readonly amount?: number }
+  | {
+      /** Discriminant. */
+      readonly type: "flash";
+      /** What to lerp toward. Defaults to white. */
+      readonly color?: ColorLike;
+      /** How far, 0 to 1. Defaults to 1 — a flat silhouette in `color`. */
+      readonly amount?: number;
+    }
   /**
    * A border in the transparent texels around the art.
    *
@@ -47,7 +54,14 @@ export type Material =
    * nowhere to put the border, and the edge is clamped rather than bleeding
    * into the neighbouring frame of a sheet.
    */
-  | { readonly type: "outline"; readonly color?: ColorLike; readonly width?: number }
+  | {
+      /** Discriminant. */
+      readonly type: "outline";
+      /** Border colour. Defaults to black. */
+      readonly color?: ColorLike;
+      /** Thickness in whole source texels, 1 to 8. Defaults to 1. */
+      readonly width?: number;
+    }
   /**
    * Eat the sprite away along a noise field, with a lit edge at the boundary.
    *
@@ -56,25 +70,39 @@ export type Material =
    * is how many noise cells span the frame — larger is finer.
    */
   | {
+      /** Discriminant. */
       readonly type: "dissolve";
+      /** Progress, 0 (whole) to 1 (gone). The one parameter with no default. */
       readonly amount: number;
+      /** Width of the lit band at the boundary, as a fraction. Defaults to 0.1. */
       readonly edge?: number;
+      /** Colour of that band. Defaults to white. */
       readonly color?: ColorLike;
+      /** Noise cells across the frame. Larger is finer. Defaults to 8. */
       readonly scale?: number;
     };
 
 /** Style overrides accepted by `with()`. */
 export interface StyleOverrides {
+  /** Interior colour, or `null` for `noFill()`. */
   fill?: ColorLike | null;
+  /** Outline colour, or `null` for `noStroke()`. */
   stroke?: ColorLike | null;
+  /** Outline width in user units. */
   strokeWeight?: number;
+  /** How the block's draws combine with what is under them. */
   blendMode?: Blend;
+  /** Image multiplier, or `null` for opaque white. */
   tint?: ColorLike | null;
   /** `null` clears the material for the body, as `noMaterial()` would. */
   material?: Material | null;
+  /** Font family, as a CSS font stack. */
   textFont?: string;
+  /** Text size in user units. */
   textSize?: number;
+  /** Which point of the text its x refers to. */
   textAlign?: Align;
+  /** Which point of the text its y refers to. */
   textBaseline?: Baseline;
 }
 
@@ -84,21 +112,29 @@ export interface PointerInput {
   readonly id: number;
   /** Browser pointer type: usually `mouse`, `pen`, or `touch`. */
   readonly type: string;
+  /** Position in logical canvas coordinates. */
   readonly x: number;
+  /** Position in logical canvas coordinates. */
   readonly y: number;
   /** Position at the end of the previous fixed update. */
   readonly previousX: number;
+  /** Position at the end of the previous fixed update. */
   readonly previousY: number;
   /** Normalized contact pressure from 0 to 1. */
   readonly pressure: number;
+  /** The first contact of its type — the one a single-pointer scene should follow. */
   readonly isPrimary: boolean;
+  /** Whether it is currently down. A hovering mouse is present but not pressed. */
   readonly isPressed: boolean;
 }
 
 /** One analog or digital button reported by a gamepad. */
 export interface GamepadButtonInput {
+  /** Analog position, 0 to 1. A digital button reports 0 or 1. */
   readonly value: number;
+  /** Whether the pad considers it pressed. Triggers have their own threshold. */
   readonly pressed: boolean;
+  /** Whether a finger is resting on it — capacitive pads only. */
   readonly touched: boolean;
 }
 
@@ -106,10 +142,15 @@ export interface GamepadButtonInput {
 export interface GamepadInput {
   /** Browser-assigned slot, stable while the controller remains connected. */
   readonly index: number;
+  /** What the pad calls itself. Useful for telling two models apart. */
   readonly id: string;
+  /** `"standard"` when the browser could map it to the standard layout. */
   readonly mapping: string;
+  /** False once it is unplugged. The slot stays, reporting everything at rest. */
   readonly connected: boolean;
+  /** Axis positions, -1 to 1. Standard layout is left stick, then right. */
   readonly axes: readonly number[];
+  /** Buttons, indexed by the standard layout. */
   readonly buttons: readonly GamepadButtonInput[];
 }
 

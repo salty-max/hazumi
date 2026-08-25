@@ -176,15 +176,18 @@ export class SvgRenderer {
     return SvgRenderer.#measure;
   }
 
+  /** Set the size the document declares. */
   setViewport(width: number, height: number): void {
     this.#width = width;
     this.#height = height;
   }
 
+  /** Drop the accumulated document. Nothing native is held. */
   dispose(): void {
     this.#elements.length = 0;
   }
 
+  /** Walk the stream and build the SVG document. Read it back with `toSvg`. */
   render(buffer: CommandBuffer): void {
     this.#elements.length = 0;
     this.#filters.length = 0;

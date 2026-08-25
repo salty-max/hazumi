@@ -3,6 +3,7 @@ import { namedColorHex, TRANSPARENT_HEX } from "./named";
 
 /** Thrown when a colour string cannot be understood. */
 export class ColorParseError extends Error {
+  /** The string that could not be read, for an error worth showing a user. */
   readonly input: string;
 
   constructor(input: string) {

@@ -111,7 +111,10 @@ export function tween(options: TweenOptions): Tween {
  */
 export function sequence(
   steps: readonly TweenOptions[],
-  options: { readonly end?: ClipEnd } = {},
+  options: {
+    /** What happens after the last step. Defaults to holding at its final value. */
+    readonly end?: ClipEnd;
+  } = {},
 ): Tween {
   if (steps.length === 0) throw new InvalidTweenError("A sequence needs at least one step.");
   const parts = steps.map((step) => tween(step));

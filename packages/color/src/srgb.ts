@@ -1,16 +1,24 @@
 /** sRGB, gamma-encoded, components in [0, 1]. */
 export interface Srgb {
+  /** Red, 0–1, gamma-encoded. */
   readonly r: number;
+  /** Green, 0–1, gamma-encoded. */
   readonly g: number;
+  /** Blue, 0–1, gamma-encoded. */
   readonly b: number;
+  /** Opacity, 0–1. Never gamma-encoded, in any of these spaces. */
   readonly alpha: number;
 }
 
 /** Linear-light RGB, components nominally in [0, 1]. What the GPU wants. */
 export interface LinearRgb {
+  /** Red, linear light. May fall outside 0–1 when a colour is out of gamut. */
   readonly r: number;
+  /** Green, linear light. */
   readonly g: number;
+  /** Blue, linear light. */
   readonly b: number;
+  /** Opacity, 0–1. */
   readonly alpha: number;
 }
 

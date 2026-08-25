@@ -63,6 +63,7 @@ export function definePlugin<Contributes extends object>(
 
 /** Two plugins registered under one name. Names are the addressing scheme, so they must be unique. */
 export class DuplicatePluginError extends Error {
+  /** The name that was already taken. */
   readonly pluginName: string;
 
   constructor(name: string) {
@@ -79,6 +80,7 @@ export class DuplicatePluginError extends Error {
  * never have to know which plugin was installed second.
  */
 export class DuplicateContributionError extends Error {
+  /** The contested key. Both plugins wanted to put something here. */
   readonly key: string;
 
   constructor(key: string) {
@@ -90,6 +92,7 @@ export class DuplicateContributionError extends Error {
 
 /** A plugin tried to contribute a key the runtime already owns. */
 export class ReservedContributionError extends Error {
+  /** The reserved key. `PluginHost`'s own members are off limits. */
   readonly key: string;
 
   constructor(key: string) {
@@ -113,15 +116,26 @@ const HOST_KEYS: ReadonlySet<string> = new Set([
 
 /** Lifecycle dispatch plus everything registered plugins add. */
 export interface PluginHost<Api extends object = Record<never, never>> {
+  /** Installed plugin names, in the order they were used. */
   readonly plugins: readonly string[];
   /** Only the values contributed by plugins, without lifecycle methods. */
   readonly extensions: Api;
+  /** Runs every plugin's `presetup`, awaiting each. */
   presetup: () => Promise<void>;
+  /** Runs every plugin's `postsetup`, awaiting each. */
   postsetup: () => Promise<void>;
+  /** Runs before the scene's own update, on the fixed step. */
   preupdate: (fixedDt: number) => void;
+  /** Runs after the scene's own update, on the same step. */
   postupdate: (fixedDt: number) => void;
+  /** Runs before the scene draws, on the frame's real delta rather than the fixed step. */
   predraw: (dt: number) => void;
+  /** Runs after the scene draws — where an overlay puts itself on top. */
   postdraw: (dt: number) => void;
+  /**
+   * Disposes every plugin, collecting failures rather than stopping at the
+   * first: one plugin that throws on the way out must not strand the rest.
+   */
   dispose: () => void;
 }
 
@@ -133,9 +147,11 @@ export interface PluginHost<Api extends object = Record<never, never>> {
  * `PluginHost & PhysicsApi & AudioApi` — inferred, never declared.
  */
 export interface PluginBuilder<Api extends object> {
+  /** Install a plugin, widening the built type by what it contributes. */
   use: <Contributes extends object>(
     plugin: Plugin<Contributes>,
   ) => PluginBuilder<Api & Contributes>;
+  /** Freeze the set and produce the host, with every contribution on it. */
   build: () => PluginHost<Api> & Api;
 }
 

@@ -8,10 +8,15 @@ import { type AnimationClip, type ClipOptions, createClip, InvalidClipError } fr
  * so a draw loop asking for the same frame every frame allocates nothing.
  */
 export interface SpriteFrame {
+  /** The sheet this frame is cut from. Frames never copy pixels. */
   readonly source: ImageSource;
+  /** Left edge of the rectangle, in source pixels. */
   readonly x: number;
+  /** Top edge of the rectangle, in source pixels. */
   readonly y: number;
+  /** Width of the rectangle, in source pixels. */
   readonly width: number;
+  /** Height of the rectangle, in source pixels. */
   readonly height: number;
 }
 
@@ -43,6 +48,7 @@ export type Axes = number | readonly [x: number, y: number];
 
 /** Named animations declared alongside the frames they use. */
 export interface ClipsOption<Clips extends ClipMap = ClipMap> {
+  /** Clip names to how each plays. Their keys become `sheet.clip()`'s type. */
   readonly clips?: Clips;
 }
 
@@ -98,6 +104,7 @@ export type SpritesheetOptions<
 
 /** A clip was asked for by a name the sheet does not declare. Lists what it does have. */
 export class UnknownClipError extends Error {
+  /** The name that was asked for. The message lists what the sheet does have. */
   readonly clipName: string;
 
   constructor(name: string, available: readonly string[]) {
@@ -112,6 +119,7 @@ export class UnknownClipError extends Error {
 
 /** A frame was asked for by a name the sheet does not declare. Lists what it does have. */
 export class UnknownFrameError extends Error {
+  /** The name that was asked for. The message lists what the sheet does have. */
   readonly frameName: string;
 
   constructor(name: string, available: readonly string[]) {
@@ -133,6 +141,7 @@ export class UnknownFrameError extends Error {
  * error, and is very hard to see coming.
  */
 export class InvalidFrameError extends Error {
+  /** The frame whose rectangle could not be used. */
   readonly frameName: string;
 
   constructor(name: string, detail: string) {
@@ -144,13 +153,17 @@ export class InvalidFrameError extends Error {
 
 /** A sliced image. */
 export interface Spritesheet<Frame extends string = string, Clip extends string = string> {
+  /** The decoded image every frame points into. */
   readonly source: ImageSource;
+  /** Cells across. Zero on a sheet of named rectangles. */
   readonly columns: number;
+  /** Cells down. Zero on a sheet of named rectangles. */
   readonly rows: number;
   /** Total frames on the grid, or named rectangles when there is no grid. */
   readonly length: number;
   /** Size of one grid cell. Zero on a sheet of named rectangles. */
   readonly cellWidth: number;
+  /** Height of one grid cell. Zero on a sheet of named rectangles. */
   readonly cellHeight: number;
   /** Frame at a grid position, wrapping out-of-range indices. */
   at: (column: number, row?: number) => SpriteFrame;

@@ -1,8 +1,11 @@
 /** 3D vectors. Present from the start so the 3D addon needs no migration. */
 
 export interface Vec3 {
+  /** Horizontal component. */
   readonly x: number;
+  /** Vertical component. Positive is down, matching screen space. */
   readonly y: number;
+  /** Depth component. */
   readonly z: number;
 }
 
