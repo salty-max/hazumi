@@ -76,6 +76,36 @@ describe("vec2", () => {
     expect(vec2.equals(vec2.vec2(1, 1), vec2.vec2(1 + 1e-9, 1))).toBe(true);
     expect(vec2.equals(vec2.vec2(1, 1), vec2.vec2(1.1, 1))).toBe(false);
   });
+
+  test("addScaled is the integration step, not two calls", () => {
+    const position = vec2.vec2(10, 20);
+    const velocity = vec2.vec2(3, -4);
+    expect(vec2.addScaled(position, velocity, 0.5)).toEqual({ x: 11.5, y: 18 });
+    // A zero step leaves the position exactly where it was, which matters on a
+    // paused frame: drifting by an epsilon per tick is a bug nobody sees.
+    expect(vec2.addScaled(position, velocity, 0)).toEqual({ x: 10, y: 20 });
+  });
+
+  test("moveTowards arrives rather than approaching forever", () => {
+    const from = vec2.vec2(0, 0);
+    const to = vec2.vec2(3, 4);
+    expect(vec2.moveTowards(from, to, 2.5)).toEqual({ x: 1.5, y: 2 });
+    // The whole difference from lerp: a step longer than the gap lands on the
+    // target instead of overshooting it.
+    expect(vec2.moveTowards(from, to, 10)).toEqual(to);
+    expect(vec2.moveTowards(to, to, 1)).toEqual(to);
+  });
+
+  test("reflect mirrors across a surface and keeps the speed", () => {
+    const down = vec2.vec2(3, 5);
+    const floor = vec2.vec2(0, -1);
+    const bounced = vec2.reflect(down, floor);
+    expect(bounced).toEqual({ x: 3, y: -5 });
+    expect(vec2.length(bounced)).toBeCloseTo(vec2.length(down));
+
+    // A wall reverses x and leaves the slide along it alone.
+    expect(vec2.reflect(vec2.vec2(4, 1), vec2.vec2(-1, 0))).toEqual({ x: -4, y: 1 });
+  });
 });
 
 describe("vec3", () => {
@@ -103,6 +133,14 @@ describe("vec3", () => {
     expect(vec3.distance(vec3.ZERO3, vec3.vec3(2, 3, 6))).toBe(7);
     expect(vec3.length(vec3.normalize(vec3.vec3(2, 3, 6)))).toBeCloseTo(1);
     expect(vec3.normalize(vec3.ZERO3)).toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  test("addScaled steps by a scaled vector", () => {
+    expect(vec3.addScaled(vec3.vec3(1, 2, 3), vec3.vec3(2, 4, 6), 0.5)).toEqual({
+      x: 2,
+      y: 4,
+      z: 6,
+    });
   });
 
   test("lerp and equals", () => {

@@ -23,6 +23,14 @@ export function sub(a: Vec3, b: Vec3): Vec3 {
   return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
 }
 
+/**
+ * `a + b * s`, in one step. The 2D note applies: this is integration, and it
+ * is what a position advanced by a velocity actually is.
+ */
+export function addScaled(a: Vec3, b: Vec3, s: number): Vec3 {
+  return { x: a.x + b.x * s, y: a.y + b.y * s, z: a.z + b.z * s };
+}
+
 export function scale(v: Vec3, s: number): Vec3 {
   return { x: v.x * s, y: v.y * s, z: v.z * s };
 }

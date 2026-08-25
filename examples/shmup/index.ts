@@ -14,6 +14,7 @@ import { start, type HazumiApp } from "hazumi/app";
 import { scoped } from "hazumi/draw";
 import { webgl2 } from "hazumi/backends/webgl2";
 import { keyIsDown, keyJustPressed, pointerJustPressed } from "hazumi/input";
+import { clamp, vec2, type Vec2 } from "hazumi/math";
 import { particles, type ParticleSystem } from "hazumi/particles";
 import { random, screen, time } from "hazumi/scene";
 
@@ -184,8 +185,11 @@ export function shmup(parent: HTMLElement): HazumiApp {
       const sparks: ParticleSystem = particles({ capacity: 600 });
 
       let phase: Phase = "menu";
-      let playerX = screen.width / 2;
-      let playerY = screen.height - 90;
+      // A Vec2 rather than two scalars: everything the ship does to itself is
+      // vector work, and every other thing in the game — an enemy, a shot, a
+      // pickup — already has an `x` and a `y`, so `vec2.distance(player, enemy)`
+      // reads them without anything being converted.
+      let player: Vec2 = { x: screen.width / 2, y: screen.height - 90 };
       let tilt = 0;
       let lives = STARTING_LIVES;
       let score = 0;
@@ -277,8 +281,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
         for (const enemy of enemies) enemy.live = false;
         for (const pickup of pickups) pickup.live = false;
         sparks.clear();
-        playerX = FIELD_X + FIELD_W / 2;
-        playerY = screen.height - 80;
+        player = { x: FIELD_X + FIELD_W / 2, y: screen.height - 80 };
         lives = STARTING_LIVES;
         score = 0;
         invulnerable = INVULNERABLE_FOR;
@@ -294,11 +297,11 @@ export function shmup(parent: HTMLElement): HazumiApp {
         if (shield > 0) {
           shield = 0;
           invulnerable = INVULNERABLE_FOR * 0.6;
-          burst(playerX, playerY, 26, SHIELD);
+          burst(player.x, player.y, 26, SHIELD);
           return;
         }
         lives--;
-        burst(playerX, playerY, 46, GOLD);
+        burst(player.x, player.y, 46, GOLD);
         invulnerable = INVULNERABLE_FOR;
         spread = 0;
         if (lives <= 0) {
@@ -330,20 +333,24 @@ export function shmup(parent: HTMLElement): HazumiApp {
           const down = keyIsDown("ArrowDown") || keyIsDown("s");
           const dx = (right ? 1 : 0) - (left ? 1 : 0);
           const dy = (down ? 1 : 0) - (up ? 1 : 0);
-          const length = Math.hypot(dx, dy) || 1;
-          playerX += (dx / length) * PLAYER_SPEED * dt;
-          playerY += (dy / length) * PLAYER_SPEED * dt;
-          playerX = Math.min(Math.max(playerX, FIELD_X + PLAYER_HALF), FIELD_RIGHT - PLAYER_HALF);
-          playerY = Math.min(Math.max(playerY, 60), screen.height - 26);
+          // Normalized, so a diagonal is not faster than a straight line, and
+          // `normalize` already answers the standing-still case with the zero
+          // vector — which is the guard the hand-written version bolted on.
+          const heading = vec2.normalize({ x: dx, y: dy });
+          player = vec2.addScaled(player, heading, PLAYER_SPEED * dt);
+          player = {
+            x: clamp(player.x, FIELD_X + PLAYER_HALF, FIELD_RIGHT - PLAYER_HALF),
+            y: clamp(player.y, 60, screen.height - 26),
+          };
           tilt += (dx - tilt) * Math.min(1, dt * 12);
 
           firing -= dt;
           if ((keyIsDown(" ") || keyIsDown("z")) && firing <= 0) {
             firing = spread > 0 ? 0.1 : 0.15;
-            spawnShot(playerX, playerY - 18, 0, -600, false);
+            spawnShot(player.x, player.y - 18, 0, -600, false);
             if (spread > 0) {
-              spawnShot(playerX - 9, playerY - 12, -170, -540, false);
-              spawnShot(playerX + 9, playerY - 12, 170, -540, false);
+              spawnShot(player.x - 9, player.y - 12, -170, -540, false);
+              spawnShot(player.x + 9, player.y - 12, 170, -540, false);
             }
           }
           spread = Math.max(0, spread - dt);
@@ -366,7 +373,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
               if (enemy.kind === 1) enemy.x += Math.cos(enemy.phase * 2.2) * 120 * dt;
               if (enemy.kind === 0 && enemy.phase > 0.7) {
                 if (enemy.vx === 0) {
-                  const toX = playerX - enemy.x;
+                  const toX = player.x - enemy.x;
                   enemy.vx = Math.sign(toX) * Math.min(Math.abs(toX) * 1.5, 150);
                 }
                 enemy.x += enemy.vx * dt;
@@ -378,7 +385,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
             const canFire = enemy.y > 0 && (enemy.boss || enemy.y < screen.height - 150);
             if (enemy.cooldown <= 0 && canFire) {
               enemy.cooldown = enemy.boss ? 0.45 : random.range(1.1, 2.6);
-              const aim = Math.atan2(playerY - enemy.y, playerX - enemy.x);
+              const aim = vec2.heading(vec2.sub(player, enemy));
               const speed = enemy.boss ? 250 : 270;
               spawnShot(enemy.x, enemy.y + 14, Math.cos(aim) * speed, Math.sin(aim) * speed, true);
               if (enemy.boss) {
@@ -402,7 +409,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
             if (!enemy.boss && enemy.y > screen.height + 40) enemy.live = false;
 
             const reach = (enemy.boss ? 54 : spec.size * 0.42) + PLAYER_HIT_RADIUS;
-            if (Math.hypot(enemy.x - playerX, enemy.y - playerY) < reach) {
+            if (vec2.distance(enemy, player) < reach) {
               if (!enemy.boss) {
                 enemy.live = false;
                 burst(enemy.x, enemy.y, 24, ENEMY);
@@ -425,10 +432,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
               continue;
             }
             if (shot.hostile) {
-              if (
-                Math.hypot(shot.x - playerX, shot.y - playerY) <
-                PLAYER_HIT_RADIUS + BOLT_HIT_RADIUS
-              ) {
+              if (vec2.distance(shot, player) < PLAYER_HIT_RADIUS + BOLT_HIT_RADIUS) {
                 shot.live = false;
                 hitPlayer();
               }
@@ -469,7 +473,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
               pickup.live = false;
               continue;
             }
-            if (Math.hypot(pickup.x - playerX, pickup.y - playerY) < PICKUP_REACH) {
+            if (vec2.distance(pickup, player) < PICKUP_REACH) {
               pickup.live = false;
               if (pickup.kind === 0) spread = 14;
               else shield = 1;
@@ -507,8 +511,13 @@ export function shmup(parent: HTMLElement): HazumiApp {
             // Blink while invulnerable, the way every arcade ship has.
             const hidden = invulnerable > 0 && Math.floor(invulnerable * 12) % 2 === 0;
             if (phase === "playing" && !hidden) {
-              drawPlayer(art, playerX, playerY, tilt);
-              drawCore(playerX, playerY, PLAYER_HIT_RADIUS, Math.sin(time.elapsed * 7) * 0.5 + 0.5);
+              drawPlayer(art, player.x, player.y, tilt);
+              drawCore(
+                player.x,
+                player.y,
+                PLAYER_HIT_RADIUS,
+                Math.sin(time.elapsed * 7) * 0.5 + 0.5,
+              );
             }
           }
           sparks.draw();
