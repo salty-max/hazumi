@@ -5,5 +5,5 @@
     // scope, so bun's test types must be requested explicitly.
     "types": ["bun"]
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "test/**/*", "build/**/*"]
 }
