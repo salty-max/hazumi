@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { Align, Baseline, Blend, CommandBuffer } from "@hazumi/graphics";
+import { Align, Baseline, Blend, CommandBuffer, MaterialKind } from "@hazumi/graphics";
 import { record } from "@hazumi/backend-headless";
 import { ColorCache } from "../src/color-cache";
 import { type ContextState, createContext, type HazumiContext } from "../src/context";
@@ -65,7 +65,7 @@ function makeContext(): {
     state,
     seed: 42,
     setPasses: () => {},
-    capabilities: { shaders: true, pixels: false, text: true },
+    capabilities: { shaders: true, pixels: false, text: true, materials: true },
     // A monospace stand-in: every glyph half the font size wide, so a test can
     // assert on layout arithmetic without a real font.
     measureText: (content: string, _font: string, size: number) => ({
@@ -234,7 +234,7 @@ describe("style", () => {
       state,
       seed: 1,
       setPasses: () => {},
-      capabilities: { shaders: true, pixels: false, text: true },
+      capabilities: { shaders: true, pixels: false, text: true, materials: true },
       // A monospace stand-in: every glyph half the font size wide, so a test can
       // assert on layout arithmetic without a real font.
       measureText: (content: string, _font: string, size: number) => ({
@@ -333,6 +333,100 @@ describe("with()", () => {
       255, 255, 255, 255,
     ]);
   });
+
+  test("a material carries its kind, colour and parameters", () => {
+    const h = makeContext();
+    h.buffer.reset();
+    h.ctx.material({ type: "dissolve", amount: 0.5, edge: 0.25, color: "#ff0000", scale: 12 });
+
+    const args = record(h.buffer).find((c) => c.op === "setMaterial")?.args ?? [];
+    expect([args[0], ...rgba8(args.slice(1, 5)), ...args.slice(5)]).toEqual([
+      MaterialKind.Dissolve,
+      255,
+      0,
+      0,
+      255,
+      0.5,
+      0.25,
+      12,
+    ]);
+  });
+
+  test("what a material leaves out is filled in by the runtime, not the backend", () => {
+    // Defaults belong on this side of the stream: one that lived in a renderer
+    // would be a difference between renderers waiting to be found.
+    const h = makeContext();
+    const material = (): readonly number[] =>
+      record(h.buffer).find((c) => c.op === "setMaterial")?.args ?? [];
+
+    h.buffer.reset();
+    h.ctx.material({ type: "flash" });
+    // Rounded: the default white goes through the colour parser like any
+    // other, and comes back a hair under 1.
+    expect([material()[0], ...rgba8(material().slice(1, 5)), ...material().slice(5)]).toEqual([
+      MaterialKind.Flash,
+      255,
+      255,
+      255,
+      255,
+      1,
+      0,
+      0,
+    ]);
+
+    h.buffer.reset();
+    h.ctx.material({ type: "outline" });
+    expect([material()[0], ...rgba8(material().slice(1, 5)), ...material().slice(5)]).toEqual([
+      MaterialKind.Outline,
+      0,
+      0,
+      0,
+      255,
+      1,
+      0,
+      0,
+    ]);
+  });
+
+  test("noMaterial writes the absence rather than leaving the last one standing", () => {
+    const h = makeContext();
+    h.ctx.material({ type: "flash", amount: 1 });
+    h.buffer.reset();
+    h.ctx.noMaterial();
+
+    expect(record(h.buffer).find((c) => c.op === "setMaterial")?.args).toEqual([
+      MaterialKind.None,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+    ]);
+  });
+
+  test("material override restores on exit, and null clears it for the body", () => {
+    const h = makeContext();
+    h.ctx.material({ type: "flash", amount: 1 });
+    h.buffer.reset();
+
+    h.ctx.with({ material: { type: "outline", width: 2 } }, () => {
+      h.ctx.image(fakeImage(8, 8), 0, 0);
+    });
+    // The flash is back afterwards: `with` restores the context's own copy,
+    // which is the half a backend push/pop cannot reach.
+    h.ctx.image(fakeImage(8, 8), 1, 1);
+    h.buffer.reset();
+    h.beginFrame();
+    expect(record(h.buffer).find((c) => c.op === "setMaterial")?.args?.[0]).toBe(
+      MaterialKind.Flash,
+    );
+
+    h.buffer.reset();
+    h.ctx.with({ material: null }, () => {});
+    expect(record(h.buffer).find((c) => c.op === "setMaterial")?.args?.[0]).toBe(MaterialKind.None);
+  });
 });
 
 describe("frame lifecycle", () => {
@@ -348,6 +442,7 @@ describe("frame lifecycle", () => {
     expect(h.ops()).toEqual([
       "setFill",
       "setTint",
+      "setMaterial",
       "setStroke",
       "setStrokeWidth",
       "setBlend",

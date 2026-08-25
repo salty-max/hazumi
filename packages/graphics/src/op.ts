@@ -53,6 +53,14 @@ export const Op = {
    * sprite. Default is opaque white — a no-op.
    */
   SetTint: 29,
+  /**
+   * One effect from a fixed vocabulary, applied to textured draws.
+   *
+   * A single opcode rather than one per effect: the kind is an operand, so
+   * adding a fifth material later widens a switch instead of appending an
+   * opcode that older streams do not carry.
+   */
+  SetMaterial: 30,
 } as const;
 
 export type Op = (typeof Op)[keyof typeof Op];
@@ -93,7 +101,34 @@ export const OP_SIZE: Readonly<Record<Op, number>> = {
   [Op.ImageRegion]: 10, // op, imageId, dx, dy, dw, dh, sx, sy, sw, sh
   [Op.ResetTransform]: 1,
   [Op.SetTint]: 5, // op, r, g, b, a
+  [Op.SetMaterial]: 9, // op, kind, r, g, b, a, p0, p1, p2
 };
+
+/**
+ * Per-sprite effects, from a fixed vocabulary.
+ *
+ * Fixed, and not "a fragment shader per sprite", because the effect has to
+ * travel in the instance data rather than in a program: two sprites wearing
+ * different materials still merge into one draw call, and a hundred enemies
+ * flashing on different frames stay a hundred instances of one batch. A
+ * per-sprite program would make each of them its own draw.
+ *
+ * The cost of that is this list. Each entry is something the existing state
+ * cannot already express — a tint multiplies and so cannot lighten toward a
+ * colour, a blend mode applies to a whole draw and not to a sprite's edge —
+ * and each is paid for by two words on every textured instance.
+ */
+export const MaterialKind = {
+  None: 0,
+  /** Lerp toward a colour, keeping the sprite's own alpha. The hit flash. */
+  Flash: 1,
+  /** A border drawn in the transparent texels around the art. Images only. */
+  Outline: 2,
+  /** Eat the sprite away along a noise field, with a burning edge. */
+  Dissolve: 3,
+} as const;
+
+export type MaterialKind = (typeof MaterialKind)[keyof typeof MaterialKind];
 
 /** Horizontal text anchor. */
 export const Align = {

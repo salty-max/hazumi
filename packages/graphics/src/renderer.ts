@@ -118,6 +118,15 @@ export interface Capabilities {
   readonly pixels: boolean;
   /** `measureText` and `textWidth` can answer. */
   readonly text: boolean;
+  /**
+   * `setMaterial` is honoured rather than ignored.
+   *
+   * False does not mean the sprite fails to draw — it draws plain. A scene
+   * that leans on a material for readability rather than for flavour (an
+   * outline that separates a unit from the ground it stands on) is the one
+   * that needs to ask.
+   */
+  readonly materials: boolean;
 }
 
 export interface Renderer {
@@ -145,6 +154,15 @@ export interface Renderer {
    * headless recorder has no glyphs to measure against.
    */
   measureText?: (content: string, font: string, size: number) => TextMetrics;
+  /**
+   * Whether this backend honours `setMaterial`, rather than skipping it.
+   *
+   * A flag and not a method, unlike every other capability here, because a
+   * material arrives in the command stream rather than through a call: there
+   * is nothing to sniff for. A backend that implements the visitor method sets
+   * this to true and is believed.
+   */
+  readonly materials?: boolean;
   /** Release GPU or canvas resources. */
   dispose: () => void;
 }

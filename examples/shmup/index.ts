@@ -11,6 +11,7 @@
  * the same whether a ship is a sprite or a triangle.
  */
 import { start, type HazumiApp } from "hazumi/app";
+import { scoped } from "hazumi/draw";
 import { webgl2 } from "hazumi/backends/webgl2";
 import { keyIsDown, keyJustPressed, pointerJustPressed } from "hazumi/input";
 import { particles, type ParticleSystem } from "hazumi/particles";
@@ -57,6 +58,8 @@ const PICKUP_REACH = 30;
 /** Half the drawn hull, which is what the playfield edge has to hold back. */
 const PLAYER_HALF = 18;
 const INVULNERABLE_FOR = 1.6;
+/** How long an enemy stays white after a bolt lands. Two frames at 60Hz. */
+const STRUCK_FOR = 0.09;
 const STARTING_LIVES = 3;
 const BOSS_EVERY = 6;
 /** Body copy and button labels, in whole 5x7 pixels. */
@@ -94,6 +97,15 @@ interface Enemy {
   /** Its own clock, so a formation does not move in lockstep. */
   phase: number;
   boss: boolean;
+  /**
+   * Seconds left on the hit flash.
+   *
+   * A shmup has to answer "did that shot land" in the frame it lands, and the
+   * spark alone does not — it appears wherever the bolt was, which on a boss
+   * is nowhere near the thing you are trying to read. Whitening the sprite for
+   * a twelfth of a second is the arcade's own answer.
+   */
+  struck: number;
   live: boolean;
 }
 
@@ -163,6 +175,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
           cooldown: 0,
           phase: 0,
           boss: false,
+          struck: 0,
           live: false,
         });
       }
@@ -212,6 +225,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
           enemy.cooldown = random.range(0.6, 2.2);
           enemy.phase = offset;
           enemy.boss = boss;
+          enemy.struck = 0;
           enemy.live = true;
           return;
         }
@@ -340,6 +354,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
           for (const enemy of enemies) {
             if (!enemy.live) continue;
             enemy.phase += dt;
+            enemy.struck = Math.max(0, enemy.struck - dt);
             const spec = KINDS[enemy.kind] as (typeof KINDS)[number];
 
             if (enemy.boss) {
@@ -426,6 +441,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
               if (Math.hypot(shot.x - enemy.x, shot.y - enemy.y) > radius) continue;
               shot.live = false;
               enemy.health--;
+              enemy.struck = STRUCK_FOR;
               burst(shot.x, shot.y, 5, GOLD);
               if (enemy.health <= 0) {
                 enemy.live = false;
@@ -473,8 +489,17 @@ export function shmup(parent: HTMLElement): HazumiApp {
             for (const enemy of enemies) {
               if (!enemy.live) continue;
               const spec = KINDS[enemy.kind] as (typeof KINDS)[number];
-              if (enemy.boss) drawBoss(art, enemy.x, enemy.y, Math.sin(enemy.phase * 2));
-              else drawEnemy(art, enemy.x, enemy.y, enemy.kind, spec.size);
+              const paint = (): void => {
+                if (enemy.boss) drawBoss(art, enemy.x, enemy.y, Math.sin(enemy.phase * 2));
+                else drawEnemy(art, enemy.x, enemy.y, enemy.kind, spec.size);
+              };
+              if (enemy.struck <= 0) paint();
+              // Fading rather than a hard on/off: at one frame it reads as a
+              // dropped frame, and the sprite is only white at the moment of
+              // contact anyway. Costs nothing extra — a flashing enemy and a
+              // plain one are still the same draw call.
+              else
+                scoped({ material: { type: "flash", amount: enemy.struck / STRUCK_FOR } }, paint);
             }
             for (const shot of shots) {
               if (shot.live) drawShot(art, shot.x, shot.y, shot.hostile);

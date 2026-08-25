@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Blend, CommandBuffer, Op, OP_SIZE } from "../src/index";
+import { Blend, MaterialKind, CommandBuffer, Op, OP_SIZE } from "../src/index";
 
 describe("Op", () => {
   /**
@@ -94,6 +94,11 @@ describe("encoder width matches OP_SIZE", () => {
     ["pop", Op.Pop, (b) => b.pop()],
     ["setFill", Op.SetFill, (b) => b.setFill(1, 2, 3, 4)],
     ["setTint", Op.SetTint, (b) => b.setTint(1, 2, 3, 4)],
+    [
+      "setMaterial",
+      Op.SetMaterial,
+      (b) => b.setMaterial(MaterialKind.Flash, 1, 1, 1, 1, 0.5, 0, 0),
+    ],
     ["setStroke", Op.SetStroke, (b) => b.setStroke(1, 2, 3, 4)],
     ["setStrokeWidth", Op.SetStrokeWidth, (b) => b.setStrokeWidth(2)],
     ["setBlend", Op.SetBlend, (b) => b.setBlend(Blend.Add)],

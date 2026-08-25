@@ -372,6 +372,37 @@ setPasses([
 
 Passes run in order. A scene that never sets any allocates nothing for them.
 
+## Materials
+
+A pass is the whole frame. A material is one sprite:
+
+```ts
+material({ type: "flash", amount: hit / FLASH_FOR });
+image(enemy, x, y);
+noMaterial();
+```
+
+Three of them, and the list is closed: `flash` lerps toward a colour, `outline`
+fills the empty texels around the art, `dissolve` eats the sprite away along a
+noise field with a lit edge. Each is something the rest of the style cannot say
+— a tint multiplies, so it can darken a sprite and never lighten it toward
+white; a blend mode belongs to a draw rather than to the edge of the art inside
+it.
+
+The list is closed on purpose. A material is two words of instance data, not a
+program, which is why a hundred enemies flashing on their own schedules stay one
+draw call — `apps/web/src/checks/materials.ts` counts them and would say so if
+that ever stopped being true. A shader per sprite would be a draw call per
+sprite, which is the cost the whole design exists to avoid.
+
+Materials apply to images and to text. `outline` is images only: it works by
+looking at neighbouring texels, and a glyph is a distance field rather than
+pixels. An outline also needs a texel of empty space inside the frame to draw
+into — art that runs to the edge of its cell has nowhere to put a border.
+
+Only WebGL2 honours them; ask `capabilities.materials` before leaning on one for
+readability rather than for flavour. Elsewhere the sprite draws plain.
+
 ## Canvas size and pixels
 
 `resize()` changes the logical size and the backing store together. `width`,
@@ -599,15 +630,18 @@ Which is why `create-hazumi` never asks you to choose one. It asks what you are
 making, and writes `webgl2()`.
 
 The three tools cannot all do everything the renderer can — SVG has no raster to
-read back, the recorder has no font to measure against — so a scene that wants
-something only some of them offer can ask instead of finding out by being thrown
-at:
+read back, the recorder has no font to measure against, and only the renderer
+has a shader stage or per-sprite materials — so a scene that wants something
+only some of them offer can ask instead of finding out by being thrown at:
 
 ```ts
 import { capabilities, setPasses } from "hazumi/scene";
 
 if (capabilities.shaders) setPasses([{ fragment: GRADE }]);
 ```
+
+`shaders`, `pixels`, `text`, `materials`. The first three throw where they are
+absent; a material is ignored, and the sprite draws plain.
 
 ## Try it
 

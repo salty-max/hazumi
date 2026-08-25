@@ -360,6 +360,7 @@ export function start<Api extends object = Record<never, never>>(
       shaders: supportsPasses(renderer),
       pixels: supportsPixels(renderer),
       text: measuresText(renderer),
+      materials: renderer.materials === true,
     },
     measureText: (content, font, size) => {
       if (!measuresText(renderer)) throw new TextMeasurementUnavailableError();

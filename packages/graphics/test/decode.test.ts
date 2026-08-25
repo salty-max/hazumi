@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { CommandBuffer, decode, UnknownOpcodeError, type CommandVisitor } from "../src/index";
+import {
+  CommandBuffer,
+  decode,
+  MaterialKind,
+  UnknownOpcodeError,
+  type CommandVisitor,
+} from "../src/index";
 
 describe("decode", () => {
   test("dispatches commands in stream order", () => {
@@ -57,6 +63,7 @@ describe("decode", () => {
     const buf = new CommandBuffer();
     buf.setFill(1, 0, 0, 1);
     buf.setTint(1, 1, 1, 1);
+    buf.setMaterial(MaterialKind.Dissolve, 1, 0.5, 0, 1, 0.25, 0.1, 8);
     buf.setStroke(0, 1, 0, 1);
     buf.setStrokeWidth(2);
     buf.setBlend(0);
@@ -87,6 +94,38 @@ describe("decode", () => {
     buf.pop();
 
     expect(() => decode(buf, {})).not.toThrow();
+  });
+
+  test("a material survives the round trip with its kind still an integer", () => {
+    const buf = new CommandBuffer();
+    // Values chosen to be exact in float32: the operands go through the same
+    // Float32Array as every other command, so 0.1 comes back as 0.100000001
+    // and would make this a test about IEEE 754 rather than about decoding.
+    buf.setMaterial(MaterialKind.Dissolve, 1, 0.5, 0, 1, 0.25, 0.125, 8);
+
+    let seen: readonly number[] = [];
+    decode(buf, {
+      setMaterial: (kind, r, g, b, a, p0, p1, p2): void => {
+        seen = [kind, r, g, b, a, p0, p1, p2];
+      },
+    });
+
+    // The kind reads back exactly, because it goes through the integer view.
+    // Written as a float it would arrive as 3.0000001 on the way to a switch.
+    expect(seen).toEqual([MaterialKind.Dissolve, 1, 0.5, 0, 1, 0.25, 0.125, 8]);
+  });
+
+  test("a backend that ignores materials still walks the stream", () => {
+    // The defined behaviour for a backend without materials: the sprite draws
+    // plain. Canvas2D is that backend, and the oracle depends on this not
+    // throwing.
+    const buf = new CommandBuffer();
+    buf.setMaterial(MaterialKind.Flash, 1, 1, 1, 1, 1, 0, 0);
+    buf.circle(0, 0, 1);
+
+    let circles = 0;
+    decode(buf, { circle: (): void => void circles++ });
+    expect(circles).toBe(1);
   });
 
   test("rejects an opcode this build does not know", () => {

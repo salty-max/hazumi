@@ -1560,11 +1560,12 @@ interface Seen {
   shaders: boolean;
   pixels: boolean;
   text: boolean;
+  materials: boolean;
 }
 
 /** Deliberately all true, so a false in the result came from the runtime. */
 function blank(): Seen {
-  return { shaders: true, pixels: true, text: true };
+  return { shaders: true, pixels: true, text: true, materials: true };
 }
 
 describe("capabilities", () => {
@@ -1579,7 +1580,7 @@ describe("capabilities", () => {
     await app.ready;
     // The harness renderer implements render and setViewport and nothing else,
     // which is exactly the backend a scene has to be able to ask about.
-    expect(seen).toEqual({ shaders: false, pixels: false, text: false });
+    expect(seen).toEqual({ shaders: false, pixels: false, text: false, materials: false });
     app.stop();
   });
 
@@ -1592,6 +1593,9 @@ describe("capabilities", () => {
       readPixels: (): never => ({}) as never,
       writePixels: (): void => {},
       measureText: () => ({ width: 0, ascent: 0, descent: 0, lineHeight: 0 }),
+      // A flag rather than a method: a material arrives in the command stream,
+      // so there is nothing for the runtime to sniff for.
+      materials: true,
     };
     const seen = blank();
     const app = start({ backend: () => capable, canvas: h.canvas }, (context) => {
@@ -1600,7 +1604,7 @@ describe("capabilities", () => {
     });
 
     await app.ready;
-    expect(seen).toEqual({ shaders: true, pixels: true, text: true });
+    expect(seen).toEqual({ shaders: true, pixels: true, text: true, materials: true });
     app.stop();
   });
 

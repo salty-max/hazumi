@@ -30,6 +30,18 @@ export function record(buffer: CommandBuffer): RecordedCommand[] {
     setFill: (r: number, g: number, b: number, a: number): void => {
       out.push({ op: "setFill", args: [r, g, b, a] });
     },
+    setMaterial: (
+      kind: number,
+      r: number,
+      g: number,
+      b: number,
+      a: number,
+      p0: number,
+      p1: number,
+      p2: number,
+    ): void => {
+      out.push({ op: "setMaterial", args: [kind, r, g, b, a, p0, p1, p2] });
+    },
     setTint: (r: number, g: number, b: number, a: number): void => {
       out.push({ op: "setTint", args: [r, g, b, a] });
     },

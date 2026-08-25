@@ -1,5 +1,5 @@
 import type { CommandBuffer, ImageSource } from "./command-buffer";
-import { type Align, type Baseline, type Blend, Op, OP_SIZE } from "./op";
+import { type Align, type Baseline, type Blend, type MaterialKind, Op, OP_SIZE } from "./op";
 
 /**
  * Backends implement this to consume a command stream. Every method takes
@@ -8,6 +8,22 @@ import { type Align, type Baseline, type Blend, Op, OP_SIZE } from "./op";
 export interface CommandVisitor {
   setFill?: (r: number, g: number, b: number, a: number) => void;
   setTint?: (r: number, g: number, b: number, a: number) => void;
+  /**
+   * A backend that leaves this out draws the sprite plain, which is the
+   * defined behaviour rather than an oversight: materials are a GPU feature,
+   * and a backend without one should say so through `capabilities` and then
+   * get on with drawing.
+   */
+  setMaterial?: (
+    kind: MaterialKind,
+    r: number,
+    g: number,
+    b: number,
+    a: number,
+    p0: number,
+    p1: number,
+    p2: number,
+  ) => void;
   setStroke?: (r: number, g: number, b: number, a: number) => void;
   setStrokeWidth?: (width: number) => void;
   setBlend?: (mode: Blend) => void;
@@ -95,6 +111,18 @@ export function decode(buffer: CommandBuffer, visitor: CommandVisitor): void {
           f32[i + 2] as number,
           f32[i + 3] as number,
           f32[i + 4] as number,
+        );
+        break;
+      case Op.SetMaterial:
+        visitor.setMaterial?.(
+          u32[i + 1] as MaterialKind,
+          f32[i + 2] as number,
+          f32[i + 3] as number,
+          f32[i + 4] as number,
+          f32[i + 5] as number,
+          f32[i + 6] as number,
+          f32[i + 7] as number,
+          f32[i + 8] as number,
         );
         break;
       case Op.SetStroke:
