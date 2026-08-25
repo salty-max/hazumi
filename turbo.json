@@ -30,6 +30,15 @@
       "inputs": ["src/**", "test/**", "tsconfig.json"],
       "outputs": []
     },
+    "@hazumi/docs#typecheck": {
+      // Its own build, not just its dependencies': the coverage test imports
+      // the generated `dist/catalog.json`, so without this edge turbo is free
+      // to run tsc alongside the script that writes it. It passed here for
+      // months only because the file was already on disk from a previous run.
+      "dependsOn": ["build"],
+      "inputs": ["src/**", "test/**", "tsconfig.json"],
+      "outputs": []
+    },
     "test": {
       "dependsOn": ["build"],
       "inputs": ["src/**", "test/**"],
