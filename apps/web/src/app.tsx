@@ -84,7 +84,7 @@ export function App(): JSX.Element {
           }
         />
         <Route
-          path="/reference"
+          path="/reference/*"
           element={
             <SiteShell className="min-h-dvh bg-background">
               <Suspense fallback={<PageFallback />}>

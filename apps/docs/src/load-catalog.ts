@@ -14,9 +14,21 @@ export const GROUPS: ReadonlyArray<{
   readonly title: string;
   readonly lead: string;
 }> = [
-  { id: "scene", title: "Scene", lead: "" },
-  { id: "library", title: "Library", lead: "" },
-  { id: "backends", title: "Backends", lead: "" },
+  {
+    id: "scene",
+    title: "Scene",
+    lead: "What a scene calls. Everything here reads the running application, so it works inside a lifecycle callback and nowhere else.",
+  },
+  {
+    id: "library",
+    title: "Library",
+    lead: "Pure functions with no scene behind them. Usable on their own, in a worker, or in a test.",
+  },
+  {
+    id: "backends",
+    title: "Backends",
+    lead: "One renderer and three tools that speak the same command stream. Ship webgl2; the rest are for comparing, exporting and testing.",
+  },
 ];
 
 /** Scene API first, then supporting packages. Backends are allowlisted. */
