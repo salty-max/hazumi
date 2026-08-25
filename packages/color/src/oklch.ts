@@ -21,6 +21,13 @@ export interface Oklch {
   readonly alpha: number;
 }
 
+/**
+ * Oklab: the same space as OKLCH in rectangular coordinates.
+ *
+ * The conversions go through here, and blending is easier in it — `a` and `b`
+ * interpolate linearly where a hue angle has to decide which way round the
+ * circle to travel.
+ */
 export interface Oklab {
   readonly l: number;
   readonly a: number;
@@ -28,10 +35,12 @@ export interface Oklab {
   readonly alpha: number;
 }
 
+/** Build an OKLCH colour. Lightness 0–1, chroma from 0, hue in degrees. */
 export function oklch(l: number, c: number, h: number, alpha = 1): Oklch {
   return { l, c, h, alpha };
 }
 
+/** Rectangular to polar: `a` and `b` become a chroma and a hue angle. */
 export function oklabToOklch(lab: Oklab): Oklch {
   const c = Math.hypot(lab.a, lab.b);
   // Hue is meaningless at zero chroma; report 0 rather than an atan2 artefact.
@@ -39,6 +48,7 @@ export function oklabToOklch(lab: Oklab): Oklch {
   return { l: lab.l, c, h, alpha: lab.alpha };
 }
 
+/** Polar to rectangular, the inverse of `oklabToOklch`. */
 export function oklchToOklab(color: Oklch): Oklab {
   const rad = (color.h * Math.PI) / 180;
   return {
@@ -49,6 +59,12 @@ export function oklchToOklab(color: Oklch): Oklab {
   };
 }
 
+/**
+ * Linear RGB to Oklab, through Ottosson's LMS matrices and a cube root.
+ *
+ * Linear light in, not sRGB: feeding gamma-encoded values here is the usual
+ * way to get lightness that looks wrong in the shadows.
+ */
 export function linearRgbToOklab(rgb: LinearRgb): Oklab {
   const l = 0.4122214708 * rgb.r + 0.5363325363 * rgb.g + 0.0514459929 * rgb.b;
   const m = 0.2119034982 * rgb.r + 0.6806995451 * rgb.g + 0.1073969566 * rgb.b;
@@ -68,6 +84,7 @@ export function linearRgbToOklab(rgb: LinearRgb): Oklab {
   };
 }
 
+/** Oklab back to linear RGB. Unclamped — an out-of-gamut colour stays out. */
 export function oklabToLinearRgb(lab: Oklab): LinearRgb {
   const lCbrt = lab.l + 0.3963377774 * lab.a + 0.2158037573 * lab.b;
   const mCbrt = lab.l - 0.1055613458 * lab.a - 0.0638541728 * lab.b;
@@ -90,10 +107,12 @@ export function toLinearRgb(color: Oklch): LinearRgb {
   return oklabToLinearRgb(oklchToOklab(color));
 }
 
+/** Linear RGB to OKLCH, in one step. */
 export function fromLinearRgb(rgb: LinearRgb): Oklch {
   return oklabToOklch(linearRgbToOklab(rgb));
 }
 
+/** Gamma-encoded sRGB to OKLCH, linearizing on the way. */
 export function fromSrgb(srgb: Srgb): Oklch {
   return fromLinearRgb(toLinear(srgb));
 }

@@ -16,6 +16,7 @@ export interface PixelSource {
 /** A rectangle in sheet pixels, in the shape `spritesheet` takes. */
 export type SliceRect = readonly [x: number, y: number, width: number, height: number];
 
+/** How `findSprites` walks the image. */
 export interface ScanOptions {
   /**
    * Alpha at or below which a pixel is background. Defaults to 0.
@@ -58,6 +59,7 @@ function bounds(pixels: PixelSource, region: SliceRect | undefined): Bounds {
   };
 }
 
+/** How `findGrid` looks for the cell boundaries. */
 export interface GridScanOptions extends ScanOptions {
   /**
    * Cell size, when you already know it.

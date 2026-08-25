@@ -17,12 +17,19 @@
 
 import type { RayHit } from "./collision";
 
+/** What a body's collider is. Set once, when the body is created. */
 export const Shape = {
   Circle: 0,
   Box: 1,
 } as const;
 export type Shape = (typeof Shape)[keyof typeof Shape];
 
+/**
+ * One simulated body: its state, its collider, and its accumulated forces.
+ *
+ * Mutable and owned by the world. Position and velocity are written by the
+ * solver every step, so hold the reference rather than copying values out.
+ */
 export interface RigidBody {
   x: number;
   y: number;
@@ -55,6 +62,7 @@ export interface RigidBody {
   readonly isAwake: boolean;
 }
 
+/** What every body accepts, whatever its shape. */
 export interface BodyOptions {
   readonly x: number;
   readonly y: number;
@@ -74,15 +82,18 @@ export interface BodyOptions {
   readonly isStatic?: boolean;
 }
 
+/** A circular body. The cheapest collider, and the one that never tunnels on a corner. */
 export interface CircleBodyOptions extends BodyOptions {
   readonly radius: number;
 }
 
+/** An axis-aligned box at rest, which rotates with the body once it moves. */
 export interface BoxBodyOptions extends BodyOptions {
   readonly width: number;
   readonly height: number;
 }
 
+/** How the world is set up. Everything here has a working default. */
 export interface WorldOptions {
   readonly gravityX?: number;
   readonly gravityY?: number;
@@ -123,6 +134,12 @@ export interface JointOptions {
   readonly anchorBY?: number;
 }
 
+/**
+ * A joint that holds two anchors a fixed distance apart.
+ *
+ * With `stiffness` and `damping` it becomes a spring instead of a rod, which
+ * is how a rope, a suspension arm or a bobbing pickup are all built.
+ */
 export interface DistanceJointOptions extends JointOptions {
   /** Defaults to however far apart the anchors are when the joint is made. */
   readonly length?: number;
@@ -142,6 +159,7 @@ export interface DistanceJointOptions extends JointOptions {
   readonly damping?: number;
 }
 
+/** Which constraint a joint enforces. */
 export const JointKind = {
   Distance: 0,
   Pin: 1,
@@ -185,6 +203,12 @@ export interface RaycastOptions {
   readonly out?: RayHit;
 }
 
+/**
+ * A rigid-body world: everything being simulated, and the knobs it runs under.
+ *
+ * Built by `createWorld`, advanced by `step`. The scene-level `physics` plugin
+ * wraps one of these and steps it on the fixed update.
+ */
 export interface World {
   gravityX: number;
   gravityY: number;

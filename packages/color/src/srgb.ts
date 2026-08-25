@@ -24,6 +24,10 @@ export function delinearize(c: number): number {
   return c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
 }
 
+/**
+ * sRGB to linear light, per channel. Alpha passes through untouched — it was
+ * never gamma-encoded.
+ */
 export function toLinear(srgb: Srgb): LinearRgb {
   return {
     r: linearize(srgb.r),
@@ -33,6 +37,7 @@ export function toLinear(srgb: Srgb): LinearRgb {
   };
 }
 
+/** Linear light back to sRGB. The inverse of `toLinear`. */
 export function fromLinear(linear: LinearRgb): Srgb {
   return {
     r: delinearize(linear.r),

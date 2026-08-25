@@ -48,6 +48,10 @@ export const capabilities: Capabilities = {
   },
 };
 
+/**
+ * The canvas, in logical units: `screen.width`, `screen.height`, and the
+ * device pixel ratio behind them.
+ */
 export const screen: ScreenState = {
   get width(): number {
     return getActiveContext().width;
@@ -60,6 +64,13 @@ export const screen: ScreenState = {
   },
 };
 
+/**
+ * The clock: `time.elapsed` since the application started, `time.delta` for the
+ * last frame, `time.fps`.
+ *
+ * `update` receives its own `dt` and should use that; this is for `draw`, which
+ * does not.
+ */
 export const time: TimeState = {
   get frame(): number {
     return getActiveContext().frameCount;
@@ -72,6 +83,12 @@ export const time: TimeState = {
   },
 };
 
+/**
+ * The scene's own generator, seeded by `start({ seed })`.
+ *
+ * Deterministic on purpose: the same seed replays the same scene, which is
+ * what makes a generated level reproducible and a bug in one findable twice.
+ */
 export const random: Rng = {
   get seed(): number {
     return getActiveContext().random.seed;
@@ -85,6 +102,10 @@ export const random: Rng = {
   clone: (): Rng => getActiveContext().random.clone(),
 };
 
+/**
+ * A gradient-noise field seeded alongside `random`, for the smooth randomness
+ * a generator cannot give: terrain, wind, drifting light.
+ */
 export const noise: Noise = {
   noise2: (x: number, y: number): number => getActiveContext().noise.noise2(x, y),
   noise3: (x: number, y: number, z: number): number => getActiveContext().noise.noise3(x, y, z),
@@ -92,6 +113,13 @@ export const noise: Noise = {
     getActiveContext().noise.fbm2(x, y, octaves, persistence),
 };
 
+/**
+ * The view transform: pan, zoom, shake, and `follow` for a target worth
+ * keeping centred.
+ *
+ * `camera.screen(body)` draws a block outside it, which is where a heads-up
+ * display belongs.
+ */
 export const camera: Camera2D = {
   get x(): number {
     return getActiveContext().camera.x;
@@ -113,18 +141,32 @@ export const camera: Camera2D = {
   screen: (body: () => void): void => getActiveContext().camera.screen(body),
 };
 
+/**
+ * Install the post-processing chain, replacing whatever was there.
+ *
+ * Passes run in order over the whole frame. Throws where the backend has no
+ * shader stage — ask `capabilities.shaders` first if that is possible.
+ */
 export function setPasses(passes: readonly ShaderPass[]): void {
   getActiveContext().setPasses(passes);
 }
 
+/**
+ * Stop redrawing after the current frame.
+ *
+ * A scene that draws one deterministic image should say so rather than
+ * repainting it sixty times a second.
+ */
 export function noLoop(): void {
   getActiveContext().noLoop();
 }
 
+/** Start redrawing again, after `noLoop`. */
 export function loop(): void {
   getActiveContext().loop();
 }
 
+/** Whether frames are still being drawn. */
 export function isLooping(): boolean {
   return getActiveContext().isLooping();
 }

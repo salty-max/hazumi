@@ -4,6 +4,7 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/** Hold a value inside a range. Returns `min` for NaN, since NaN fails both tests. */
 export function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
 }
@@ -28,10 +29,12 @@ export function remap(
   return outMin < outMax ? clamp(mapped, outMin, outMax) : clamp(mapped, outMax, outMin);
 }
 
+/** Radians to degrees. */
 export function degrees(angleInRadians: number): number {
   return (angleInRadians * 180) / Math.PI;
 }
 
+/** Degrees to radians. */
 export function radians(angleInDegrees: number): number {
   return (angleInDegrees * Math.PI) / 180;
 }

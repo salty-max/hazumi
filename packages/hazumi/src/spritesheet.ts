@@ -46,9 +46,18 @@ export interface ClipsOption<Clips extends ClipMap = ClipMap> {
   readonly clips?: Clips;
 }
 
+/** Frame names to the rectangles they cut, as written in `spritesheet({ frames })`. */
 export type FrameMap = Readonly<Record<string, FrameRef>>;
+/** Animation names to how they play. */
 export type ClipMap = Readonly<Record<string, ClipOptions>>;
 
+/**
+ * A sheet cut on a regular grid, with optional names for the cells that have one.
+ *
+ * Naming is not all-or-nothing: a grid can be indexed by number and still give
+ * names to the frames worth naming, and the returned sheet's type carries only
+ * the names actually declared.
+ */
 export interface GridOptions<
   Frames extends FrameMap = FrameMap,
   Clips extends ClipMap = ClipMap,
@@ -67,6 +76,12 @@ export interface GridOptions<
   readonly frames?: Frames;
 }
 
+/**
+ * A sheet whose frames are given as explicit rectangles.
+ *
+ * For art that was never on a grid — packed atlases, a background with two
+ * sprites tucked into its corner.
+ */
 export interface NamedOptions<
   Frames extends FrameMap = FrameMap,
   Clips extends ClipMap = ClipMap,
@@ -75,11 +90,13 @@ export interface NamedOptions<
   readonly frames: Frames;
 }
 
+/** Either way of describing a sheet: on a grid, or as named rectangles. */
 export type SpritesheetOptions<
   Frames extends FrameMap = FrameMap,
   Clips extends ClipMap = ClipMap,
 > = GridOptions<Frames, Clips> | NamedOptions<Frames, Clips>;
 
+/** A clip was asked for by a name the sheet does not declare. Lists what it does have. */
 export class UnknownClipError extends Error {
   readonly clipName: string;
 
@@ -93,6 +110,7 @@ export class UnknownClipError extends Error {
   }
 }
 
+/** A frame was asked for by a name the sheet does not declare. Lists what it does have. */
 export class UnknownFrameError extends Error {
   readonly frameName: string;
 

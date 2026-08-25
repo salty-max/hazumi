@@ -21,6 +21,7 @@ import { EMPTY_TILE } from "../tilemap";
 import type { Spritesheet } from "../spritesheet";
 import type { TilemapLayerOptions, TilemapOptions } from "../tilemap";
 
+/** One layer of a Tiled map, as it appears in the JSON export. */
 export interface TiledLayer {
   readonly type?: string;
   readonly name?: string;
@@ -32,12 +33,19 @@ export interface TiledLayer {
   readonly compression?: string;
 }
 
+/**
+ * A tileset entry from a Tiled map.
+ *
+ * `firstgid` is what turns a global tile id back into an index into this
+ * particular sheet, which is the whole reason the list matters.
+ */
 export interface TiledTileset {
   readonly firstgid: number;
   readonly name?: string;
   readonly source?: string;
 }
 
+/** A Tiled map's JSON export, as much of it as the importer reads. */
 export interface TiledMap {
   readonly width: number;
   readonly height: number;

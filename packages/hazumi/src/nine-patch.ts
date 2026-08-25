@@ -13,6 +13,7 @@ export type Border =
   | readonly [vertical: number, horizontal: number]
   | readonly [top: number, right: number, bottom: number, left: number];
 
+/** How a nine-patch is cut and drawn. */
 export interface NinePatchOptions {
   /**
    * How much to enlarge the border art. Defaults to 1, the size it was drawn.
@@ -32,6 +33,12 @@ export class InvalidBorderError extends Error {
   }
 }
 
+/**
+ * A frame cut into nine pieces, so it can be drawn at any size.
+ *
+ * Corners keep their size, edges stretch along one axis, the middle stretches
+ * along both. Cut once when the patch is built rather than per draw.
+ */
 export interface NinePatch {
   /** The frame the patch was cut from. */
   readonly frame: SpriteFrame;

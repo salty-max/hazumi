@@ -40,6 +40,7 @@ export interface Path {
   readonly points: Int32Array;
 }
 
+/** How `astar` should search. */
 export interface AstarOptions {
   /** Allow diagonal moves. Defaults to false. Diagonals cannot cut a corner. */
   readonly diagonal?: boolean;

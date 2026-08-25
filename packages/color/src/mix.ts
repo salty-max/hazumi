@@ -38,10 +38,12 @@ export function lighten(color: Oklch, amount: number): Oklch {
   return { ...color, l: clamp(color.l + amount, 0, 1) };
 }
 
+/** Subtract from lightness, keeping hue and chroma. `lighten` with a sign. */
 export function darken(color: Oklch, amount: number): Oklch {
   return lighten(color, -amount);
 }
 
+/** The same colour at a different opacity. */
 export function withAlpha(color: Oklch, alpha: number): Oklch {
   return { ...color, alpha: clamp(alpha, 0, 1) };
 }

@@ -66,6 +66,14 @@ function toCss(c: readonly [number, number, number, number]): string {
   return `rgba(${toByte(c[0])}, ${toByte(c[1])}, ${toByte(c[2])}, ${c[3]})`;
 }
 
+/**
+ * Replays the command stream through the browser's own 2D rasteriser.
+ *
+ * The oracle, not a fallback: `bun run compare` renders a scene through this
+ * and through WebGL2 and diffs them, so a disagreement is a bug in the GPU
+ * path. It has no shader stage and no materials, and reports as much through
+ * `capabilities`.
+ */
 export class Canvas2dRenderer {
   #canvas: HTMLCanvasElement;
   #ctx: CanvasRenderingContext2D;
