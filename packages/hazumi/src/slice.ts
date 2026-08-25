@@ -73,6 +73,23 @@ export interface GridScanOptions extends ScanOptions {
    * divided into whole cells of it.
    */
   readonly frame?: readonly [width: number, height: number];
+  /**
+   * Where the grid starts, in pixels. Given, the scan cuts an even grid.
+   *
+   * Bands find the cells only when the art fills them. On a sheet drawn with
+   * slack inside each cell — a sword floating in an eight-pixel box, its ink
+   * starting two pixels in and three pixels down — the bands drift with the
+   * art and every offset comes back a little wrong. No scan can recover the
+   * origin from that, because the information is not in the pixels: an
+   * automatic phase search over the five sample sheets lands on the wrong
+   * pixel for two of them.
+   *
+   * So it is asked for rather than guessed. With a margin and a size the grid
+   * is arithmetic — the same two numbers `spritesheet` itself takes — and
+   * cells with no ink in them are dropped, so a trailing empty column costs
+   * nothing.
+   */
+  readonly margin?: number | readonly [x: number, y: number];
 }
 
 /** A grid, in the shape `spritesheet` takes: spread it straight into the call. */
@@ -125,6 +142,29 @@ function inked(pixels: PixelSource, threshold: number): (x: number, y: number) =
  * A partial cell at the end of a band is not a sprite — it is the two pixels
  * that did not divide, and including it would put a sliver in the sheet.
  */
+/**
+ * An even run of offsets from `start`, keeping only the cells that hold ink.
+ *
+ * A sheet is rarely full: the last column of a tileset is often blank, and a
+ * block of art can sit in the middle of a lot of nothing. Emitting those
+ * anyway would draw boxes over emptiness and count them as frames.
+ */
+function even(
+  start: number,
+  end: number,
+  size: number,
+  hasInk: readonly boolean[],
+  origin: number,
+): number[] {
+  const offsets: number[] = [];
+  for (let at = start; at < end; at += size) {
+    let any = false;
+    for (let i = at; i < Math.min(at + size, end) && !any; i++) any = hasInk[i - origin] === true;
+    if (any) offsets.push(at);
+  }
+  return offsets;
+}
+
 /**
  * Step each band by the cell size, keeping the last cell even when the art in
  * it stops short.
@@ -186,6 +226,20 @@ export function findGridIn(pixels: PixelSource, options: GridScanOptions = {}): 
 
   const columnBands = runs(columnHasInk).map(([start, n]) => [start + area.x, n] as const);
   const rowBands = runs(rowHasInk).map(([start, n]) => [start + area.y, n] as const);
+
+  if (options.frame !== undefined && options.margin !== undefined) {
+    const [width, height] = options.frame;
+    if (width <= 0 || height <= 0) return { frame: [0, 0], columns: [], rows: [] };
+    const [marginX, marginY] =
+      typeof options.margin === "number"
+        ? ([options.margin, options.margin] as const)
+        : options.margin;
+    return {
+      frame: [width, height],
+      columns: even(area.x + marginX, area.x + area.width, width, columnHasInk, area.x),
+      rows: even(area.y + marginY, area.y + area.height, height, rowHasInk, area.y),
+    };
+  }
 
   // With no size to go on, a block is a cell — which is right for a sheet with
   // a gutter around every sprite, and the best guess available otherwise.

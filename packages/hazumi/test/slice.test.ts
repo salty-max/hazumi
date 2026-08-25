@@ -77,6 +77,30 @@ describe("findGrid", () => {
     expect(icons.rows).toEqual([0, 14, 28, 42, 56, 70, 84, 98]);
   });
 
+  test("a margin cuts an even grid instead of following the ink", () => {
+    // Sprites that float inside their cells: 8px cells whose art starts two
+    // pixels in and is five wide. Band-scanning follows the ink and drifts —
+    // 2, 10, 18 — where the grid is plainly 0, 8, 16.
+    const floating = painted(24, 8, (x) => x % 8 >= 2 && x % 8 <= 6);
+    expect(findGridIn(floating, { frame: [8, 8] }).columns).toEqual([2, 10, 18]);
+    expect(findGridIn(floating, { frame: [8, 8], margin: 0 }).columns).toEqual([0, 8, 16]);
+  });
+
+  test("an even grid drops the cells with nothing in them", () => {
+    // Art in the first two cells of a five-cell row. The empty three would
+    // otherwise be boxes over nothing, counted as frames.
+    const sparse = painted(40, 8, (x) => x < 16);
+    expect(findGridIn(sparse, { frame: [8, 8], margin: 0 }).columns).toEqual([0, 8]);
+  });
+
+  test("a margin says where the grid starts, per axis", () => {
+    // The ORYX sheets: a 24px margin, then 24px tiles.
+    const inset = painted(96, 48, (x, y) => x >= 24 && y >= 24);
+    const grid = findGridIn(inset, { frame: [24, 24], margin: [24, 24] });
+    expect(grid.columns).toEqual([24, 48, 72]);
+    expect(grid.rows).toEqual([24]);
+  });
+
   test("an empty image yields no grid instead of throwing", () => {
     expect(findGridIn(painted(8, 8, () => false))).toEqual({
       frame: [0, 0],
