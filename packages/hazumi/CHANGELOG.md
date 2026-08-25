@@ -1,5 +1,284 @@
 # hazumi
 
+## 0.7.0
+
+### Minor Changes
+
+- 5766e46: `capabilities` — a scene can ask what its backend can do.
+
+  Not every backend can run a shader over the frame, hand back its own pixels, or
+  measure a line of text: the SVG exporter has no raster to read, and the headless
+  recorder has no font to measure against. That was already the shape of the
+  contract — optional members on `Renderer` — but only the runtime could see it.
+  A scene found out by calling and being thrown at, which is fine for a mistake
+  and no use at all for a decision.
+
+  ```ts
+  import { capabilities, setPasses } from "hazumi/scene";
+
+  if (capabilities.shaders) setPasses([{ fragment: GRADE }]);
+  ```
+
+  Three flags — `shaders`, `pixels`, `text` — derived from what the backend
+  implements, using the same tests the runtime already used to decide whether to
+  throw. So a scene that checks and skips is right to skip, and one that calls
+  anyway still gets the error it always got.
+
+  This is what makes a feature that only some backends can offer a reasonable
+  thing to add at all. A scene stops being "the same picture everywhere" and
+  becomes "the same scene, asking for what it can have" — the dungeon and the
+  raycaster now light themselves where a shader is available and draw plainly
+  where it is not, instead of failing.
+
+- c3830e4: `pool()` — a fixed set of reusable objects, for the things a game spawns and kills.
+
+  Every scene that fires a bullet writes the same three pieces: an array
+  preallocated at startup, a `live` flag on each entry, and a loop that skips the
+  dead ones. Starfall wrote it three times — shots, enemies, pickups — about fifty
+  lines saying nothing about the game.
+
+  The particle system has had pooling since the beginning. This is the same idea
+  for the objects a game defines itself, which is the half that was missing: the
+  engine had solved the problem for its own objects and left yours to you.
+
+  ```ts
+  const shots = pool({ capacity: 120, make: () => ({ x: 0, y: 0, vy: 0 }) });
+
+  shots.spawn((shot) => {
+    shot.x = player.x;
+    shot.y = player.y;
+    shot.vy = -600;
+  });
+
+  shots.forEach((shot) => {
+    shot.y += shot.vy * dt;
+    if (shot.y < 0) shots.kill(shot);
+  });
+  ```
+
+  Liveness is not a field on your object. The pool keeps its live entries at the
+  front of its own array and swaps the last one into the gap when something dies,
+  so iterating is a plain run with no test in it and killing costs nothing. The
+  walk goes backwards, which makes killing during iteration safe — including
+  killing the object in hand.
+
+- 18d12ea: Keys go to the sketch you clicked, not to every sketch on the page.
+
+  Pointer events already belong to the canvas they land on. Keys have no such
+  home — they arrive at the window — so until now every running application
+  received every keystroke. A page with several of them answered a single press
+  all at once: the space bar that fired a shot in one also restarted the
+  motorbike two cards down. The same listeners called `preventDefault` on the
+  arrow keys and the space bar, so the page could not be scrolled from the
+  keyboard at all.
+
+  The rule now:
+
+  - **One sketch on the page** takes the keys straight away, as before. Asking
+    someone to click a canvas before the arrow keys do anything is a poor first
+    five seconds, and nothing else on the page could want them — unless they are
+    typing in a field, which always wins.
+  - **Several sketches** have no such default. The keys go to whichever one holds
+    focus, and to no other. `pointerdown` already focuses the canvas, so that is
+    the same click that starts playing.
+
+  Releases are still taken whoever they were meant for: a key held while focus
+  moves elsewhere would otherwise stay down for good.
+
+- 536ec2c: Per-sprite materials: `flash`, `outline`, `dissolve`.
+
+  ```ts
+  material({ type: "flash", amount: hit / FLASH_FOR });
+  image(enemy, x, y);
+  ```
+
+  The question this answers is one the engine kept saying no to: a shader on one
+  sprite rather than on the whole frame. A post pass is the frame, and the three
+  things a game actually wants — a hit flash, a border that separates a unit from
+  the ground it stands on, a death that eats the sprite away — are none of them
+  frame-wide.
+
+  Saying yes literally, as "your fragment shader here", would have cost more than
+  it gave. A program per sprite is a draw call per sprite, and batching is the one
+  performance property this renderer is built around. So the material rides in the
+  instance data instead: two extra words, a kind and three parameter bytes, which
+  means sprites wearing different materials still merge into a single draw call.
+  That is what makes the vocabulary closed — the branch has to be written once, in
+  the shader — and it is worth the closure. `checks/materials.ts` draws eight
+  sprites in eight different materials and asserts the frame took one draw call.
+
+  The cost is two words on every textured instance whether it wears a material or
+  not: 44 bytes to 52, an 18% wider upload for sprites and glyphs. Shape instances
+  are untouched, and no draw-call count changes.
+
+  Materials apply to images and to text. `outline` is images only — it works by
+  sampling neighbouring texels, and a glyph is a distance field rather than pixels
+  — and it needs a texel of empty space inside the frame to draw into. Only WebGL2
+  implements them; `capabilities.materials` says so, and a backend without them
+  draws the sprite plain rather than failing.
+
+- 412105e: `Scene.overlay` — drawing that the shader chain does not touch.
+
+  Post-processing belongs to the world. Until now it also belonged to everything
+  drawn on top of it, because the chain runs over the whole frame: a heads-up
+  display went through the same passes as the scene, so it was dimmed by the
+  world's lighting, warped by its warp and bloomed by its bloom. A scene lit by a
+  multiply pass finds this immediately — its caption comes out at a fraction of
+  the brightness it was drawn with, and there is no layer to move it to.
+
+  A scene may now declare `overlay(alpha, ctx)` alongside `draw`. It is a second
+  command stream, rendered after the chain has presented and straight onto the
+  canvas. Anything meant for the reader rather than for the world goes there: a
+  score, a control legend, a debug readout.
+
+  `Renderer.render` takes an optional second argument for this, `{ passes: false }`.
+  A backend with no chain can ignore it — for it every stream is already drawn the
+  same way — so a scene written this way looks identical on all four.
+
+- da6c746: Make spritesheets and tilemaps say what they mean.
+
+  **Names are typed.** `spritesheet(img, { frames: { idle: … } })` hands back a
+  sheet that knows its own frame names, so `named("idel")` is a compile error
+  rather than a scene that throws on the frame it first draws. Clip names and
+  tilemap layer names the same. Sheets stay assignable to a plain `Spritesheet`,
+  so nothing that takes one has to change.
+
+  **Frames are checked against the sheet.** A rectangle that hangs off the edge
+  used to be accepted in silence and drawn as whatever pixels were there —
+  visible as a sliver of the neighbouring sprite, not as an error.
+  `InvalidFrameError` now names the frame and says which edge it runs past and by
+  how much.
+
+  **Grids that are not on one cadence.** `spacing` and `margin` take a pair for
+  per-axis gaps, `columns` and `rows` take explicit pixel offsets for sheets laid
+  out in blocks, and a sheet may carry a grid _and_ named rectangles at once. A
+  name may point at a cell as `[column, row]` instead of arithmetic done by hand,
+  and it resolves to the very same frame `at()` returns.
+
+  **`ninePatch(frame, border)`** builds a stretchable box from one tile. Corners
+  keep the size they were drawn, only the spans between them grow, and a `scale`
+  enlarges the border by a whole number so a pixel stays a pixel. CSS-style
+  shorthand for the sides.
+
+  **`findGrid` and `findSprites`** read a sheet and tell you how it is cut:
+  `findGrid` takes the bands of ink between the gutters and divides each into
+  whole cells, `findSprites` boxes each island of connected pixels in reading
+  order. Both take a `region`, because one file usually holds several layouts.
+  What `findGrid` returns spreads straight into `spritesheet`.
+
+  **Tilemaps can be written as pictures.** A layer's `tiles` may be rows of
+  characters read through a `key` that maps each one to a frame index, a frame
+  name, or `null` for a gap — and the drawing carries its own size, so `columns`
+  and `rows` become optional. `set` and `fill` take a frame name too, and
+  `columnAt` / `rowAt` / `xOf` / `yOf` convert between world and tile coordinates
+  without every scene rewriting the same division.
+
+- d37ad8a: `findGrid` takes a `margin`, and an even grid drops its empty cells.
+
+  Bands find the cells only when the art fills them. On a sheet drawn with slack
+  inside each cell — a sword floating in an eight-pixel box, its ink starting two
+  pixels in — the bands drift with the art and every offset comes back a little
+  wrong: `rows: [3, 8, 17, 25, 32, 40, 48, 56, 64, 73]` where the grid is plainly
+  `[0, 8, 16, …]`.
+
+  No scan can recover that, because the information is not in the pixels. I
+  prototyped an automatic phase search over the five sample sheets — score each
+  possible offset by how much ink lands on its cell boundaries, take the best —
+  and it picks the wrong pixel on two of the five. So the origin is asked for
+  rather than guessed:
+
+  ```ts
+  findGrid(image, { frame: [8, 8], margin: 0 });
+  ```
+
+  With a margin and a size the grid is arithmetic, using the same two numbers
+  `spritesheet` itself takes. Cells with no ink are dropped, so a trailing empty
+  column or a sparsely used block costs nothing.
+
+### Patch Changes
+
+- 2f3e030: Every member of every exported interface and class is now documented.
+
+  The last pass covered exports and stopped there, which left 290 members bare:
+  `RigidBody.invMass`, `InputState.previousMouseX`, `Tilemap.rowAt`, every
+  channel of every colour type. On hover they showed a type and nothing else,
+  which is the point at which a reader goes and opens our source — the thing the
+  reference exists to prevent.
+
+  They say what a type cannot: that `Aabb.minY` is the top edge because y grows
+  downwards, that `RigidBody.invMass` is zero for a static body and that this is
+  how "infinitely heavy" is expressed without a special case, that
+  `Circle.radius` is a radius while `circle()` takes a diameter.
+
+  A test now fails the build on any export or member without one, so the
+  next thing added is documented when it is added rather than in a pass a year
+  later.
+
+- 9cef00e: Stop a particle system leaving the whole scene in additive blending.
+
+  `draw` wrapped its pass in `push` / `blendMode` / `pop`. That restores the blend
+  the backend holds, but not the context's own copy of the style — and the next
+  frame opens by re-emitting that copy. So one burst of sparks switched every
+  frame after it to additive, and from then on nothing could paint over anything:
+  a solid rectangle drawn on top of a starfield let the stars through.
+
+  The pass now runs through `with`, which restores both. Nothing about the API
+  changes, and the overrides object and callback are built once per system rather
+  than per frame, so a draw still allocates nothing.
+
+- 9f64161: `findGrid` keeps the last cell of a band when the art inside it stops short.
+
+  A cell is only as long as the ink in it, so a tile drawn 23 pixels wide in a
+  24-pixel cell ends its band a pixel early — and the old condition, which
+  required a whole cell to fit inside the band, threw that cell away. On the ORYX
+  dungeon sheet it lost a column of 53 tiles and a row of 40: real art, never
+  shown, with nothing to say it was missing.
+
+  The walk now covers the band's extent rather than the cells that fit inside it.
+  The trade runs the other way: a band too small to hold one cell yields one
+  anchored where its ink starts, which recovers a seven-pixel sprite in an
+  eight-pixel cell and hands a stray speck a box it does not deserve. That is the
+  better error for a tool whose whole job is to tell you what is on the sheet —
+  a wrong box is visible, a missing one is not.
+
+  Measured across the five sample sheets: dungeon 2067 to 2214 frames, creatures
+  324 to 450, interface 120 to 153, ships 70 to 90, projectiles 36 to 60.
+
+- 7f0edaf: Every public symbol now carries a description in its published types.
+
+  141 of the 304 exports had none — 46%, and `hazumi/draw` was the worst of them
+  at 28. Much of the missing knowledge already existed as implementation comments
+  where nothing consuming the types could reach it: that `circle` takes a diameter
+  rather than a radius, that `point` follows stroke instead of fill, that
+  `blendMode` is the one piece of style that ends a batch.
+
+  The seven namespaces `@hazumi/math` publishes — `vec2`, `vec3`, `mat4`,
+  `easing`, `collision`, `pathfind`, `physics` — were a different problem. The
+  d.ts bundler rewrites `export * as vec2` into a synthesized `declare namespace`
+  and drops the comment on the way, so hovering `vec2.add` explained itself and
+  hovering `vec2` said nothing. A build step puts them back, and throws if it ever
+  stops finding its target rather than quietly shipping bare types again.
+
+- Updated dependencies [f1d04ea]
+- Updated dependencies [5766e46]
+- Updated dependencies [536ec2c]
+- Updated dependencies [2f3e030]
+- Updated dependencies [517e88b]
+- Updated dependencies [f958d70]
+- Updated dependencies [412105e]
+- Updated dependencies [7f0edaf]
+- Updated dependencies [69f856d]
+  - @hazumi/backend-webgl2@0.7.0
+  - @hazumi/graphics@0.7.0
+  - @hazumi/backend-headless@0.7.0
+  - @hazumi/math@0.7.0
+  - @hazumi/color@0.7.0
+  - @hazumi/core@0.7.0
+  - @hazumi/audio@0.7.0
+  - @hazumi/physics@0.7.0
+  - @hazumi/backend-canvas2d@0.7.0
+  - @hazumi/backend-svg@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

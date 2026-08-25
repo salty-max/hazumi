@@ -1,5 +1,72 @@
 # @hazumi/backend-headless
 
+## 0.7.0
+
+### Minor Changes
+
+- 536ec2c: Per-sprite materials: `flash`, `outline`, `dissolve`.
+
+  ```ts
+  material({ type: "flash", amount: hit / FLASH_FOR });
+  image(enemy, x, y);
+  ```
+
+  The question this answers is one the engine kept saying no to: a shader on one
+  sprite rather than on the whole frame. A post pass is the frame, and the three
+  things a game actually wants — a hit flash, a border that separates a unit from
+  the ground it stands on, a death that eats the sprite away — are none of them
+  frame-wide.
+
+  Saying yes literally, as "your fragment shader here", would have cost more than
+  it gave. A program per sprite is a draw call per sprite, and batching is the one
+  performance property this renderer is built around. So the material rides in the
+  instance data instead: two extra words, a kind and three parameter bytes, which
+  means sprites wearing different materials still merge into a single draw call.
+  That is what makes the vocabulary closed — the branch has to be written once, in
+  the shader — and it is worth the closure. `checks/materials.ts` draws eight
+  sprites in eight different materials and asserts the frame took one draw call.
+
+  The cost is two words on every textured instance whether it wears a material or
+  not: 44 bytes to 52, an 18% wider upload for sprites and glyphs. Shape instances
+  are untouched, and no draw-call count changes.
+
+  Materials apply to images and to text. `outline` is images only — it works by
+  sampling neighbouring texels, and a glyph is a distance field rather than pixels
+  — and it needs a texel of empty space inside the frame to draw into. Only WebGL2
+  implements them; `capabilities.materials` says so, and a backend without them
+  draws the sprite plain rather than failing.
+
+### Patch Changes
+
+- 2f3e030: Every member of every exported interface and class is now documented.
+
+  The last pass covered exports and stopped there, which left 290 members bare:
+  `RigidBody.invMass`, `InputState.previousMouseX`, `Tilemap.rowAt`, every
+  channel of every colour type. On hover they showed a type and nothing else,
+  which is the point at which a reader goes and opens our source — the thing the
+  reference exists to prevent.
+
+  They say what a type cannot: that `Aabb.minY` is the top edge because y grows
+  downwards, that `RigidBody.invMass` is zero for a static body and that this is
+  how "infinitely heavy" is expressed without a special case, that
+  `Circle.radius` is a radius while `circle()` takes a diameter.
+
+  A test now fails the build on any export or member without one, so the
+  next thing added is documented when it is added rather than in a pass a year
+  later.
+
+- Updated dependencies [5766e46]
+- Updated dependencies [536ec2c]
+- Updated dependencies [2f3e030]
+- Updated dependencies [f958d70]
+- Updated dependencies [412105e]
+- Updated dependencies [7f0edaf]
+- Updated dependencies [69f856d]
+  - @hazumi/graphics@0.7.0
+  - @hazumi/math@0.7.0
+  - @hazumi/color@0.7.0
+  - @hazumi/core@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes
