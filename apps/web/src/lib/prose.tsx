@@ -25,6 +25,16 @@ function renderInline(text: string): ReactNode {
   return parts;
 }
 
+/**
+ * One line of prose with its inline markup rendered, and no block wrapper.
+ *
+ * For the places that show a summary inside a row — a raw `\`x, y\`` there
+ * reads as a typo rather than as code.
+ */
+export function InlineProse({ text }: { readonly text: string }): JSX.Element {
+  return <>{renderInline(text)}</>;
+}
+
 export function Prose({ text }: { readonly text: string }): JSX.Element | null {
   if (text.length === 0) return null;
   return (

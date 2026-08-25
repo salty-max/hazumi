@@ -1,6 +1,6 @@
 import type { DocEntry } from "./extract";
 
-export type { DocEntry, DocKind, DocModule, DocParam } from "./extract";
+export type { DocEntry, DocKind, DocMember, DocModule, DocParam } from "./extract";
 
 export type RefGroup = "scene" | "library" | "backends";
 

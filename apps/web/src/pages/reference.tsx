@@ -1,54 +1,81 @@
-import type { CatalogGroup, CatalogModule, DocEntry } from "@hazumi/docs/model";
+import type { CatalogGroup, CatalogModule, DocEntry, DocMember } from "@hazumi/docs/model";
 import { ArrowLeft, ChevronRight, PanelLeft, Search } from "lucide-react";
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { CodeBlock } from "../components/code-block";
 import { InlineCode } from "../components/inline-code";
 import { PageHeader } from "../components/page-header";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Kbd } from "../components/ui/kbd";
 import { ScrollArea } from "../components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableRow } from "../components/ui/table";
 import { catalog } from "../lib/catalog";
-import { Prose } from "../lib/prose";
+import { InlineProse, Prose } from "../lib/prose";
 import { cn } from "../lib/utils";
 
 /**
- * The reference is one module at a time, not one page of everything.
+ * A page per symbol, a page per module, and an index of the modules.
  *
- * Three hundred exports rendered as three hundred cards is a document nobody
- * reads: the only way in is the browser's own find, and that only works if you
- * already know the name. So a module is the unit — you arrive at an index of
- * fourteen of them, pick one, and read a page you can actually finish.
+ * Three hundred exports on one scroll was a document nobody reads. Even split
+ * by module it left the big ones — assets at 65, draw at 48 — as a wall of
+ * cards, and every interface still rendered as one block of highlighted code
+ * with its prose buried inside as comments. Finding what `invMass` means cost
+ * the same scan as reading the source, which is what a reference exists to
+ * save you.
  *
- * Search cuts across all of it, because the other way people arrive is knowing
- * a word and not where it lives.
+ * So a symbol is a page: prose first, its members as rows with their own types
+ * and their own sentences, the declaration underneath. Types that name
+ * something else in the catalog are links, so a signature is a way through the
+ * API rather than a dead end.
  */
 
 function moduleSlug(name: string): string {
   return name.replace(/^hazumi\/?/, "") || "index";
 }
 
-function moduleId(name: string): string {
-  return name.replace(/[@/]/g, "");
-}
-
-function entryId(moduleName: string, entryName: string): string {
-  return `${moduleId(moduleName)}-${entryName}`;
-}
-
 function modulePath(name: string): string {
   return `/reference/${moduleSlug(name)}`;
 }
 
+function symbolPath(moduleName: string, symbol: string): string {
+  return `${modulePath(moduleName)}/${symbol}`;
+}
+
 const ALL_MODULES: readonly CatalogModule[] = catalog.groups.flatMap((group) => group.modules);
 
-function findModule(slug: string | undefined): CatalogModule | null {
-  if (slug === undefined || slug.length === 0) return null;
-  return ALL_MODULES.find((module) => moduleSlug(module.name) === slug) ?? null;
+/** Where every exported name lives, for turning a type reference into a link. */
+const SYMBOL_PATHS: ReadonlyMap<string, string> = new Map(
+  ALL_MODULES.flatMap((module) =>
+    module.entries.map((entry) => [entry.name, symbolPath(module.name, entry.name)] as const),
+  ),
+);
+
+interface Target {
+  readonly module: CatalogModule;
+  readonly entry: DocEntry | null;
+}
+
+/**
+ * Resolve a URL tail into a module and, maybe, a symbol.
+ *
+ * Longest prefix wins, because a module slug can itself contain a slash:
+ * `backends/webgl2/webgl2` is the `webgl2` export of `hazumi/backends/webgl2`,
+ * and splitting on the first slash would go looking for a module called
+ * `backends`.
+ */
+function resolveTarget(splat: string | undefined): Target | null {
+  const path = (splat ?? "").replace(/^\/+|\/+$/g, "");
+  if (path.length === 0) return null;
+  const candidates = ALL_MODULES.filter(
+    (module) => path === moduleSlug(module.name) || path.startsWith(`${moduleSlug(module.name)}/`),
+  ).toSorted((a, b) => moduleSlug(b.name).length - moduleSlug(a.name).length);
+  const module = candidates[0];
+  if (module === undefined) return null;
+  const rest = path.slice(moduleSlug(module.name).length).replace(/^\//, "");
+  if (rest.length === 0) return { module, entry: null };
+  const entry = module.entries.find((candidate) => candidate.name === rest);
+  return entry === undefined ? null : { module, entry };
 }
 
 function groupOf(module: CatalogModule): CatalogGroup | undefined {
@@ -61,8 +88,8 @@ function groupOf(module: CatalogModule): CatalogGroup | undefined {
  * By kind, and derived rather than curated: a topic map would read better on
  * the four big modules and would silently stop covering the API the first time
  * somebody adds an export without updating it. Errors get their own heading
- * because there are twenty-odd of them and none is what a reader is looking
- * for while they are still trying to do the thing.
+ * because there are twenty-odd of them and none is what a reader wants while
+ * they are still trying to do the thing.
  */
 type SectionId = "functions" | "namespaces" | "constants" | "classes" | "errors" | "types";
 
@@ -121,135 +148,214 @@ function sectionsFor(entries: readonly DocEntry[]): readonly Section[] {
   }));
 }
 
-/** First sentence, for a search result that must fit on one line. */
+/** First sentence, for a row that has to fit on one line. */
 function summarize(text: string): string {
   const line = text.split("\n")[0] ?? "";
   const stop = line.search(/\.\s|\.$/);
   return stop < 0 ? line : line.slice(0, stop + 1);
 }
 
-interface Hit {
-  readonly entry: DocEntry;
-  readonly module: CatalogModule;
-  readonly rank: number;
+const IDENTIFIER = /[A-Za-z_$][\w$]*/g;
+
+/**
+ * A type, with every name the catalog knows turned into a link.
+ *
+ * This is what makes a signature navigable: `layer(name: Layer): TilemapLayer`
+ * should take you to `TilemapLayer` rather than leaving you to search for it.
+ * Names it does not know — `number`, a type parameter — render as plain code.
+ */
+function TypeText({ text }: { readonly text: string }): JSX.Element {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  for (const match of text.matchAll(IDENTIFIER)) {
+    const path = SYMBOL_PATHS.get(match[0]);
+    if (path === undefined) continue;
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    parts.push(
+      <Link key={key} to={path} className="text-primary hover:underline">
+        {match[0]}
+      </Link>,
+    );
+    key += 1;
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <code className="font-mono text-xs break-words text-muted-foreground">{parts}</code>;
 }
 
 /**
- * Rank a symbol against the query.
+ * Catalog names the declaration mentions, other than its own.
  *
- * Descriptions are searched as well as names, which is the half that was
- * missing: someone looking for "how do I make a sprite flash" has no name to
- * type, and the word they do have is in the prose.
+ * A function page is otherwise a dead end: `material(effect: Material)` names a
+ * type the reader almost certainly wants next, and the highlighted code block
+ * cannot be clicked.
  */
-function scoreEntry(entry: DocEntry, needle: string): number {
-  const name = entry.name.toLowerCase();
-  if (name === needle) return 0;
-  if (name.startsWith(needle)) return 1;
-  if (name.includes(needle)) return 2;
-  if (entry.description.toLowerCase().includes(needle)) return 3;
-  if (entry.signature.toLowerCase().includes(needle)) return 4;
-  return -1;
-}
-
-function search(needle: string): readonly Hit[] {
-  if (needle.length === 0) return [];
-  const hits: Hit[] = [];
-  for (const module of ALL_MODULES) {
-    for (const entry of module.entries) {
-      const rank = scoreEntry(entry, needle);
-      if (rank >= 0) hits.push({ entry, module, rank });
-    }
+function referencedTypes(entry: DocEntry): readonly string[] {
+  const found = new Set<string>();
+  for (const match of entry.signature.matchAll(IDENTIFIER)) {
+    if (match[0] !== entry.name && SYMBOL_PATHS.has(match[0])) found.add(match[0]);
   }
-  return hits.toSorted((a, b) => a.rank - b.rank || a.entry.name.localeCompare(b.entry.name));
+  return [...found].toSorted((a, b) => a.localeCompare(b));
 }
 
-function EntryCard({
+function MemberRow({ member }: { readonly member: DocMember }): JSX.Element {
+  return (
+    <div className="grid gap-x-6 gap-y-1 border-b border-border/60 py-3 last:border-b-0 sm:grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)]">
+      <div className="min-w-0">
+        <span className="font-mono text-sm font-semibold break-words text-foreground">
+          {member.name}
+        </span>
+        {member.optional && (
+          <span className="ml-1.5 font-mono text-[0.62rem] text-muted-foreground">optional</span>
+        )}
+        {member.readonly && (
+          <span className="ml-1.5 font-mono text-[0.62rem] text-muted-foreground">readonly</span>
+        )}
+      </div>
+      <div className="min-w-0">
+        <TypeText text={member.type} />
+        <Prose text={member.description} />
+      </div>
+    </div>
+  );
+}
+
+function SymbolView({
+  module,
+  entry,
+}: {
+  readonly module: CatalogModule;
+  readonly entry: DocEntry;
+}): JSX.Element {
+  const related = useMemo(() => referencedTypes(entry), [entry]);
+  return (
+    <article>
+      <nav className="mb-4 flex flex-wrap items-center gap-1.5 font-mono text-[0.7rem] text-muted-foreground">
+        <Link to="/reference" className="hover:text-primary">
+          Reference
+        </Link>
+        <ChevronRight className="size-3" />
+        <Link to={modulePath(module.name)} className="hover:text-primary">
+          {module.name}
+        </Link>
+      </nav>
+
+      <header className="mb-6">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="font-mono text-2xl font-semibold tracking-tight break-words sm:text-3xl">
+            {entry.name}
+          </h1>
+          <Badge>{entry.kind}</Badge>
+        </div>
+      </header>
+
+      {entry.deprecated.length > 0 && (
+        <p className="mb-4 text-sm text-destructive">
+          <strong>Deprecated.</strong> {entry.deprecated}
+        </p>
+      )}
+
+      <div className="mb-8 max-w-[70ch]">
+        <Prose text={entry.description} />
+      </div>
+
+      {entry.params.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-2 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-primary uppercase">
+            Parameters
+          </h2>
+          {entry.params.map((param) => (
+            <div key={param.name} className="mb-1.5 flex flex-wrap gap-x-3 text-sm">
+              <InlineCode>{param.name}</InlineCode>
+              <span className="text-muted-foreground">{param.description}</span>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {entry.returns.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-2 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-primary uppercase">
+            Returns
+          </h2>
+          <p className="text-sm text-muted-foreground">{entry.returns}</p>
+        </section>
+      )}
+
+      {entry.members.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-1 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-primary uppercase">
+            {entry.kind === "const" ? "Values" : "Members"}
+            <span className="ml-2 font-normal text-muted-foreground">{entry.members.length}</span>
+          </h2>
+          <div>
+            {entry.members.map((member) => (
+              <MemberRow key={member.name} member={member} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {entry.examples.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-2 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-primary uppercase">
+            Example
+          </h2>
+          {entry.examples.map((example, index) => (
+            <CodeBlock key={index} source={example} example className="mb-3 last:mb-0" />
+          ))}
+        </section>
+      )}
+
+      {/* Last, not first: the declaration is the exact truth and worth showing,
+          but it answers "what is the type" rather than "what is this for", and
+          only one of those is why anybody came. */}
+      <section>
+        <h2 className="mb-2 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          Declaration
+        </h2>
+        <CodeBlock source={entry.signature} />
+        {related.length > 0 && (
+          <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="font-mono text-[0.58rem] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+              Uses
+            </span>
+            {related.map((name) => (
+              <Link
+                key={name}
+                to={SYMBOL_PATHS.get(name) ?? "/reference"}
+                className="font-mono text-xs text-primary hover:underline"
+              >
+                {name}
+              </Link>
+            ))}
+          </p>
+        )}
+      </section>
+    </article>
+  );
+}
+
+function EntryRow({
   entry,
   moduleName,
 }: {
   readonly entry: DocEntry;
   readonly moduleName: string;
 }): JSX.Element {
-  const id = entryId(moduleName, entry.name);
   return (
-    <Card id={id} className="mt-3 scroll-mt-24">
-      <CardHeader className="flex-wrap gap-2 px-4 py-3 sm:px-5">
-        <CardTitle className="font-mono text-sm font-semibold">
-          <a href={`#${id}`} className="text-foreground hover:text-primary">
-            {entry.name}
-          </a>
-        </CardTitle>
-        <Badge>{entry.kind}</Badge>
-      </CardHeader>
-      <CardContent className="px-4 pt-0 pb-4 sm:px-5 sm:pb-5">
-        <CodeBlock source={entry.signature} className="mb-4" />
-        {entry.deprecated.length > 0 && (
-          <p className="mb-3 text-sm text-destructive">
-            <strong>Deprecated.</strong> {entry.deprecated}
-          </p>
-        )}
-        <Prose text={entry.description} />
-        {entry.params.length > 0 && (
-          <Table className="mb-4">
-            <TableBody>
-              {entry.params.map((param) => (
-                <TableRow key={param.name}>
-                  <TableCell className="w-0 whitespace-nowrap text-foreground">
-                    <InlineCode>{param.name}</InlineCode>
-                  </TableCell>
-                  <TableCell>{param.description}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-        {entry.returns.length > 0 && (
-          <p className="mb-3 text-sm text-muted-foreground">
-            <span className="mr-2 font-mono text-[0.58rem] font-semibold tracking-[0.1em] uppercase">
-              Returns
-            </span>
-            {entry.returns}
-          </p>
-        )}
-        {entry.examples.map((example, index) => (
-          <CodeBlock key={index} source={example} example className="mb-3 last:mb-0" />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Every name in the module, as one scannable block above the detail. */
-function ModuleIndex({
-  sections,
-  moduleName,
-}: {
-  readonly sections: readonly Section[];
-  readonly moduleName: string;
-}): JSX.Element {
-  return (
-    <div className="mb-10 rounded-lg border border-border bg-card/40 p-4 sm:p-5">
-      {sections.map((section) => (
-        <div key={section.id} className="mb-4 last:mb-0">
-          <p className="mb-2 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {section.title}
-            <span className="ml-2 font-normal">{section.entries.length}</span>
-          </p>
-          <ul className="m-0 flex list-none flex-wrap gap-x-3 gap-y-1 p-0">
-            {section.entries.map((entry) => (
-              <li key={entry.name}>
-                <a
-                  href={`#${entryId(moduleName, entry.name)}`}
-                  className="font-mono text-xs text-muted-foreground hover:text-primary"
-                >
-                  {entry.name}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
+    <Link
+      to={symbolPath(moduleName, entry.name)}
+      className="grid gap-x-6 gap-y-0.5 rounded-md border-b border-border/60 px-2 py-2.5 last:border-b-0 hover:bg-accent sm:grid-cols-[minmax(9rem,16rem)_minmax(0,1fr)]"
+    >
+      <span className="font-mono text-sm font-semibold break-words text-foreground">
+        {entry.name}
+      </span>
+      <span className="min-w-0 truncate text-sm text-muted-foreground">
+        <InlineProse text={summarize(entry.description)} />
+      </span>
+    </Link>
   );
 }
 
@@ -258,12 +364,14 @@ function ModuleView({ module }: { readonly module: CatalogModule }): JSX.Element
   const group = groupOf(module);
   return (
     <>
-      <header className="mb-6 border-b border-border pb-8">
-        {group !== undefined && (
-          <p className="mb-2 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-primary uppercase">
-            {group.title}
-          </p>
-        )}
+      <nav className="mb-4 flex flex-wrap items-center gap-1.5 font-mono text-[0.7rem] text-muted-foreground">
+        <Link to="/reference" className="hover:text-primary">
+          Reference
+        </Link>
+        <ChevronRight className="size-3" />
+        <span>{group?.title}</span>
+      </nav>
+      <header className="mb-8 border-b border-border pb-8">
         <h1 className="font-mono text-2xl font-semibold tracking-tight sm:text-3xl">
           {module.name}
         </h1>
@@ -271,15 +379,17 @@ function ModuleView({ module }: { readonly module: CatalogModule }): JSX.Element
           {module.blurb} {module.entries.length} exports.
         </p>
       </header>
-      <ModuleIndex sections={sections} moduleName={module.name} />
       {sections.map((section) => (
-        <section key={section.id} id={`${moduleId(module.name)}-section-${section.id}`}>
-          <h2 className="mt-10 mb-1 font-mono text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+        <section key={section.id} className="mb-8">
+          <h2 className="mb-2 font-mono text-xs font-semibold tracking-[0.14em] text-primary uppercase">
             {section.title}
+            <span className="ml-2 font-normal text-muted-foreground">{section.entries.length}</span>
           </h2>
-          {section.entries.map((entry) => (
-            <EntryCard key={entry.name} entry={entry} moduleName={module.name} />
-          ))}
+          <div>
+            {section.entries.map((entry) => (
+              <EntryRow key={entry.name} entry={entry} moduleName={module.name} />
+            ))}
+          </div>
         </section>
       ))}
     </>
@@ -326,6 +436,41 @@ function OverviewView(): JSX.Element {
   );
 }
 
+interface Hit {
+  readonly entry: DocEntry;
+  readonly module: CatalogModule;
+  readonly rank: number;
+}
+
+/**
+ * Rank a symbol against the query.
+ *
+ * Descriptions are searched as well as names, which is the half that was
+ * missing: someone looking for "how do I make a sprite flash" has no name to
+ * type, and the word they do have is in the prose.
+ */
+function scoreEntry(entry: DocEntry, needle: string): number {
+  const name = entry.name.toLowerCase();
+  if (name === needle) return 0;
+  if (name.startsWith(needle)) return 1;
+  if (name.includes(needle)) return 2;
+  if (entry.description.toLowerCase().includes(needle)) return 3;
+  if (entry.signature.toLowerCase().includes(needle)) return 4;
+  return -1;
+}
+
+function search(needle: string): readonly Hit[] {
+  if (needle.length === 0) return [];
+  const hits: Hit[] = [];
+  for (const module of ALL_MODULES) {
+    for (const entry of module.entries) {
+      const rank = scoreEntry(entry, needle);
+      if (rank >= 0) hits.push({ entry, module, rank });
+    }
+  }
+  return hits.toSorted((a, b) => a.rank - b.rank || a.entry.name.localeCompare(b.entry.name));
+}
+
 function ResultsView({
   hits,
   query,
@@ -351,7 +496,7 @@ function ResultsView({
         {hits.map((hit) => (
           <li key={`${hit.module.name}-${hit.entry.name}`}>
             <Link
-              to={`${modulePath(hit.module.name)}#${entryId(hit.module.name, hit.entry.name)}`}
+              to={symbolPath(hit.module.name, hit.entry.name)}
               onClick={onPick}
               className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md px-3 py-2 hover:bg-accent"
             >
@@ -363,7 +508,7 @@ function ResultsView({
               </span>
               <Badge className="text-[0.6rem]">{hit.entry.kind}</Badge>
               <span className="w-full truncate text-xs text-muted-foreground">
-                {summarize(hit.entry.description)}
+                <InlineProse text={summarize(hit.entry.description)} />
               </span>
             </Link>
           </li>
@@ -385,10 +530,12 @@ function ResultsView({
 function NavModule({
   module,
   active,
+  currentSymbol,
   onNavigate,
 }: {
   readonly module: CatalogModule;
   readonly active: boolean;
+  readonly currentSymbol: string | null;
   readonly onNavigate: () => void;
 }): JSX.Element {
   // Open where you already are, so arriving by deep link shows you the
@@ -425,7 +572,7 @@ function NavModule({
               onClick={onNavigate}
               className={cn(
                 "block truncate rounded-md px-2 py-0.5 text-[0.68rem]",
-                active
+                active && currentSymbol === null
                   ? "text-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-primary",
               )}
@@ -437,9 +584,14 @@ function NavModule({
             section.entries.map((entry) => (
               <li key={entry.name}>
                 <Link
-                  to={`${modulePath(module.name)}#${entryId(module.name, entry.name)}`}
+                  to={symbolPath(module.name, entry.name)}
                   onClick={onNavigate}
-                  className="block truncate rounded-md px-2 py-0.5 font-mono text-[0.68rem] text-muted-foreground hover:bg-accent hover:text-primary"
+                  className={cn(
+                    "block truncate rounded-md px-2 py-0.5 font-mono text-[0.68rem]",
+                    active && currentSymbol === entry.name
+                      ? "bg-accent text-primary"
+                      : "text-muted-foreground hover:bg-accent hover:text-primary",
+                  )}
                 >
                   {entry.name}
                 </Link>
@@ -454,9 +606,11 @@ function NavModule({
 
 function ReferenceNav({
   current,
+  currentSymbol,
   onNavigate,
 }: {
   readonly current: CatalogModule | null;
+  readonly currentSymbol: string | null;
   readonly onNavigate: () => void;
 }): JSX.Element {
   return (
@@ -484,6 +638,7 @@ function ReferenceNav({
                   key={module.name}
                   module={module}
                   active={module === current}
+                  currentSymbol={module === current ? currentSymbol : null}
                   onNavigate={onNavigate}
                 />
               ))}
@@ -499,34 +654,25 @@ export function ReferencePage(): JSX.Element {
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const slug = params["*"];
-  const current = findModule(slug);
+  const splat = params["*"];
+  const target = resolveTarget(splat);
   const [query, setQuery] = useState("");
   const [navOpen, setNavOpen] = useState(false);
   const needle = query.trim().toLowerCase();
   const hits = useMemo(() => search(needle), [needle]);
 
-  // A slug nobody publishes is a typo or a stale link, not an empty page.
+  // A path nobody publishes is a typo or a stale link, not an empty page.
   useEffect(() => {
-    if (slug !== undefined && slug.length > 0 && current === null) {
+    if (splat !== undefined && splat.length > 0 && target === null) {
       void navigate("/reference", { replace: true });
     }
-  }, [slug, current, navigate]);
+  }, [splat, target, navigate]);
 
-  // Hash targets only exist once the module has rendered, so this waits a
-  // frame rather than running on mount alone.
-  //
-  // Keyed on the hash as well as the module: a search result for a symbol in
-  // the module already open changes the hash and nothing else, and depending
-  // on the module alone left that click doing visibly nothing.
+  // Each symbol is its own page now, so arriving at one should start at the top
+  // of it rather than wherever the previous page happened to be scrolled to.
   useEffect(() => {
-    const id = location.hash.slice(1);
-    if (id.length === 0) return;
-    const frame = requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView();
-    });
-    return (): void => cancelAnimationFrame(frame);
-  }, [current, location.hash, location.key]);
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -536,8 +682,8 @@ export function ReferencePage(): JSX.Element {
         return;
       }
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+      const editing = event.target;
+      if (editing instanceof HTMLInputElement || editing instanceof HTMLTextAreaElement) return;
       event.preventDefault();
       document.getElementById("reference-search")?.focus();
     };
@@ -566,7 +712,11 @@ export function ReferencePage(): JSX.Element {
           "lg:sticky lg:h-[calc(100dvh-4rem)] lg:w-auto lg:translate-x-0 lg:transition-none",
         )}
       >
-        <ReferenceNav current={current} onNavigate={() => setNavOpen(false)} />
+        <ReferenceNav
+          current={target?.module ?? null}
+          currentSymbol={target?.entry?.name ?? null}
+          onNavigate={() => setNavOpen(false)}
+        />
       </aside>
       <main
         // `min-w-0` is load-bearing: below `lg` this is a single-column grid
@@ -608,10 +758,12 @@ export function ReferencePage(): JSX.Element {
 
         {needle.length > 0 ? (
           <ResultsView hits={hits} query={query.trim()} onPick={() => setQuery("")} />
-        ) : current === null ? (
+        ) : target === null ? (
           <OverviewView />
+        ) : target.entry === null ? (
+          <ModuleView module={target.module} />
         ) : (
-          <ModuleView module={current} />
+          <SymbolView module={target.module} entry={target.entry} />
         )}
       </main>
     </div>

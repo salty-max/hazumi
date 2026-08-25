@@ -8,6 +8,8 @@
  * document something the package does not actually ship.
  */
 
+import { type DocMember, parseMembers } from "./members";
+
 export type DocKind = "function" | "class" | "interface" | "type" | "const" | "namespace";
 
 export interface DocParam {
@@ -26,7 +28,17 @@ export interface DocEntry {
   readonly returns: string;
   readonly examples: readonly string[];
   readonly deprecated: string;
+  /**
+   * Fields and methods, split out of the signature.
+   *
+   * Empty for anything without a body. The site renders these as rows with
+   * their own prose rather than leaving the reader to find each comment inside
+   * a block of highlighted code.
+   */
+  readonly members: readonly DocMember[];
 }
+
+export type { DocMember };
 
 export interface DocModule {
   readonly name: string;
@@ -316,6 +328,7 @@ export function extractModule(
         name: publicName,
         kind: "namespace",
         signature: `namespace ${publicName}`,
+        members: [],
         ...doc,
       });
       found.add(publicName);
@@ -337,10 +350,14 @@ export function extractModule(
           .replace(/^export\s+/, "")
           .replace(/^declare\s+/, "")
           .trim();
+        const signature =
+          kindRaw === "namespace" ? namespaceSignature(publicName, captured.text) : raw;
         entries.push({
           name: publicName,
           kind: kindRaw as DocKind,
-          signature: kindRaw === "namespace" ? namespaceSignature(publicName, captured.text) : raw,
+          signature,
+          // A namespace's braces hold a re-export list, not members.
+          members: kindRaw === "namespace" ? [] : parseMembers(signature),
           ...doc,
         });
         found.add(publicName);
@@ -364,6 +381,7 @@ export function extractModule(
       name: leftover,
       kind: "const",
       signature: leftover,
+      members: [],
       ...emptyDoc(),
     });
   }
