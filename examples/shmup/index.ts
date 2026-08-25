@@ -11,7 +11,7 @@
  * the same whether a ship is a sprite or a triangle.
  */
 import { start, type HazumiApp } from "hazumi/app";
-import { scoped } from "hazumi/draw";
+import { material, noMaterial } from "hazumi/draw";
 import { webgl2 } from "hazumi/backends/webgl2";
 import { keyIsDown, keyJustPressed, pointerJustPressed } from "hazumi/input";
 import { clamp, vec2, type Vec2 } from "hazumi/math";
@@ -493,17 +493,16 @@ export function shmup(parent: HTMLElement): HazumiApp {
             for (const enemy of enemies) {
               if (!enemy.live) continue;
               const spec = KINDS[enemy.kind] as (typeof KINDS)[number];
-              const paint = (): void => {
-                if (enemy.boss) drawBoss(art, enemy.x, enemy.y, Math.sin(enemy.phase * 2));
-                else drawEnemy(art, enemy.x, enemy.y, enemy.kind, spec.size);
-              };
-              if (enemy.struck <= 0) paint();
               // Fading rather than a hard on/off: at one frame it reads as a
               // dropped frame, and the sprite is only white at the moment of
               // contact anyway. Costs nothing extra — a flashing enemy and a
               // plain one are still the same draw call.
-              else
-                scoped({ material: { type: "flash", amount: enemy.struck / STRUCK_FOR } }, paint);
+              if (enemy.struck > 0) {
+                material({ type: "flash", amount: enemy.struck / STRUCK_FOR });
+              }
+              if (enemy.boss) drawBoss(art, enemy.x, enemy.y, Math.sin(enemy.phase * 2));
+              else drawEnemy(art, enemy.x, enemy.y, enemy.kind, spec.size);
+              noMaterial();
             }
             for (const shot of shots) {
               if (shot.live) drawShot(art, shot.x, shot.y, shot.hostile);
