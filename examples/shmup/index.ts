@@ -10,33 +10,27 @@
  * Drawing lives in ./art and the sheets in ./sprites, so the rules here read
  * the same whether a ship is a sprite or a triangle.
  */
-import { start, type HazumiApp } from "hazumi/app";
+import { createPluginHost, start, type HazumiApp } from "hazumi/app";
 import { material, noMaterial } from "hazumi/draw";
 import { webgl2 } from "hazumi/backends/webgl2";
 import { keyIsDown, keyJustPressed, pointerJustPressed } from "hazumi/input";
 import { clamp, vec2, type Vec2 } from "hazumi/math";
 import { particles, type ParticleSystem } from "hazumi/particles";
-import { random, screen, time } from "hazumi/scene";
+import { pool, random, screen, time } from "hazumi/scene";
 
 import {
+  artwork,
   DIM,
-  drawBoss,
-  drawCore,
-  drawEnemy,
-  drawPickup,
-  drawPlayer,
-  drawShot,
-  drawSides,
-  drawSky,
   ENEMY,
   GOLD,
-  icon,
   iconWidth,
   INK,
   SHIELD,
+  type ArtApi,
+  type Painter,
 } from "./art";
 import type { PixelFont } from "./font";
-import { loadArt, type IconFrame, type ShmupArt } from "./sprites";
+import type { IconFrame } from "./sprites";
 
 const MAX_SHOTS = 120;
 const MAX_ENEMIES = 40;
@@ -84,7 +78,6 @@ interface Shot {
   vx: number;
   vy: number;
   hostile: boolean;
-  live: boolean;
 }
 
 interface Enemy {
@@ -107,17 +100,32 @@ interface Enemy {
    * a twelfth of a second is the arcade's own answer.
    */
   struck: number;
-  live: boolean;
 }
 
 interface Pickup {
   x: number;
   y: number;
   kind: number;
-  live: boolean;
 }
 
 /** What each hull is worth, how tough it is, and how fast it comes down. */
+type EnemyKind = (typeof KINDS)[number];
+
+/**
+ * The spec for a hull.
+ *
+ * A function rather than `KINDS[i]` at each of the four call sites: under
+ * `noUncheckedIndexedAccess` that expression is `EnemyKind | undefined`, and
+ * the alternative to this was the same cast written out four times. Throws,
+ * because every index comes from our own spawn and a bad one is a bug rather
+ * than a case to handle.
+ */
+function kindOf(index: number): EnemyKind {
+  const spec = KINDS[index];
+  if (spec === undefined) throw new RangeError(`No enemy kind ${index}`);
+  return spec;
+}
+
 const KINDS = [
   { health: 1, score: 100, speed: 165, size: 30 },
   { health: 2, score: 220, speed: 105, size: 34 },
@@ -138,7 +146,7 @@ function fitted(font: PixelFont, value: string, x: number, y: number, color: str
 
 /** An interface tile and a label, centred together as one row. */
 function iconAndText(
-  art: ShmupArt,
+  art: Painter,
   name: IconFrame,
   label: string,
   x: number,
@@ -147,26 +155,37 @@ function iconAndText(
 ): void {
   const gap = 8;
   const tile = iconWidth(LABEL_SCALE);
-  const from = x - (tile + gap + art.font.width(label, LABEL_SCALE)) / 2;
-  icon(art, name, from + tile / 2, y, LABEL_SCALE);
+  const font = art.sheets.font;
+  const from = x - (tile + gap + font.width(label, LABEL_SCALE)) / 2;
+  art.icon(name, from + tile / 2, y, LABEL_SCALE);
   // Six pixels lower, which is where a fourteen-pixel line sits against a
   // twenty-six-pixel tile.
-  art.font.draw(label, from + tile + gap, y + 6, LABEL_SCALE, color);
+  font.draw(label, from + tile + gap, y + 6, LABEL_SCALE, color);
 }
 
-export function shmup(parent: HTMLElement): HazumiApp {
+export function shmup(parent: HTMLElement): HazumiApp<ArtApi> {
   return start(
-    { backend: webgl2({ smoothing: false }), width: 600, height: 600, parent, seed: 7 },
-    async () => {
-      const art = await loadArt();
-
-      const shots: Shot[] = [];
-      for (let i = 0; i < MAX_SHOTS; i++) {
-        shots.push({ x: 0, y: 0, vx: 0, vy: 0, hostile: false, live: false });
-      }
-      const enemies: Enemy[] = [];
-      for (let i = 0; i < MAX_ENEMIES; i++) {
-        enemies.push({
+    {
+      backend: webgl2({ smoothing: false }),
+      width: 600,
+      height: 600,
+      parent,
+      seed: 7,
+      // The art arrives on the context rather than being threaded through
+      // every draw call: the plugin loads the sheets in `presetup` and hands
+      // back a painter already bound to them.
+      plugins: createPluginHost().use(artwork()),
+    },
+    ({ art }) => {
+      // Three pools rather than three arrays with a `live` flag and a loop
+      // that skips the dead ones. Nothing here allocates after this line.
+      const shots = pool<Shot>({
+        capacity: MAX_SHOTS,
+        make: () => ({ x: 0, y: 0, vx: 0, vy: 0, hostile: false }),
+      });
+      const enemies = pool<Enemy>({
+        capacity: MAX_ENEMIES,
+        make: () => ({
           x: 0,
           y: 0,
           vx: 0,
@@ -177,11 +196,12 @@ export function shmup(parent: HTMLElement): HazumiApp {
           phase: 0,
           boss: false,
           struck: 0,
-          live: false,
-        });
-      }
-      const pickups: Pickup[] = [];
-      for (let i = 0; i < MAX_PICKUPS; i++) pickups.push({ x: 0, y: 0, kind: 0, live: false });
+        }),
+      });
+      const pickups = pool<Pickup>({
+        capacity: MAX_PICKUPS,
+        make: () => ({ x: 0, y: 0, kind: 0 }),
+      });
       const sparks: ParticleSystem = particles({ capacity: 600 });
 
       let phase: Phase = "menu";
@@ -204,22 +224,18 @@ export function shmup(parent: HTMLElement): HazumiApp {
       let farSky = 0;
 
       function spawnShot(x: number, y: number, vx: number, vy: number, hostile: boolean): void {
-        for (const shot of shots) {
-          if (shot.live) continue;
+        shots.spawn((shot) => {
           shot.x = x;
           shot.y = y;
           shot.vx = vx;
           shot.vy = vy;
           shot.hostile = hostile;
-          shot.live = true;
-          return;
-        }
+        });
       }
 
       function spawnEnemy(kind: number, x: number, offset: number, boss = false): void {
-        for (const enemy of enemies) {
-          if (enemy.live) continue;
-          const spec = KINDS[kind] as (typeof KINDS)[number];
+        const spec = kindOf(kind);
+        enemies.spawn((enemy) => {
           enemy.x = x;
           enemy.y = boss ? -90 : -24;
           enemy.vx = 0;
@@ -230,9 +246,7 @@ export function shmup(parent: HTMLElement): HazumiApp {
           enemy.phase = offset;
           enemy.boss = boss;
           enemy.struck = 0;
-          enemy.live = true;
-          return;
-        }
+        });
       }
 
       function burst(x: number, y: number, count: number, colour: string): void {
@@ -277,9 +291,9 @@ export function shmup(parent: HTMLElement): HazumiApp {
       }
 
       function reset(): void {
-        for (const shot of shots) shot.live = false;
-        for (const enemy of enemies) enemy.live = false;
-        for (const pickup of pickups) pickup.live = false;
+        shots.clear();
+        enemies.clear();
+        pickups.clear();
         sparks.clear();
         player = { x: FIELD_X + FIELD_W / 2, y: screen.height - 80 };
         lives = STARTING_LIVES;
@@ -358,11 +372,10 @@ export function shmup(parent: HTMLElement): HazumiApp {
           nextWave -= dt;
           if (nextWave <= 0) launchWave();
 
-          for (const enemy of enemies) {
-            if (!enemy.live) continue;
+          enemies.forEach((enemy) => {
             enemy.phase += dt;
             enemy.struck = Math.max(0, enemy.struck - dt);
-            const spec = KINDS[enemy.kind] as (typeof KINDS)[number];
+            const spec = kindOf(enemy.kind);
 
             if (enemy.boss) {
               // Holds station near the top and sweeps, so the fight is about
@@ -406,20 +419,19 @@ export function shmup(parent: HTMLElement): HazumiApp {
               }
             }
 
-            if (!enemy.boss && enemy.y > screen.height + 40) enemy.live = false;
+            if (!enemy.boss && enemy.y > screen.height + 40) enemies.kill(enemy);
 
             const reach = (enemy.boss ? 54 : spec.size * 0.42) + PLAYER_HIT_RADIUS;
             if (vec2.distance(enemy, player) < reach) {
               if (!enemy.boss) {
-                enemy.live = false;
+                enemies.kill(enemy);
                 burst(enemy.x, enemy.y, 24, ENEMY);
               }
               hitPlayer();
             }
-          }
+          });
 
-          for (const shot of shots) {
-            if (!shot.live) continue;
+          shots.forEach((shot) => {
             shot.x += shot.vx * dt;
             shot.y += shot.vy * dt;
             if (
@@ -428,71 +440,68 @@ export function shmup(parent: HTMLElement): HazumiApp {
               shot.x < -24 ||
               shot.x > screen.width + 24
             ) {
-              shot.live = false;
-              continue;
+              shots.kill(shot);
+              return;
             }
             if (shot.hostile) {
               if (vec2.distance(shot, player) < PLAYER_HIT_RADIUS + BOLT_HIT_RADIUS) {
-                shot.live = false;
+                shots.kill(shot);
                 hitPlayer();
               }
-              continue;
+              return;
             }
-            for (const enemy of enemies) {
-              if (!enemy.live) continue;
-              const spec = KINDS[enemy.kind] as (typeof KINDS)[number];
+            // A bolt is spent on the first hull it reaches. `forEach` has no
+            // `break`, so the flag is what stops it hitting the rank behind.
+            let spent = false;
+            enemies.forEach((enemy) => {
+              if (spent) return;
+              const spec = kindOf(enemy.kind);
               const radius = enemy.boss ? 46 : spec.size * 0.45;
-              if (Math.hypot(shot.x - enemy.x, shot.y - enemy.y) > radius) continue;
-              shot.live = false;
+              if (vec2.distance(shot, enemy) > radius) return;
+              spent = true;
+              shots.kill(shot);
               enemy.health--;
               enemy.struck = STRUCK_FOR;
               burst(shot.x, shot.y, 5, GOLD);
-              if (enemy.health <= 0) {
-                enemy.live = false;
-                score += enemy.boss ? 5000 : spec.score;
-                burst(enemy.x, enemy.y, enemy.boss ? 90 : 28, ENEMY);
-                if (enemy.boss || random.range(0, 1) < 0.15) {
-                  for (const pickup of pickups) {
-                    if (pickup.live) continue;
-                    pickup.x = enemy.x;
-                    pickup.y = enemy.y;
-                    pickup.kind = random.bool() ? 0 : 1;
-                    pickup.live = true;
-                    break;
-                  }
-                }
+              if (enemy.health > 0) return;
+              enemies.kill(enemy);
+              score += enemy.boss ? 5000 : spec.score;
+              burst(enemy.x, enemy.y, enemy.boss ? 90 : 28, ENEMY);
+              if (enemy.boss || random.range(0, 1) < 0.15) {
+                pickups.spawn((pickup) => {
+                  pickup.x = enemy.x;
+                  pickup.y = enemy.y;
+                  pickup.kind = random.bool() ? 0 : 1;
+                });
               }
-              break;
-            }
-          }
+            });
+          });
 
-          for (const pickup of pickups) {
-            if (!pickup.live) continue;
+          pickups.forEach((pickup) => {
             pickup.y += 95 * dt;
             if (pickup.y > screen.height + 20) {
-              pickup.live = false;
-              continue;
+              pickups.kill(pickup);
+              return;
             }
             if (vec2.distance(pickup, player) < PICKUP_REACH) {
-              pickup.live = false;
+              pickups.kill(pickup);
               if (pickup.kind === 0) spread = 14;
               else shield = 1;
               burst(pickup.x, pickup.y, 16, pickup.kind === 0 ? GOLD : SHIELD);
               score += 50;
             }
-          }
+          });
         },
 
         draw(): void {
-          drawSky(art, nearSky, farSky);
+          art.sky(nearSky, farSky);
 
           if (phase !== "menu") {
-            for (const pickup of pickups) {
-              if (pickup.live) drawPickup(art, pickup.x, pickup.y, pickup.kind, time.elapsed * 2);
-            }
-            for (const enemy of enemies) {
-              if (!enemy.live) continue;
-              const spec = KINDS[enemy.kind] as (typeof KINDS)[number];
+            pickups.forEach((pickup) => {
+              art.pickup(pickup.x, pickup.y, pickup.kind, time.elapsed * 2);
+            });
+            enemies.forEach((enemy) => {
+              const spec = kindOf(enemy.kind);
               // Fading rather than a hard on/off: at one frame it reads as a
               // dropped frame, and the sprite is only white at the moment of
               // contact anyway. Costs nothing extra — a flashing enemy and a
@@ -500,18 +509,18 @@ export function shmup(parent: HTMLElement): HazumiApp {
               if (enemy.struck > 0) {
                 material({ type: "flash", amount: enemy.struck / STRUCK_FOR });
               }
-              if (enemy.boss) drawBoss(art, enemy.x, enemy.y, Math.sin(enemy.phase * 2));
-              else drawEnemy(art, enemy.x, enemy.y, enemy.kind, spec.size);
+              if (enemy.boss) art.boss(enemy.x, enemy.y, Math.sin(enemy.phase * 2));
+              else art.enemy(enemy.x, enemy.y, enemy.kind, spec.size);
               noMaterial();
-            }
-            for (const shot of shots) {
-              if (shot.live) drawShot(art, shot.x, shot.y, shot.hostile);
-            }
+            });
+            shots.forEach((shot) => {
+              art.shot(shot.x, shot.y, shot.hostile);
+            });
             // Blink while invulnerable, the way every arcade ship has.
             const hidden = invulnerable > 0 && Math.floor(invulnerable * 12) % 2 === 0;
             if (phase === "playing" && !hidden) {
-              drawPlayer(art, player.x, player.y, tilt);
-              drawCore(
+              art.player(player.x, player.y, tilt);
+              art.core(
                 player.x,
                 player.y,
                 PLAYER_HIT_RADIUS,
@@ -523,50 +532,50 @@ export function shmup(parent: HTMLElement): HazumiApp {
 
           // The cabinet: everything outside the strip is furniture, drawn over
           // the sky so ships that stray look like they went behind it.
-          drawSides(FIELD_X, FIELD_RIGHT);
+          art.sides(FIELD_X, FIELD_RIGHT);
 
           if (phase !== "menu") {
             const left = FIELD_X / 2;
             const right = FIELD_RIGHT + FIELD_X / 2;
-            art.font.centred("SCORE", left, 56, 2, DIM);
-            fitted(art.font, `${score}`, left, 74, GOLD);
-            art.font.centred("WAVE", left, 126, 2, DIM);
-            fitted(art.font, `${wave}`, left, 144, INK);
-            art.font.centred("SHIPS", left, 198, 2, DIM);
-            for (let i = 0; i < lives; i++) drawPlayer(art, left, 236 + i * 38, 0);
+            art.sheets.font.centred("SCORE", left, 56, 2, DIM);
+            fitted(art.sheets.font, `${score}`, left, 74, GOLD);
+            art.sheets.font.centred("WAVE", left, 126, 2, DIM);
+            fitted(art.sheets.font, `${wave}`, left, 144, INK);
+            art.sheets.font.centred("SHIPS", left, 198, 2, DIM);
+            for (let i = 0; i < lives; i++) art.player(left, 236 + i * 38, 0);
 
-            if (spread > 0) art.font.centred("SPREAD", right, 74, 2, GOLD);
-            if (shield > 0) art.font.centred("SHIELD", right, 98, 2, SHIELD);
+            if (spread > 0) art.sheets.font.centred("SPREAD", right, 74, 2, GOLD);
+            if (shield > 0) art.sheets.font.centred("SHIELD", right, 98, 2, SHIELD);
           }
 
           const middle = screen.width / 2;
           const blink = Math.floor(time.elapsed * 2) % 2 === 0;
 
           if (phase === "menu") {
-            art.panel.draw(FIELD_X + 12, 150, FIELD_W - 24, 268);
-            art.font.centred("STARFALL", middle, 186, 6, GOLD);
+            art.sheets.panel.draw(FIELD_X + 12, 150, FIELD_W - 24, 268);
+            art.sheets.font.centred("STARFALL", middle, 186, 6, GOLD);
 
             // The stick is spelled with the sheet's own arrows: it is the one
             // instruction that reads faster as a picture than as the word.
             const step = 28;
-            icon(art, "left", middle - step * 1.5, 244, 2);
-            icon(art, "up", middle - step * 0.5, 244, 2);
-            icon(art, "down", middle + step * 0.5, 244, 2);
-            icon(art, "right", middle + step * 1.5, 244, 2);
-            art.font.centred("OR WASD TO FLY", middle, 282, 2, DIM);
-            art.font.centred("SPACE TO FIRE", middle, 304, 2, DIM);
-            art.font.centred("GRAB SPREAD AND SHIELDS", middle, 326, 2, DIM);
-            art.font.centred("A BOSS EVERY SIXTH WAVE", middle, 348, 2, DIM);
+            art.icon("left", middle - step * 1.5, 244, 2);
+            art.icon("up", middle - step * 0.5, 244, 2);
+            art.icon("down", middle + step * 0.5, 244, 2);
+            art.icon("right", middle + step * 1.5, 244, 2);
+            art.sheets.font.centred("OR WASD TO FLY", middle, 282, 2, DIM);
+            art.sheets.font.centred("SPACE TO FIRE", middle, 304, 2, DIM);
+            art.sheets.font.centred("GRAB SPREAD AND SHIELDS", middle, 326, 2, DIM);
+            art.sheets.font.centred("A BOSS EVERY SIXTH WAVE", middle, 348, 2, DIM);
 
             if (blink) iconAndText(art, "play", "PRESS SPACE", middle, 378, GOLD);
           }
 
           if (phase === "over") {
-            art.panel.draw(FIELD_X + 12, 190, FIELD_W - 24, 210);
-            art.font.centred("GAME OVER", middle, 226, 5, ENEMY);
-            art.font.centred(`SCORE ${score}`, middle, 286, 3, INK);
+            art.sheets.panel.draw(FIELD_X + 12, 190, FIELD_W - 24, 210);
+            art.sheets.font.centred("GAME OVER", middle, 226, 5, ENEMY);
+            art.sheets.font.centred(`SCORE ${score}`, middle, 286, 3, INK);
             iconAndText(art, "trophy", `BEST ${Math.max(best, score)}`, middle, 322, GOLD);
-            if (blink) art.font.centred("SPACE TO TRY AGAIN", middle, 364, 2, DIM);
+            if (blink) art.sheets.font.centred("SPACE TO TRY AGAIN", middle, 364, 2, DIM);
           }
         },
       };

@@ -6,6 +6,8 @@ import type { Capabilities, ShaderPass } from "@hazumi/graphics";
 export { NoActiveSceneError };
 export { tween, sequence, InvalidTweenError } from "./tween";
 export type { Tween, TweenOptions } from "./tween";
+export { pool, InvalidPoolError } from "./pool";
+export type { Pool, PoolOptions } from "./pool";
 export type { Camera2D, CameraPoint };
 export type { Capabilities };
 
