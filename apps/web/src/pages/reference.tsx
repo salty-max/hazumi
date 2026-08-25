@@ -1,5 +1,5 @@
 import type { CatalogGroup, CatalogModule, DocEntry } from "@hazumi/docs/model";
-import { ArrowLeft, PanelLeft, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, PanelLeft, Search } from "lucide-react";
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { CodeBlock } from "../components/code-block";
@@ -373,6 +373,85 @@ function ResultsView({
   );
 }
 
+/**
+ * One module's row: a disclosure, not a link.
+ *
+ * Navigating from the heading was wrong on two counts. On a phone it closed the
+ * drawer, so opening a module's contents and looking at them were the same
+ * gesture and you never got to look. And on any width it made "show me what is
+ * in here" cost a page load. The heading opens the list; the links inside it go
+ * somewhere.
+ */
+function NavModule({
+  module,
+  active,
+  onNavigate,
+}: {
+  readonly module: CatalogModule;
+  readonly active: boolean;
+  readonly onNavigate: () => void;
+}): JSX.Element {
+  // Open where you already are, so arriving by deep link shows you the
+  // neighbourhood you landed in.
+  const [open, setOpen] = useState(active);
+  useEffect(() => {
+    if (active) setOpen(true);
+  }, [active]);
+
+  return (
+    <li>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((was) => !was)}
+        className={cn(
+          "flex w-full items-baseline gap-1.5 rounded-md px-2 py-1 text-left font-mono text-[0.7rem]",
+          active
+            ? "font-semibold text-primary"
+            : "text-muted-foreground hover:bg-accent hover:text-primary",
+        )}
+      >
+        <ChevronRight
+          className={cn("size-3 shrink-0 self-center transition-transform", open && "rotate-90")}
+        />
+        <span className="truncate">{module.name}</span>
+        <span className="ml-auto text-[0.6rem] opacity-60">{module.entries.length}</span>
+      </button>
+      {open && (
+        <ul className="m-0 mb-2 list-none border-l border-border p-0 pl-3">
+          <li>
+            <Link
+              to={modulePath(module.name)}
+              onClick={onNavigate}
+              className={cn(
+                "block truncate rounded-md px-2 py-0.5 text-[0.68rem]",
+                active
+                  ? "text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-primary",
+              )}
+            >
+              Overview
+            </Link>
+          </li>
+          {sectionsFor(module.entries).map((section) =>
+            section.entries.map((entry) => (
+              <li key={entry.name}>
+                <Link
+                  to={`${modulePath(module.name)}#${entryId(module.name, entry.name)}`}
+                  onClick={onNavigate}
+                  className="block truncate rounded-md px-2 py-0.5 font-mono text-[0.68rem] text-muted-foreground hover:bg-accent hover:text-primary"
+                >
+                  {entry.name}
+                </Link>
+              </li>
+            )),
+          )}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 function ReferenceNav({
   current,
   onNavigate,
@@ -400,45 +479,14 @@ function ReferenceNav({
               {group.title}
             </p>
             <ul className="m-0 list-none p-0">
-              {group.modules.map((module) => {
-                const active = module === current;
-                return (
-                  <li key={module.name}>
-                    <Link
-                      to={modulePath(module.name)}
-                      onClick={onNavigate}
-                      className={cn(
-                        "flex items-baseline justify-between gap-2 rounded-md px-2 py-1 font-mono text-[0.7rem]",
-                        active
-                          ? "bg-accent font-semibold text-primary"
-                          : "text-muted-foreground hover:bg-accent hover:text-primary",
-                      )}
-                    >
-                      <span className="truncate">{module.name}</span>
-                      <span className="text-[0.6rem] opacity-60">{module.entries.length}</span>
-                    </Link>
-                    {/* Only the open module lists its symbols: every module at
-                        once is the wall of names this page used to be. */}
-                    {active && (
-                      <ul className="m-0 mb-2 list-none border-l border-border p-0 pl-3">
-                        {sectionsFor(module.entries).map((section) =>
-                          section.entries.map((entry) => (
-                            <li key={entry.name}>
-                              <a
-                                href={`#${entryId(module.name, entry.name)}`}
-                                onClick={onNavigate}
-                                className="block truncate rounded-md px-2 py-0.5 font-mono text-[0.68rem] text-muted-foreground hover:bg-accent hover:text-primary"
-                              >
-                                {entry.name}
-                              </a>
-                            </li>
-                          )),
-                        )}
-                      </ul>
-                    )}
-                  </li>
-                );
-              })}
+              {group.modules.map((module) => (
+                <NavModule
+                  key={module.name}
+                  module={module}
+                  active={module === current}
+                  onNavigate={onNavigate}
+                />
+              ))}
             </ul>
           </div>
         ))}

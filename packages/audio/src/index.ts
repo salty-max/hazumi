@@ -4,6 +4,7 @@ const DEFAULT_MAX_VOICES = 16;
 
 /** A decoded sound that can be played any number of times. */
 export interface Sound {
+  /** Length in seconds, from the decoded buffer. */
   readonly duration: number;
 }
 
@@ -17,9 +18,13 @@ export interface PlayOptions {
 
 /** One playback returned by `audio.play()` or `audio.loop()`. */
 export interface AudioVoice {
+  /** False once it has finished or been stopped. */
   readonly playing: boolean;
+  /** Whether it repeats. Fixed by which call created it. */
   readonly looping: boolean;
+  /** Linear gain, writable while it plays — a fade is a value set per frame. */
   gain: number;
+  /** Stop it now. Safe to call twice. */
   stop: () => void;
 }
 
@@ -41,6 +46,7 @@ export interface AudioController {
 
 /** What the audio plugin adds to a Hazumi scene context. */
 export interface AudioApi {
+  /** What the plugin adds to the scene context. */
   readonly audio: AudioController;
 }
 

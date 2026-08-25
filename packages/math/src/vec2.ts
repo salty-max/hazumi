@@ -6,7 +6,9 @@
  */
 
 export interface Vec2 {
+  /** Horizontal component. Positive is right. */
   readonly x: number;
+  /** Vertical component. Positive is down, matching screen space. */
   readonly y: number;
 }
 

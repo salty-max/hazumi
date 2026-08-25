@@ -2,7 +2,9 @@ import type { CommandBuffer } from "@hazumi/graphics";
 
 /** Mutable point accepted as an allocation-free coordinate-conversion target. */
 export interface CameraPoint {
+  /** Horizontal position, in whichever space the conversion produced. */
   x: number;
+  /** Vertical position. */
   y: number;
 }
 

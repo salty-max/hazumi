@@ -29,6 +29,7 @@ export class AssetLoadError extends Error {
 
 /** Swappable transport, so a test does not have to reach for a global. */
 export interface LoadOptions {
+  /** Used instead of the global `fetch`. Defaults to it. */
   readonly fetch?: (url: string) => Promise<Response>;
 }
 

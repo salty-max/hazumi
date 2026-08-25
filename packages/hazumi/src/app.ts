@@ -34,8 +34,11 @@ export type {
  * works, including the canvas, which `start` creates if none is handed to it.
  */
 export interface AppOptions<Api extends object = Record<never, never>> {
+  /** Which renderer to build. `webgl2()` unless you have a reason. */
   readonly backend: BackendFactory;
+  /** Logical width. Defaults to the canvas's own, or 600 when one is created. */
   readonly width?: number;
+  /** Logical height. Defaults to the canvas's own, or 600 when one is created. */
   readonly height?: number;
   /** Where to mount the canvas. Defaults to document.body. */
   readonly parent?: HTMLElement;
@@ -88,7 +91,15 @@ export type SceneDraw<Api extends object = Record<never, never>> = (
 
 /** One independently switchable state of an application. */
 export interface Scene<Api extends object = Record<never, never>> {
+  /**
+   * Simulation, on a fixed step.
+   *
+   * Called zero or more times per frame with a constant `dt`, so behaviour does
+   * not change with the frame rate. Optional: a scene that only draws needs no
+   * update at all.
+   */
   readonly update?: SceneUpdate<Api>;
+  /** Paint one frame. The only member a scene must have. */
   readonly draw: SceneDraw<Api>;
   /**
    * Drawn after the shader chain, straight onto the canvas.
@@ -189,7 +200,15 @@ function supportsPixels(renderer: Renderer): renderer is PixelCapableRenderer {
  * `app.context` is typed with them rather than needing a cast.
  */
 export interface HazumiApp<Api extends object = Record<never, never>> {
+  /**
+   * The scene context, typed with whatever the plugins added.
+   *
+   * The same object the module-level functions in `hazumi/draw` reach through,
+   * exposed for a host that wants to drive the application from outside a
+   * lifecycle callback.
+   */
   readonly context: HazumiContext & Api;
+  /** The canvas being drawn to, whether `start` created it or was handed it. */
   readonly canvas: HTMLCanvasElement;
   /** Resolves once the initial scene has finished loading. */
   readonly ready: Promise<void>;

@@ -32,6 +32,7 @@ export type JointKind = (typeof JointKind)[keyof typeof JointKind];
 
 /** Scene-facing rigid-body controls. */
 export interface PhysicsController {
+  /** The world the plugin owns and steps. Add bodies to this. */
   readonly world: World;
   /** When true, the host skips `world.step`. */
   paused: boolean;
@@ -41,6 +42,7 @@ export interface PhysicsController {
 
 /** What the physics plugin adds to a Hazumi scene context. */
 export interface PhysicsApi {
+  /** What the plugin adds to the scene context. */
   readonly physics: PhysicsController;
 }
 

@@ -19,7 +19,9 @@ const NEIGHBOR_DR = [0, 0, -1, 1, -1, -1, 1, 1];
 
 /** Row-major grid of traversal costs. */
 export interface Grid {
+  /** Cells across. */
   readonly columns: number;
+  /** Cells down. */
   readonly rows: number;
   /**
    * Packed `columns * rows` costs, row-major. Write through `set` / `fill`
@@ -28,7 +30,9 @@ export interface Grid {
   readonly cells: Float64Array;
   /** 0 when the cell is out of bounds or blocked. */
   cost: (column: number, row: number) => number;
+  /** Set one cell's cost. Zero or less blocks it. */
   set: (column: number, row: number, cost: number) => void;
+  /** Set every cell at once — how a grid is initialised or reset. */
   fill: (cost: number) => void;
 }
 

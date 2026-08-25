@@ -19,7 +19,9 @@ import type { RayHit } from "./collision";
 
 /** What a body's collider is. Set once, when the body is created. */
 export const Shape = {
+  /** A disc. Cheapest to test, and it cannot catch on a corner. */
   Circle: 0,
+  /** A rectangle that rotates with the body. */
   Box: 1,
 } as const;
 export type Shape = (typeof Shape)[keyof typeof Shape];
@@ -31,26 +33,47 @@ export type Shape = (typeof Shape)[keyof typeof Shape];
  * solver every step, so hold the reference rather than copying values out.
  */
 export interface RigidBody {
+  /** Centre of mass, in world units. Written by the solver every step. */
   x: number;
+  /** Centre of mass, in world units. */
   y: number;
+  /** Rotation in radians. A circle carries one too, so rolling is visible. */
   angle: number;
+  /** Linear velocity, world units per second. */
   vx: number;
+  /** Linear velocity, world units per second. */
   vy: number;
+  /** Angular velocity, radians per second. */
   omega: number;
+  /** Bounciness, 0 to 1. Two bodies in contact use the larger of the pair. */
   restitution: number;
+  /** Tangential resistance at a contact, 0 up. Combined as the geometric mean. */
   friction: number;
   /** Fraction of linear velocity shed per second. 0 is a vacuum. */
   linearDamping: number;
   /** Fraction of angular velocity shed per second. */
   angularDamping: number;
+  /** Which collider this is. Fixed when the body is created. */
   readonly shape: Shape;
+  /** Radius of a circle body. Zero for a box. */
   readonly radius: number;
+  /** Width of a box body at zero rotation. Zero for a circle. */
   readonly width: number;
+  /** Height of a box body at zero rotation. Zero for a circle. */
   readonly height: number;
+  /** Mass in world units. Zero for a static body, which is what makes it immovable. */
   readonly mass: number;
+  /**
+   * Reciprocal mass, precomputed because the solver divides by mass on every
+   * contact and a division per iteration adds up. Zero for a static body,
+   * which is how "infinitely heavy" is expressed without a special case.
+   */
   readonly invMass: number;
+  /** Rotational inertia about the centre of mass. */
   readonly inertia: number;
+  /** Reciprocal inertia, for the same reason as `invMass`. Zero when static. */
   readonly invInertia: number;
+  /** Whether the world moves this body. A static body still collides. */
   readonly isStatic: boolean;
   /**
    * False once the body has been still long enough to stop being simulated.
@@ -64,13 +87,21 @@ export interface RigidBody {
 
 /** What every body accepts, whatever its shape. */
 export interface BodyOptions {
+  /** Starting centre, in world units. */
   readonly x: number;
+  /** Starting centre, in world units. */
   readonly y: number;
+  /** Starting rotation in radians. Defaults to 0. */
   readonly angle?: number;
+  /** Starting linear velocity. Defaults to 0. */
   readonly vx?: number;
+  /** Starting linear velocity. Defaults to 0. */
   readonly vy?: number;
+  /** Starting angular velocity, radians per second. Defaults to 0. */
   readonly omega?: number;
+  /** Bounciness, 0 to 1. Defaults to 0 — a body that lands and stays. */
   readonly restitution?: number;
+  /** Tangential resistance at a contact. Defaults to a middling 0.3. */
   readonly friction?: number;
   /** Linear velocity shed per second. Defaults to the world's. */
   readonly linearDamping?: number;
@@ -78,24 +109,36 @@ export interface BodyOptions {
   readonly angularDamping?: number;
   /** Mass per unit area. Ignored when `mass` or `isStatic` is set. Defaults to 1. */
   readonly density?: number;
+  /** Set the mass outright, ignoring `density` and the body's area. */
   readonly mass?: number;
+  /**
+   * Never moved by the world. Defaults to false.
+   *
+   * Ground, walls and platforms. A static body has zero inverse mass, so an
+   * impulse against it goes entirely into the other body.
+   */
   readonly isStatic?: boolean;
 }
 
 /** A circular body. The cheapest collider, and the one that never tunnels on a corner. */
 export interface CircleBodyOptions extends BodyOptions {
+  /** Radius in world units. */
   readonly radius: number;
 }
 
 /** An axis-aligned box at rest, which rotates with the body once it moves. */
 export interface BoxBodyOptions extends BodyOptions {
+  /** Full width at zero rotation, not a half-extent. */
   readonly width: number;
+  /** Full height at zero rotation. */
   readonly height: number;
 }
 
 /** How the world is set up. Everything here has a working default. */
 export interface WorldOptions {
+  /** Constant acceleration on every dynamic body. Defaults to 0. */
   readonly gravityX?: number;
+  /** Constant acceleration, positive downwards to match screen space. Defaults to 0. */
   readonly gravityY?: number;
   /** Sequential-impulse iterations per step. Defaults to 10. */
   readonly iterations?: number;
@@ -106,6 +149,7 @@ export interface WorldOptions {
    * rather than repeating it on every body.
    */
   readonly linearDamping?: number;
+  /** Angular half of the same default. */
   readonly angularDamping?: number;
 }
 
@@ -117,7 +161,9 @@ export interface WorldOptions {
  * default to the centre of each body.
  */
 export interface JointOptions {
+  /** The body the joint always has. */
   readonly a: RigidBody;
+  /** The other body, or nothing to pin `a` to the world. */
   readonly b?: RigidBody;
   /**
    * Whether the two bodies still collide with each other. Defaults to false.
@@ -128,9 +174,13 @@ export interface JointOptions {
    * than an assembly.
    */
   readonly collideConnected?: boolean;
+  /** Attachment point on `a`, in its local frame. Defaults to its centre. */
   readonly anchorAX?: number;
+  /** Attachment point on `a`, in its local frame. */
   readonly anchorAY?: number;
+  /** Attachment on `b` in its local frame — or a world point when `b` is absent. */
   readonly anchorBX?: number;
+  /** Attachment on `b` in its local frame — or a world point when `b` is absent. */
   readonly anchorBY?: number;
 }
 
@@ -161,14 +211,18 @@ export interface DistanceJointOptions extends JointOptions {
 
 /** Which constraint a joint enforces. */
 export const JointKind = {
+  /** Holds two anchors a fixed distance apart, rigidly or as a spring. */
   Distance: 0,
+  /** Holds two anchors at the same point, leaving rotation free. A hinge. */
   Pin: 1,
 } as const;
 export type JointKind = (typeof JointKind)[keyof typeof JointKind];
 
 /** A constraint between two bodies, or between a body and the world. */
 export interface Joint {
+  /** Which constraint this is. Fixed when the joint is made. */
   readonly kind: JointKind;
+  /** The body the joint always has. */
   readonly a: RigidBody;
   /** Null when the joint is pinned to the world. */
   readonly b: RigidBody | null;
@@ -180,8 +234,11 @@ export interface Joint {
    * whose world anchor is moved to the cursor each frame.
    */
   anchorAX: number;
+  /** Attachment on `a`, in its local frame. */
   anchorAY: number;
+  /** Attachment on `b` in its local frame, or a world point when `b` is null. */
   anchorBX: number;
+  /** Attachment on `b` in its local frame, or a world point when `b` is null. */
   anchorBY: number;
   /** Rest length. Zero for a pin. */
   length: number;
@@ -210,18 +267,49 @@ export interface RaycastOptions {
  * wraps one of these and steps it on the fixed update.
  */
 export interface World {
+  /** Constant acceleration on every dynamic body. Writable while running. */
   gravityX: number;
+  /** Constant acceleration, positive downwards. Writable while running. */
   gravityY: number;
+  /**
+   * Solver iterations per step.
+   *
+   * More is stiffer: a stack of crates that sinks into itself wants a higher
+   * number, and everything else wants the lower cost.
+   */
   iterations: number;
   /** Damping handed to bodies added from now on. */
   linearDamping: number;
+  /** Angular half of the same default. Bodies already added keep theirs. */
   angularDamping: number;
+  /** Everything being simulated, in the order it was added. */
   readonly bodies: readonly RigidBody[];
+  /** Add a circular body and hand it back. */
   addCircle: (options: CircleBodyOptions) => RigidBody;
+  /** Add a box body and hand it back. */
   addBox: (options: BoxBodyOptions) => RigidBody;
+  /**
+   * Take a body out, with its joints. False if it was not in this world.
+   *
+   * Neighbours are woken: a body that was resting against this one has just
+   * lost what was holding it up.
+   */
   remove: (body: RigidBody) => boolean;
+  /** Remove every body and joint, keeping the world's settings. */
   clear: () => void;
+  /**
+   * Accumulate a force until the next step, in world units.
+   *
+   * A point makes it off-centre, which turns the body as well as moving it.
+   * Use for something sustained — thrust, wind; a hit is an impulse.
+   */
   applyForce: (body: RigidBody, fx: number, fy: number, px?: number, py?: number) => void;
+  /**
+   * Change velocity at once, in world units per second times mass.
+   *
+   * For anything instantaneous: a jump, an explosion, a bat meeting a ball.
+   * A point applies it off-centre and imparts spin.
+   */
   applyImpulse: (body: RigidBody, ix: number, iy: number, px?: number, py?: number) => void;
   /**
    * Spin a body without pushing it anywhere.
@@ -254,12 +342,21 @@ export interface World {
   ) => RigidBody | null;
   /** The body a point falls inside, or null. The most recently added wins. */
   pointQuery: (x: number, y: number) => RigidBody | null;
+  /** Every joint in the world, in the order it was added. */
   readonly joints: readonly Joint[];
   /** Hold two anchors a fixed distance apart — a rod, or a rope pulled taut. */
   addDistanceJoint: (options: DistanceJointOptions) => Joint;
   /** Hold two anchors at the same point, leaving rotation free — a hinge. */
   addPinJoint: (options: JointOptions) => Joint;
+  /** Take a joint out. False if it was not in this world. */
   removeJoint: (joint: Joint) => boolean;
+  /**
+   * Advance the simulation by `dt` seconds.
+   *
+   * Call it on the fixed update, not the frame: a solver fed a variable step
+   * gives a different answer at a different frame rate, and the `physics`
+   * plugin does exactly this for you.
+   */
   step: (dt: number) => void;
 }
 

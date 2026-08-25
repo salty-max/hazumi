@@ -6,17 +6,29 @@ export type { GamepadButtonInput, GamepadInput, PointerInput } from "./context";
 
 /** Live input state for the application whose lifecycle callback is running. */
 export interface InputState {
+  /** Pointer position in logical canvas coordinates, not page coordinates. */
   readonly mouseX: number;
+  /** Pointer position in logical canvas coordinates. */
   readonly mouseY: number;
+  /** Where it was at the end of the previous fixed update — a drag delta's other half. */
   readonly previousMouseX: number;
+  /** Where it was at the end of the previous fixed update. */
   readonly previousMouseY: number;
+  /** Whether any mouse button is down. */
   readonly mouseIsPressed: boolean;
+  /** The most recent button: 0 left, 1 middle, 2 right. */
   readonly mouseButton: number;
+  /** Whether any key is down. */
   readonly keyIsPressed: boolean;
+  /** The most recent key, as `KeyboardEvent.key`. */
   readonly key: string;
+  /** Every live contact — mouse, pen and touch alike. Empty when nothing is on the canvas. */
   readonly pointers: readonly PointerInput[];
+  /** Horizontal wheel movement since the last update, in pixels. */
   readonly wheelX: number;
+  /** Vertical wheel movement since the last update, in pixels. */
   readonly wheelY: number;
+  /** Connected gamepads, indexed by slot. */
   readonly gamepads: readonly GamepadInput[];
 }
 

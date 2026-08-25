@@ -8,8 +8,11 @@ import type { ImageSource } from "@hazumi/graphics";
  * a moment ago, without a conversion in between.
  */
 export interface PixelSource {
+  /** Width in pixels. */
   readonly width: number;
+  /** Height in pixels. */
   readonly height: number;
+  /** RGBA bytes, four per pixel, row-major. The shape `ImageData` already has. */
   readonly data: Uint8ClampedArray;
 }
 
@@ -74,8 +77,17 @@ export interface GridScanOptions extends ScanOptions {
 
 /** A grid, in the shape `spritesheet` takes: spread it straight into the call. */
 export interface SheetGrid {
+  /** Cell size the scan settled on, in pixels. */
   readonly frame: readonly [width: number, height: number];
+  /**
+   * Left edge of each column, in pixels.
+   *
+   * Offsets rather than a pitch, because a sheet is not always on one cadence:
+   * icons in groups of three with a gutter between groups have no single step
+   * to describe, and this is what `spritesheet({ columns })` accepts.
+   */
   readonly columns: readonly number[];
+  /** Top edge of each row, in pixels. */
   readonly rows: readonly number[];
 }
 

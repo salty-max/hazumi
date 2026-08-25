@@ -7,8 +7,11 @@ import type { SpriteFrame } from "./spritesheet";
  * last frame rather than snapping back to the first.
  */
 export const ClipEnd = {
+  /** Start over. The default, and what a walk cycle wants. */
   Loop: 0,
+  /** Stay on the last frame. For a death, or a door that stays open. */
   Hold: 1,
+  /** Run back to the start, then forward again. A pulse or a hover bob. */
   PingPong: 2,
 } as const;
 
@@ -78,9 +81,13 @@ export class EmptyClipError extends Error {
  * any number of entities without one advancing another.
  */
 export interface AnimationClip {
+  /** What the sheet calls it. Carried so an error can name it. */
   readonly name: string;
+  /** The resolved frames, in play order. Looked up once, when the clip was built. */
   readonly frames: readonly SpriteFrame[];
+  /** Frames per second. */
   readonly fps: number;
+  /** What happens after the last frame. */
   readonly end: ClipEnd;
   /** Seconds for one pass through the frames. */
   readonly duration: number;
@@ -106,7 +113,12 @@ function wrapIndex(value: number, size: number): number {
 export function createClip(
   name: string,
   frames: readonly SpriteFrame[],
-  options: { fps?: number; end?: ClipEnd } = {},
+  options: {
+    /** Frames per second. Defaults to 12, which reads as animation at any size. */
+    fps?: number;
+    /** What happens after the last frame. Defaults to looping. */
+    end?: ClipEnd;
+  } = {},
 ): AnimationClip {
   if (frames.length === 0) throw new EmptyClipError(name);
 

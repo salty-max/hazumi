@@ -8,7 +8,9 @@ import { type CommandBuffer, type CommandVisitor, decode } from "@hazumi/graphic
  */
 
 export interface RecordedCommand {
+  /** The visitor method that fired, as its own name — `"setFill"`, `"circle"`. */
   readonly op: string;
+  /** Its numeric arguments, in order. */
   readonly args: readonly number[];
   /** Present for text commands, whose payload is not numeric. */
   readonly text?: string;
@@ -16,8 +18,11 @@ export interface RecordedCommand {
 
 /** A circle as `record()` reports it, in the units the command stream carries. */
 export interface RecordedCircle {
+  /** Centre, after the current transform. */
   readonly x: number;
+  /** Centre, after the current transform. */
   readonly y: number;
+  /** Radius, not the diameter `circle()` was called with. */
   readonly radius: number;
   /** Fill in effect when the circle was emitted, as linear RGBA. */
   readonly fill: readonly [number, number, number, number];

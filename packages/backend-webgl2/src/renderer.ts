@@ -138,6 +138,7 @@ export function pixelsToUpload(
  * size under `text` is the one a title card wants.
  */
 export interface Webgl2Options {
+  /** MSAA samples to ask the context for. 0, the default, is off. */
   readonly samples?: number;
   /**
    * Filter images between texels. Defaults to true.
@@ -446,10 +447,12 @@ export class Webgl2Renderer {
    */
   readonly materials = true;
 
+  /** True between a context loss and its restore. Draws are dropped meanwhile. */
   get contextLost(): boolean {
     return this.#contextLost;
   }
 
+  /** What the last frame cost, including this backend's own extra counters. */
   get stats(): FrameStats {
     return {
       drawCalls: this.#drawCalls,
@@ -511,6 +514,7 @@ export class Webgl2Renderer {
     mat4.ortho(this.#viewProj, 0, width, height, 0, -1, 1);
   }
 
+  /** Read the canvas back as RGBA bytes, top-down. */
   readPixels(): PixelData {
     const gl = this.#pixelContext();
     const width = this.#canvas.width;
@@ -521,6 +525,7 @@ export class Webgl2Renderer {
     return { width, height, data: readbackToPixels(raw, width, height) };
   }
 
+  /** Replace the canvas with RGBA bytes, top-down. */
   writePixels(pixels: PixelData): void {
     const width = this.#canvas.width;
     const height = this.#canvas.height;
@@ -557,6 +562,12 @@ export class Webgl2Renderer {
     return this.#gl;
   }
 
+  /**
+   * Draw one frame from the command stream.
+   *
+   * `options.passes: false` skips the shader chain and does not clear, which
+   * is how a scene's overlay is drawn over an already-graded frame.
+   */
   render(buffer: CommandBuffer, options?: RenderOptions): void {
     const gl = this.#gl;
     this.#drawCalls = 0;
@@ -833,6 +844,7 @@ export class Webgl2Renderer {
     this.#drawCalls++;
   }
 
+  /** Release every GPU resource and drop the context listeners. */
   dispose(): void {
     this.#canvas.removeEventListener("webglcontextlost", this.#onLost as EventListener);
     this.#canvas.removeEventListener("webglcontextrestored", this.#onRestored);

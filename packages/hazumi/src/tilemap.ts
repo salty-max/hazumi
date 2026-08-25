@@ -52,9 +52,13 @@ export interface TilemapOptions<
 
 /** The small part of `HazumiContext` needed to draw a tilemap. */
 export interface TilemapDrawContext {
+  /** Logical canvas width, for working out which cells are on screen. */
   readonly width: number;
+  /** Logical canvas height. */
   readonly height: number;
+  /** Enough of the camera to cull against. */
   readonly camera: Pick<Camera2D, "x" | "y" | "zoom">;
+  /** How a cell gets drawn. The real context's `image`, or a spy in a test. */
   image: (source: SpriteFrame, x: number, y: number, width: number, height: number) => void;
 }
 
@@ -66,8 +70,11 @@ export interface TilemapDrawContext {
  * for anything walking neighbours.
  */
 export interface TilemapLayer {
+  /** Unique within the map. What `map.layer(name)` looks up. */
   readonly name: string;
+  /** The sheet its frame indices point into. One sheet per layer. */
   readonly sheet: Spritesheet;
+  /** Whether `draw` paints it. Flipping this is how a debug layer is toggled. */
   visible: boolean;
   /** Read a frame index. Cells outside the map are empty. */
   get: (column: number, row: number) => number;
@@ -98,12 +105,19 @@ export interface TilemapDraw {
  * plain `Tilemap` is asked for.
  */
 export interface Tilemap<Layer extends string = string> {
+  /** Cells across. Every layer shares the grid. */
   readonly columns: number;
+  /** Cells down. */
   readonly rows: number;
+  /** Width of one tile in world units. */
   readonly tileWidth: number;
+  /** Height of one tile in world units. */
   readonly tileHeight: number;
+  /** Total width in world units: `columns * tileWidth`. */
   readonly width: number;
+  /** Total height in world units: `rows * tileHeight`. */
   readonly height: number;
+  /** Layers in draw order, back to front. */
   readonly layers: readonly TilemapLayer[];
   /**
    * Find a layer by its unique name.
@@ -120,9 +134,11 @@ export interface Tilemap<Layer extends string = string> {
    * needs. Pass the same origin the map was drawn at.
    */
   columnAt: (worldX: number, originX?: number) => number;
+  /** Row containing a world y. Not clamped, for the same reason as `columnAt`. */
   rowAt: (worldY: number, originY?: number) => number;
   /** World position of a cell's top-left corner. */
   xOf: (column: number, originX?: number) => number;
+  /** World y of a row's top edge. */
   yOf: (row: number, originY?: number) => number;
   /**
    * Draw visible cells at a world-space origin. Defaults to the active scene

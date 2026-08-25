@@ -23,9 +23,13 @@ import type { NamedOptions } from "../spritesheet";
 
 /** One frame's rectangle in the packed sheet. */
 export interface AsepriteFrameRect {
+  /** Left edge, in source pixels. */
   readonly x: number;
+  /** Top edge, in source pixels. */
   readonly y: number;
+  /** Width. Aseprite's own short key, kept so the export parses as written. */
   readonly w: number;
+  /** Height. */
   readonly h: number;
 }
 
@@ -33,6 +37,7 @@ export interface AsepriteFrameRect {
 export interface AsepriteFrame {
   /** Present in the array export; the hash export puts it in the key instead. */
   readonly filename?: string;
+  /** Where it sits on the sheet, in pixels. */
   readonly frame: AsepriteFrameRect;
   /** Milliseconds this frame is held. */
   readonly duration?: number;
@@ -48,8 +53,11 @@ export interface AsepriteTag {
   readonly name: string;
   /** Inclusive frame indices. */
   readonly from: number;
+  /** Last frame of the tag, inclusive. */
   readonly to: number;
+  /** `"forward"`, `"reverse"` or `"pingpong"`. Only ping-pong changes the clip. */
   readonly direction?: string;
+  /** How many times Aseprite was told to repeat it, as a string. Not used. */
   readonly repeat?: string;
 }
 
@@ -63,6 +71,7 @@ export interface AsepriteTag {
 export interface AsepriteSheet {
   /** Array export, or hash export keyed by filename. */
   readonly frames: readonly AsepriteFrame[] | Readonly<Record<string, AsepriteFrame>>;
+  /** Where the tags live. Absent when the sprite has none. */
   readonly meta?: { readonly frameTags?: readonly AsepriteTag[] };
 }
 
