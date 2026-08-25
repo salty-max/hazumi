@@ -1,5 +1,115 @@
 # @hazumi/graphics
 
+## 0.7.0
+
+### Minor Changes
+
+- 5766e46: `capabilities` — a scene can ask what its backend can do.
+
+  Not every backend can run a shader over the frame, hand back its own pixels, or
+  measure a line of text: the SVG exporter has no raster to read, and the headless
+  recorder has no font to measure against. That was already the shape of the
+  contract — optional members on `Renderer` — but only the runtime could see it.
+  A scene found out by calling and being thrown at, which is fine for a mistake
+  and no use at all for a decision.
+
+  ```ts
+  import { capabilities, setPasses } from "hazumi/scene";
+
+  if (capabilities.shaders) setPasses([{ fragment: GRADE }]);
+  ```
+
+  Three flags — `shaders`, `pixels`, `text` — derived from what the backend
+  implements, using the same tests the runtime already used to decide whether to
+  throw. So a scene that checks and skips is right to skip, and one that calls
+  anyway still gets the error it always got.
+
+  This is what makes a feature that only some backends can offer a reasonable
+  thing to add at all. A scene stops being "the same picture everywhere" and
+  becomes "the same scene, asking for what it can have" — the dungeon and the
+  raycaster now light themselves where a shader is available and draw plainly
+  where it is not, instead of failing.
+
+- 536ec2c: Per-sprite materials: `flash`, `outline`, `dissolve`.
+
+  ```ts
+  material({ type: "flash", amount: hit / FLASH_FOR });
+  image(enemy, x, y);
+  ```
+
+  The question this answers is one the engine kept saying no to: a shader on one
+  sprite rather than on the whole frame. A post pass is the frame, and the three
+  things a game actually wants — a hit flash, a border that separates a unit from
+  the ground it stands on, a death that eats the sprite away — are none of them
+  frame-wide.
+
+  Saying yes literally, as "your fragment shader here", would have cost more than
+  it gave. A program per sprite is a draw call per sprite, and batching is the one
+  performance property this renderer is built around. So the material rides in the
+  instance data instead: two extra words, a kind and three parameter bytes, which
+  means sprites wearing different materials still merge into a single draw call.
+  That is what makes the vocabulary closed — the branch has to be written once, in
+  the shader — and it is worth the closure. `checks/materials.ts` draws eight
+  sprites in eight different materials and asserts the frame took one draw call.
+
+  The cost is two words on every textured instance whether it wears a material or
+  not: 44 bytes to 52, an 18% wider upload for sprites and glyphs. Shape instances
+  are untouched, and no draw-call count changes.
+
+  Materials apply to images and to text. `outline` is images only — it works by
+  sampling neighbouring texels, and a glyph is a distance field rather than pixels
+  — and it needs a texel of empty space inside the frame to draw into. Only WebGL2
+  implements them; `capabilities.materials` says so, and a backend without them
+  draws the sprite plain rather than failing.
+
+- f958d70: A shader pass can sample images, not just numbers.
+
+  `ShaderPass.textures` binds images to sampler names the pass declares. It is for
+  what a shader cannot work out from the frame — and the clearest case is light.
+  A screen-space glow can spread beautifully and has no idea what it is spreading
+  across: light stops at a wall because of where the wall _is_, and that is in the
+  map, not in the picture. Hand the pass a light map worked out against the map
+  and the wall casts a shadow.
+
+  Same shape for a palette to look colours up in, a mask, a noise field, a
+  lookup table.
+
+  Pass textures are always filtered, whatever the renderer's `smoothing` is set
+  to. They are data rather than art: a renderer set to `smoothing: false` for
+  pixel art would otherwise sample a light map with nearest and hand back a grid
+  of squares. Draw them at whatever resolution the data deserves and let the
+  hardware interpolate.
+
+  Bound from unit two — zero is the previous pass, one is the scene — and cached
+  per image, so handing the same one every frame uploads it once.
+
+- 412105e: `Scene.overlay` — drawing that the shader chain does not touch.
+
+  Post-processing belongs to the world. Until now it also belonged to everything
+  drawn on top of it, because the chain runs over the whole frame: a heads-up
+  display went through the same passes as the scene, so it was dimmed by the
+  world's lighting, warped by its warp and bloomed by its bloom. A scene lit by a
+  multiply pass finds this immediately — its caption comes out at a fraction of
+  the brightness it was drawn with, and there is no layer to move it to.
+
+  A scene may now declare `overlay(alpha, ctx)` alongside `draw`. It is a second
+  command stream, rendered after the chain has presented and straight onto the
+  canvas. Anything meant for the reader rather than for the world goes there: a
+  score, a control legend, a debug readout.
+
+  `Renderer.render` takes an optional second argument for this, `{ passes: false }`.
+  A backend with no chain can ignore it — for it every stream is already drawn the
+  same way — so a scene written this way looks identical on all four.
+
+### Patch Changes
+
+- Updated dependencies [2f3e030]
+- Updated dependencies [7f0edaf]
+- Updated dependencies [69f856d]
+  - @hazumi/math@0.7.0
+  - @hazumi/color@0.7.0
+  - @hazumi/core@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

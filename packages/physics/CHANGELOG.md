@@ -1,5 +1,32 @@
 # @hazumi/physics
 
+## 0.7.0
+
+### Patch Changes
+
+- 2f3e030: Every member of every exported interface and class is now documented.
+
+  The last pass covered exports and stopped there, which left 290 members bare:
+  `RigidBody.invMass`, `InputState.previousMouseX`, `Tilemap.rowAt`, every
+  channel of every colour type. On hover they showed a type and nothing else,
+  which is the point at which a reader goes and opens our source — the thing the
+  reference exists to prevent.
+
+  They say what a type cannot: that `Aabb.minY` is the top edge because y grows
+  downwards, that `RigidBody.invMass` is zero for a static body and that this is
+  how "infinitely heavy" is expressed without a special case, that
+  `Circle.radius` is a radius while `circle()` takes a diameter.
+
+  A test now fails the build on any export or member without one, so the
+  next thing added is documented when it is added rather than in a pass a year
+  later.
+
+- Updated dependencies [2f3e030]
+- Updated dependencies [7f0edaf]
+- Updated dependencies [69f856d]
+  - @hazumi/math@0.7.0
+  - @hazumi/core@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

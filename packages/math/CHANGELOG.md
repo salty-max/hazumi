@@ -1,5 +1,56 @@
 # @hazumi/math
 
+## 0.7.0
+
+### Minor Changes
+
+- 69f856d: `vec2.addScaled`, `vec2.moveTowards`, `vec2.reflect`, `vec3.addScaled`.
+
+  The composites people write by hand out of two or three calls. `addScaled(a, b,
+s)` is `a + b * s` — integration, and the most common vector expression there
+  is; the two-call version allocates an intermediate nobody keeps. `moveTowards`
+  lands exactly on its target rather than approaching it forever, which is the
+  difference from `lerp`. `reflect` mirrors across a unit normal.
+
+  They exist because the alternative was chaining, and chaining is the wrong
+  answer here: it would mean either a wrapper object per step or a class, and a
+  class costs the property that makes `Vec2` useful — anything with an `x` and a
+  `y` already is one.
+
+### Patch Changes
+
+- 2f3e030: Every member of every exported interface and class is now documented.
+
+  The last pass covered exports and stopped there, which left 290 members bare:
+  `RigidBody.invMass`, `InputState.previousMouseX`, `Tilemap.rowAt`, every
+  channel of every colour type. On hover they showed a type and nothing else,
+  which is the point at which a reader goes and opens our source — the thing the
+  reference exists to prevent.
+
+  They say what a type cannot: that `Aabb.minY` is the top edge because y grows
+  downwards, that `RigidBody.invMass` is zero for a static body and that this is
+  how "infinitely heavy" is expressed without a special case, that
+  `Circle.radius` is a radius while `circle()` takes a diameter.
+
+  A test now fails the build on any export or member without one, so the
+  next thing added is documented when it is added rather than in a pass a year
+  later.
+
+- 7f0edaf: Every public symbol now carries a description in its published types.
+
+  141 of the 304 exports had none — 46%, and `hazumi/draw` was the worst of them
+  at 28. Much of the missing knowledge already existed as implementation comments
+  where nothing consuming the types could reach it: that `circle` takes a diameter
+  rather than a radius, that `point` follows stroke instead of fill, that
+  `blendMode` is the one piece of style that ends a batch.
+
+  The seven namespaces `@hazumi/math` publishes — `vec2`, `vec3`, `mat4`,
+  `easing`, `collision`, `pathfind`, `physics` — were a different problem. The
+  d.ts bundler rewrites `export * as vec2` into a synthesized `declare namespace`
+  and drops the comment on the way, so hovering `vec2.add` explained itself and
+  hovering `vec2` said nothing. A build step puts them back, and throws if it ever
+  stops finding its target rather than quietly shipping bare types again.
+
 ## 0.6.0
 
 ### Minor Changes
