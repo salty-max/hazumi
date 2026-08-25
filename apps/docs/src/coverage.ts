@@ -11,7 +11,7 @@
  * because it was added a minute later — is how the last hundred blanks got
  * there. So this is a test, not a report.
  */
-import type { Catalog } from "./model";
+import type { Catalog, DocMember } from "./model";
 
 export interface DocGap {
   readonly module: string;
@@ -20,54 +20,22 @@ export interface DocGap {
   readonly member?: string;
 }
 
-/**
- * A member declaration inside an interface or class body.
- *
- * Indented exactly two spaces, which is what the emitter produces for a
- * top-level member: nesting deeper than that belongs to an inline object type,
- * whose fields are part of the member's own signature rather than separate
- * entries a reader can be pointed at.
- */
-const MEMBER =
-  /^ {2}(?:readonly |get |set |static |abstract |declare |protected |public )*([A-Za-z_$][\w$]*)\s*(?:\??\s*[:(<]|\()/;
-
 /** Members that document themselves, and would only collect noise. */
 const OBVIOUS = new Set(["constructor", "name", "message", "stack", "cause"]);
 
 /**
  * Members with no comment above them, in declaration order.
  *
- * A comment covers the one declaration that follows it, so `rowAt` sitting
- * under a comment written for `columnAt` counts as undocumented — which is
- * right: on the page it renders as a bare line under someone else's prose.
+ * Reads the parsed members rather than scanning the text again: one parser,
+ * and what this measures is exactly what the page renders. A comment covers
+ * the one declaration that follows it, so `rowAt` sitting under a comment
+ * written for `columnAt` counts as undocumented — which is right, because on
+ * the page it renders as a bare row under someone else's prose.
  */
-export function undocumentedMembers(signature: string): readonly string[] {
-  if (!signature.includes("{")) return [];
-  const missing: string[] = [];
-  let inComment = false;
-  let documented = false;
-  for (const line of signature.split("\n")) {
-    const text = line.trim();
-    if (inComment) {
-      if (text.endsWith("*/")) inComment = false;
-      continue;
-    }
-    if (text.startsWith("/**")) {
-      inComment = !text.endsWith("*/");
-      documented = true;
-      continue;
-    }
-    if (text.startsWith("//")) continue;
-    const match = MEMBER.exec(line);
-    if (match === null) {
-      documented = false;
-      continue;
-    }
-    const name = match[1] ?? "";
-    if (!documented && !OBVIOUS.has(name)) missing.push(name);
-    documented = false;
-  }
-  return missing;
+export function undocumentedMembers(members: readonly DocMember[]): readonly string[] {
+  return members
+    .filter((member) => member.description.trim().length === 0 && !OBVIOUS.has(member.name))
+    .map((member) => member.name);
 }
 
 /** Every gap in the catalog, ready to print or to assert is empty. */
@@ -79,7 +47,7 @@ export function findDocGaps(catalog: Catalog): readonly DocGap[] {
         if (entry.description.trim().length === 0) {
           gaps.push({ module: module.name, symbol: entry.name });
         }
-        for (const member of undocumentedMembers(entry.signature)) {
+        for (const member of undocumentedMembers(entry.members)) {
           gaps.push({ module: module.name, symbol: entry.name, member });
         }
       }
