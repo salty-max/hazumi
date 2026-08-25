@@ -1,4 +1,4 @@
-import { type Align, type Baseline, Blend, Op } from "./op";
+import { type Align, type Baseline, Blend, type MaterialKind, Op } from "./op";
 
 /** Anything a backend can draw as an image. */
 export type ImageSource = ImageBitmap | HTMLImageElement | HTMLCanvasElement;
@@ -169,6 +169,42 @@ export class CommandBuffer {
 
   setTint(r: number, g: number, b: number, a: number): void {
     this.#write4(Op.SetTint, r, g, b, a);
+  }
+
+  /**
+   * Set the material for following textured draws.
+   *
+   * Nine words rather than a handle into a side table: a material is four
+   * numbers and a colour, and the whole point of it is that it rides in the
+   * instance data. Putting it in a table would mean a lookup per sprite to
+   * recover what the stream already had.
+   *
+   * `p0`, `p1` and `p2` mean whatever the kind says they mean; the backend
+   * quantizes them to a byte each, which is the precision an artistic strength
+   * has anyway.
+   */
+  setMaterial(
+    kind: MaterialKind,
+    r: number,
+    g: number,
+    b: number,
+    a: number,
+    p0: number,
+    p1: number,
+    p2: number,
+  ): void {
+    const i = this.#reserve(9);
+    const f = this.#f32;
+    this.#u32[i] = Op.SetMaterial;
+    // An enum tag, like the blend mode: written as an integer, not a float.
+    this.#u32[i + 1] = kind;
+    f[i + 2] = r;
+    f[i + 3] = g;
+    f[i + 4] = b;
+    f[i + 5] = a;
+    f[i + 6] = p0;
+    f[i + 7] = p1;
+    f[i + 8] = p2;
   }
 
   setStroke(r: number, g: number, b: number, a: number): void {

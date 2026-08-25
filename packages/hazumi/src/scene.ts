@@ -43,6 +43,9 @@ export const capabilities: Capabilities = {
   get text(): boolean {
     return getActiveContext().capabilities.text;
   },
+  get materials(): boolean {
+    return getActiveContext().capabilities.materials;
+  },
 };
 
 export const screen: ScreenState = {

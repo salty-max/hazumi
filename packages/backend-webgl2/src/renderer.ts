@@ -17,6 +17,7 @@ import {
   scaleFactor,
   translateAffine,
   type RenderOptions,
+  type MaterialKind,
 } from "@hazumi/graphics";
 import { mat4 } from "@hazumi/math";
 import { BatchList, Pipeline } from "./batch";
@@ -57,6 +58,9 @@ import {
   TEXTURED_COLOR_OFFSET,
   TEXTURED_INSTANCE_BYTES,
   TEXTURED_INSTANCE_WORDS,
+  TEXTURED_MATERIAL_COLOR_OFFSET,
+  TEXTURED_MATERIAL_OFFSET,
+  materialWord,
   rgba8Word,
   toUnorm8,
 } from "./instance-layout";
@@ -191,6 +195,10 @@ interface Style {
   tint: number;
   strokeWidth: number;
   blend: Blend;
+  /** Packed kind and parameters. Zero is no material at all. */
+  material: number;
+  /** The material's colour, as RGBA8. */
+  materialColor: number;
 }
 
 function defaultStyle(): Style {
@@ -202,6 +210,8 @@ function defaultStyle(): Style {
     tint: rgba8Word(255, 255, 255, 255),
     strokeWidth: 0,
     blend: Blend.Normal,
+    material: 0,
+    materialColor: rgba8Word(255, 255, 255, 255),
   };
 }
 
@@ -265,6 +275,15 @@ export class Webgl2Renderer {
   #imageProgramId: ResourceId;
   #imageAtlasLocation: WebGLUniformLocation | null = null;
   #imageViewProjLocation: WebGLUniformLocation | null = null;
+  #imageTexelLocation: WebGLUniformLocation | null = null;
+  /**
+   * Pixel dimensions of each uploaded image, by texture id.
+   *
+   * The outline material measures itself in source texels, and by the time a
+   * batch is drawn all that is left of the image is a texture handle. Recorded
+   * on upload, where the source is still in hand.
+   */
+  #textureSizes = new Map<ResourceId, readonly [number, number]>();
   // Keyed by the source object, so the same image uploads once no matter how
   // many times a scene draws it. The map is weak, but the registry descriptor
   // holds a strong `source` so context restore can rebuild the texture — an
@@ -412,6 +431,14 @@ export class Webgl2Renderer {
 
     this.#acquireContext(options);
   }
+
+  /**
+   * Materials are honoured here, so scenes may ask for them by name.
+   *
+   * Declared rather than sniffed: a material arrives in the command stream, so
+   * there is no method whose presence would give the answer away.
+   */
+  readonly materials = true;
 
   get contextLost(): boolean {
     return this.#contextLost;
@@ -630,6 +657,10 @@ export class Webgl2Renderer {
         // images in one frame would otherwise share the second one's texture.
         gl.bindTexture(gl.TEXTURE_2D, this.#registry.texture(batch.texture));
         gl.uniform1i(isGlyph ? this.#glyphAtlasLocation : this.#imageAtlasLocation, 0);
+        if (!isGlyph) {
+          const size = this.#textureSizes.get(batch.texture);
+          gl.uniform2f(this.#imageTexelLocation, 1 / (size?.[0] ?? 1), 1 / (size?.[1] ?? 1));
+        }
         this.#setGlyphOffset(gl, batch.start);
       } else {
         state.useProgram(this.#registry.program(this.#programId));
@@ -827,6 +858,7 @@ export class Webgl2Renderer {
     this.#gl = null;
     this.#atlases.clear();
     this.#imageTextures = new WeakMap<ImageSource, ResourceId>();
+    this.#textureSizes.clear();
   }
 
   // --- instance building ---
@@ -847,6 +879,19 @@ export class Webgl2Renderer {
         const b8 = toUnorm8(b);
         const a8 = toUnorm8(a);
         this.#style.tint = rgba8Word(r8, g8, b8, a8);
+      },
+      setMaterial: (
+        kind: MaterialKind,
+        r: number,
+        g: number,
+        b: number,
+        a: number,
+        p0: number,
+        p1: number,
+        p2: number,
+      ): void => {
+        this.#style.material = materialWord(kind, p0, p1, p2);
+        this.#style.materialColor = rgba8Word(toUnorm8(r), toUnorm8(g), toUnorm8(b), toUnorm8(a));
       },
       setStroke: (r: number, g: number, b: number, a: number): void => {
         const r8 = toUnorm8(r);
@@ -1181,6 +1226,7 @@ export class Webgl2Renderer {
       smoothing: this.#smoothing,
     });
     this.#imageTextures.set(source, id);
+    this.#textureSizes.set(id, [source.width, source.height]);
     return id;
   }
 
@@ -1249,7 +1295,11 @@ export class Webgl2Renderer {
     arr[i + 8] = u1;
     arr[i + 9] = v1;
     this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = style.fill;
+    this.#glyphWords[i + TEXTURED_MATERIAL_COLOR_OFFSET / 4] = style.materialColor;
+    this.#glyphWords[i + TEXTURED_MATERIAL_OFFSET / 4] = style.material;
 
+    // Not part of the batch key: the material rides in the instance, so a
+    // flashing sprite and a plain one still merge into one draw call.
     this.#batches.push(style.blend, Pipeline.Glyph, textureId);
     this.#glyphCount++;
   }
@@ -1280,6 +1330,8 @@ export class Webgl2Renderer {
     arr[i + 8] = u1;
     arr[i + 9] = v1;
     this.#glyphWords[i + TEXTURED_COLOR_OFFSET / 4] = style.tint;
+    this.#glyphWords[i + TEXTURED_MATERIAL_COLOR_OFFSET / 4] = style.materialColor;
+    this.#glyphWords[i + TEXTURED_MATERIAL_OFFSET / 4] = style.material;
 
     this.#batches.push(style.blend, pipeline, textureId);
     this.#glyphCount++;
@@ -1314,6 +1366,24 @@ export class Webgl2Renderer {
       true,
       TEXTURED_INSTANCE_BYTES,
       base + TEXTURED_COLOR_OFFSET,
+    );
+    gl.vertexAttribPointer(
+      5,
+      4,
+      gl.UNSIGNED_BYTE,
+      true,
+      TEXTURED_INSTANCE_BYTES,
+      base + TEXTURED_MATERIAL_COLOR_OFFSET,
+    );
+    // vertexAttribIPointer, not the normalizing one: the kind is compared for
+    // equality in the shader, and 1/255 is not a number a float comparison
+    // should have to be careful about.
+    gl.vertexAttribIPointer(
+      6,
+      4,
+      gl.UNSIGNED_BYTE,
+      TEXTURED_INSTANCE_BYTES,
+      base + TEXTURED_MATERIAL_OFFSET,
     );
   }
 
@@ -1528,6 +1598,7 @@ export class Webgl2Renderer {
     const imageProgram = this.#registry.program(this.#imageProgramId);
     this.#imageViewProjLocation = gl.getUniformLocation(imageProgram, "u_viewProj");
     this.#imageAtlasLocation = gl.getUniformLocation(imageProgram, "u_image");
+    this.#imageTexelLocation = gl.getUniformLocation(imageProgram, "u_texel");
 
     const vao = gl.createVertexArray();
     if (vao === null) throw new Error("gl.createVertexArray() returned null");
@@ -1539,7 +1610,7 @@ export class Webgl2Renderer {
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#registry.buffer(this.#glyphBufferId));
     gl.bufferData(gl.ARRAY_BUFFER, this.#glyphs.byteLength, gl.DYNAMIC_DRAW);
-    for (const location of [1, 2, 3, 4]) {
+    for (const location of [1, 2, 3, 4, 5, 6]) {
       gl.enableVertexAttribArray(location);
       gl.vertexAttribDivisor(location, 1);
     }

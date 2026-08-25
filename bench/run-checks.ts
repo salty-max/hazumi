@@ -1,11 +1,11 @@
 /**
- * Run the shader-chain checks in a real browser.
+ * Run the browser checks under a real GL context.
  *
  * The oracle in `run-compare.ts` diffs WebGL2 against Canvas2D, which checks
- * the rasteriser against the browser's own and cannot say anything at all
- * about the shader chain — Canvas2D has no shader stage. This is the other
- * half: a real GL context, a handful of chains whose correct output is
- * arithmetic, and assertions on the pixels that come back.
+ * the rasteriser against the browser's own and cannot say anything about the
+ * parts Canvas2D has no answer for: a shader chain, a material. This is the
+ * other half — a real GL context, scenes whose correct output is arithmetic,
+ * and assertions on the pixels that come back.
  *
  * Needs a real browser. Chromium once: `bunx playwright install chromium`.
  *
@@ -18,7 +18,7 @@ import { chromium } from "playwright";
 
 const REPO = dirname(fileURLToPath(new URL(".", import.meta.url)));
 const ORIGIN = "http://localhost:5199";
-const PAGE = `${ORIGIN}/passes.html`;
+const PAGE = `${ORIGIN}/checks.html`;
 
 interface Check {
   readonly name: string;
@@ -71,12 +71,12 @@ async function main(): Promise<void> {
     page.on("pageerror", (error) => errors.push(String(error)));
     await page.goto(PAGE, { waitUntil: "networkidle" });
     await page.waitForFunction(
-      () => typeof (globalThis as { runPassChecks?: unknown }).runPassChecks === "function",
+      () => typeof (globalThis as { runBrowserChecks?: unknown }).runBrowserChecks === "function",
     );
 
     const checks = (await page.evaluate(async () => {
-      const run = (globalThis as unknown as { runPassChecks: () => Promise<Check[]> })
-        .runPassChecks;
+      const run = (globalThis as unknown as { runBrowserChecks: () => Promise<Check[]> })
+        .runBrowserChecks;
       return run();
     })) as Check[];
 

@@ -48,7 +48,7 @@ function makeContext(): { ctx: HazumiContext; buffer: CommandBuffer; beginFrame:
     state: makeState(),
     seed: 1,
     setPasses: () => {},
-    capabilities: { shaders: true, pixels: false, text: true },
+    capabilities: { shaders: true, pixels: false, text: true, materials: true },
     // A monospace stand-in: every glyph half the font size wide, so a test can
     // assert on layout arithmetic without a real font.
     measureText: (content: string, _font: string, size: number) => ({

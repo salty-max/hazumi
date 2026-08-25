@@ -35,6 +35,7 @@ export type {
   GamepadButtonInput,
   GamepadInput,
   HazumiContext,
+  Material,
   PointerInput,
   StyleOverrides,
 } from "./context";
@@ -213,6 +214,7 @@ export {
   Blend,
   Align,
   Baseline,
+  MaterialKind,
   UnknownOpcodeError,
 } from "@hazumi/graphics";
 export type { CommandVisitor, Renderer, BackendFactory, Affine } from "@hazumi/graphics";

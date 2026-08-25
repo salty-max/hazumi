@@ -7,12 +7,61 @@ import {
   type ShaderPass,
   type TextMetrics,
   type Capabilities,
+  MaterialKind,
 } from "@hazumi/graphics";
 import { isSpriteFrame, type SpriteFrame } from "./spritesheet";
 import { createNoise, type Noise, type Rng, seeded } from "@hazumi/math";
 import { type ColorCache, type ColorLike } from "./color-cache";
 import { type Camera2D, createCamera2D } from "./camera";
 import { loadImage } from "./load";
+
+/**
+ * A per-sprite effect, from a fixed vocabulary.
+ *
+ * Fixed rather than "your fragment shader here", and the reason is batching:
+ * the material rides in the instance data, so two sprites wearing different
+ * ones still merge into a single draw call. A shader per sprite would make
+ * each sprite its own draw, which is the cost this API exists to avoid.
+ *
+ * Everything here is something the rest of the style cannot say. A tint
+ * multiplies, so it can darken a sprite and never lighten it toward white; a
+ * blend mode belongs to a draw and not to the edge of the art inside it.
+ *
+ * Materials apply to images and to text. `outline` is images only — it works
+ * by looking at neighbouring texels, and a glyph is a distance field rather
+ * than pixels.
+ */
+export type Material =
+  /**
+   * Lerp the sprite toward a colour, keeping its own alpha. The hit flash:
+   * `{ type: "flash", amount: 1 }` is a white silhouette, `0` is untouched.
+   */
+  | { readonly type: "flash"; readonly color?: ColorLike; readonly amount?: number }
+  /**
+   * A border in the transparent texels around the art.
+   *
+   * `width` is a whole number of *source* texels, so it scales with the sprite
+   * rather than with the screen — a 1 on a 16x16 sprite drawn at 4x is four
+   * pixels thick, which is what pixel art wants. Needs a texel of empty space
+   * inside the frame to draw into: art that runs to the edge of its cell has
+   * nowhere to put the border, and the edge is clamped rather than bleeding
+   * into the neighbouring frame of a sheet.
+   */
+  | { readonly type: "outline"; readonly color?: ColorLike; readonly width?: number }
+  /**
+   * Eat the sprite away along a noise field, with a lit edge at the boundary.
+   *
+   * `amount` runs 0 (whole) to 1 (gone). The field is fixed in sprite space,
+   * so an animating sprite dissolves in place instead of shimmering. `scale`
+   * is how many noise cells span the frame — larger is finer.
+   */
+  | {
+      readonly type: "dissolve";
+      readonly amount: number;
+      readonly edge?: number;
+      readonly color?: ColorLike;
+      readonly scale?: number;
+    };
 
 /** Style overrides accepted by `with()`. */
 export interface StyleOverrides {
@@ -21,6 +70,8 @@ export interface StyleOverrides {
   strokeWeight?: number;
   blendMode?: Blend;
   tint?: ColorLike | null;
+  /** `null` clears the material for the body, as `noMaterial()` would. */
+  material?: Material | null;
   textFont?: string;
   textSize?: number;
   textAlign?: Align;
@@ -153,6 +204,16 @@ export interface HazumiContext {
   /** Set tint from display-referred 0–1 channels. No parse, no allocation. */
   tintRgba: (r: number, g: number, b: number, a: number) => void;
   noTint: () => void;
+  /**
+   * Set the effect worn by following images and text.
+   *
+   * Costs nothing per sprite that a plain draw does not: it is two words of
+   * instance data, and sprites wearing different materials still batch
+   * together. Ignored by backends that report `capabilities.materials` false —
+   * the sprite draws plain rather than failing.
+   */
+  material: (material: Material) => void;
+  noMaterial: () => void;
   stroke: (color: ColorLike) => void;
   noStroke: () => void;
   strokeWeight: (weight: number) => void;
@@ -388,6 +449,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
   let tintColor: ColorLike = "#ffffff";
   const tintRgbaStore: [number, number, number, number] = [1, 1, 1, 1];
   let tintUsesRgba = false;
+  let activeMaterial: Material | null = null;
   let strokeColor: ColorLike | null = null;
   let strokeWidth = 1;
   let blend: Blend = Blend.Normal;
@@ -415,6 +477,46 @@ export function createContext(deps: ContextDeps): ContextBundle {
     }
     const [r, g, b, a] = colors.resolve(tintColor);
     buffer.setTint(r, g, b, a);
+  };
+
+  /**
+   * Write the current material, defaulting whatever the caller left out.
+   *
+   * The defaults are here rather than in the backend so that every backend
+   * receives the same numbers: a default that lives in one renderer is a
+   * difference between renderers waiting to be found.
+   */
+  const applyMaterial = (): void => {
+    if (activeMaterial === null) {
+      buffer.setMaterial(MaterialKind.None, 0, 0, 0, 0, 0, 0, 0);
+      return;
+    }
+    switch (activeMaterial.type) {
+      case "flash": {
+        const [r, g, b, a] = colors.resolve(activeMaterial.color ?? "#ffffff");
+        buffer.setMaterial(MaterialKind.Flash, r, g, b, a, activeMaterial.amount ?? 1, 0, 0);
+        return;
+      }
+      case "outline": {
+        const [r, g, b, a] = colors.resolve(activeMaterial.color ?? "#000000");
+        buffer.setMaterial(MaterialKind.Outline, r, g, b, a, activeMaterial.width ?? 1, 0, 0);
+        return;
+      }
+      case "dissolve": {
+        const [r, g, b, a] = colors.resolve(activeMaterial.color ?? "#ffffff");
+        buffer.setMaterial(
+          MaterialKind.Dissolve,
+          r,
+          g,
+          b,
+          a,
+          activeMaterial.amount,
+          activeMaterial.edge ?? 0.1,
+          activeMaterial.scale ?? 8,
+        );
+        return;
+      }
+    }
   };
 
   const applyStroke = (): void => {
@@ -549,6 +651,14 @@ export function createContext(deps: ContextDeps): ContextBundle {
       tintColor = "#ffffff";
       tintUsesRgba = false;
       applyTint();
+    },
+    material: (next: Material): void => {
+      activeMaterial = next;
+      applyMaterial();
+    },
+    noMaterial: (): void => {
+      activeMaterial = null;
+      applyMaterial();
     },
     stroke: (color: ColorLike): void => {
       strokeColor = color;
@@ -768,6 +878,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
       const savedTintG = tintRgbaStore[1];
       const savedTintB = tintRgbaStore[2];
       const savedTintA = tintRgbaStore[3];
+      const savedMaterial = activeMaterial;
       const savedStroke = strokeColor;
       const savedWidth = strokeWidth;
       const savedBlend = blend;
@@ -787,6 +898,10 @@ export function createContext(deps: ContextDeps): ContextBundle {
           tintColor = overrides.tint ?? "#ffffff";
           tintUsesRgba = false;
           applyTint();
+        }
+        if (overrides.material !== undefined) {
+          activeMaterial = overrides.material;
+          applyMaterial();
         }
         if (overrides.stroke !== undefined || overrides.strokeWeight !== undefined) {
           if (overrides.stroke !== undefined) strokeColor = overrides.stroke;
@@ -826,6 +941,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
         tintRgbaStore[1] = savedTintG;
         tintRgbaStore[2] = savedTintB;
         tintRgbaStore[3] = savedTintA;
+        activeMaterial = savedMaterial;
         strokeColor = savedStroke;
         strokeWidth = savedWidth;
         blend = savedBlend;
@@ -874,6 +990,7 @@ export function createContext(deps: ContextDeps): ContextBundle {
   const beginFrame = (): void => {
     applyFill();
     applyTint();
+    applyMaterial();
     applyStroke();
     buffer.setBlend(blend);
     applyText();

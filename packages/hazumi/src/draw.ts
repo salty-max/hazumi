@@ -2,11 +2,11 @@ import { Align, Baseline, Blend, type ImageSource, type TextMetrics } from "@haz
 import { getActiveContext, NoActiveSceneError } from "./active-context";
 import type { ColorLike } from "./color-cache";
 import type { SpriteFrame } from "./spritesheet";
-import type { StyleOverrides } from "./context";
+import type { Material, StyleOverrides } from "./context";
 
 export { Align, Baseline, Blend, NoActiveSceneError };
 export { oklch, rgb } from "@hazumi/color";
-export type { ColorLike, StyleOverrides };
+export type { ColorLike, Material, StyleOverrides };
 
 export function background(color: ColorLike): void {
   getActiveContext().background(color);
@@ -38,6 +38,24 @@ export function tintRgba(r: number, g: number, b: number, a: number): void {
 /** Opaque white — a no-op multiply. */
 export function noTint(): void {
   getActiveContext().noTint();
+}
+
+/**
+ * Wear an effect on following images and text.
+ *
+ * One of a fixed set — flash, outline, dissolve — because a material travels
+ * in the instance data rather than in a program, which is what lets a hundred
+ * sprites wearing different ones stay a single draw call.
+ *
+ * Ignored where `capabilities.materials` is false; the sprite draws plain.
+ */
+export function material(effect: Material): void {
+  getActiveContext().material(effect);
+}
+
+/** Back to a plain sprite. */
+export function noMaterial(): void {
+  getActiveContext().noMaterial();
 }
 
 export function stroke(color: ColorLike): void {
