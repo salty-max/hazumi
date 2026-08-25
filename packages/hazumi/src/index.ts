@@ -49,6 +49,8 @@ export {
   UnknownClipError,
   InvalidFrameError,
 } from "./spritesheet";
+export { pool, InvalidPoolError } from "./pool";
+export type { Pool, PoolOptions } from "./pool";
 export { particles } from "./particles";
 export type {
   Particle,

@@ -424,6 +424,38 @@ const png = await app.capturePng();
 `Pixels.get()` and `set()` address physical pixels. SVG and headless throw
 `PixelAccessUnavailableError`.
 
+## Pools
+
+The things a game spawns and kills — bullets, enemies, pickups — want a fixed
+set of objects rather than a new one per shot:
+
+```ts
+import { pool } from "hazumi/scene";
+
+const shots = pool({ capacity: 120, make: () => ({ x: 0, y: 0, vy: 0 }) });
+
+shots.spawn((shot) => {
+  shot.x = player.x;
+  shot.y = player.y;
+  shot.vy = -600;
+});
+
+shots.forEach((shot) => {
+  shot.y += shot.vy * dt;
+  if (shot.y < 0) shots.kill(shot);
+});
+```
+
+Liveness is not a field on your object. The pool keeps its live entries at the
+front of its own array and swaps the last one into the gap when something dies,
+so the loop has no test in it and `kill` costs nothing. That also means the
+order changes as things die: a pool is a bag, and a scene that needs a painting
+order should sort or use `layer()`.
+
+Killing during `forEach` is safe, including killing the object in hand.
+`spawn` returns `null` when the pool is full rather than growing — growing
+would allocate in the frame that can least afford it.
+
 ## Vectors
 
 `Vec2` is a plain immutable `{ x, y }`, and the operations are free functions
