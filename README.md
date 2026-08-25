@@ -424,6 +424,37 @@ const png = await app.capturePng();
 `Pixels.get()` and `set()` address physical pixels. SVG and headless throw
 `PixelAccessUnavailableError`.
 
+## Vectors
+
+`Vec2` is a plain immutable `{ x, y }`, and the operations are free functions
+under a namespace rather than methods:
+
+```ts
+import { vec2 } from "hazumi/math";
+
+const heading = vec2.normalize({ x: dx, y: dy });
+player = vec2.addScaled(player, heading, SPEED * dt);
+
+if (vec2.distance(player, enemy) < reach) hit();
+```
+
+The shape is the point. Anything with an `x` and a `y` is a `Vec2` — a rigid
+body, a pointer, an object literal — so `vec2.distance(player, enemy)` reads a
+physics body and a game entity without converting either. A class would need
+`new Vec2(...)` at every boundary, and would lose the property that a plain
+object survives JSON, a worker and a save file.
+
+`addScaled(a, b, s)` is `a + b * s`: integration, and the thing you write most.
+`moveTowards` arrives rather than approaching forever, which is the difference
+from `lerp`. `reflect` bounces off a unit normal.
+
+**Where not to use it.** These allocate a new object per call, which is right
+for one player once a frame and wrong for six hundred particles. Anything inside
+a hot loop — the particle update, the command encoder, a per-pixel pass — works
+on primitives on purpose, and so should yours. `Mat4` follows the same rule from
+the other side: it is a `Float32Array` and every operation takes an `out` to
+write into, so the transform stack allocates nothing.
+
 ## Collision
 
 ```ts
