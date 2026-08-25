@@ -21,6 +21,15 @@ interface Sample {
    * band and the boxes land on the art.
    */
   readonly frame: readonly [number, number];
+  /**
+   * Where the grid starts.
+   *
+   * Given, because no scan can recover it: art drawn with slack inside its
+   * cell moves the ink, not the grid, and a phase search over these five
+   * sheets picks the wrong pixel on two of them. The sheet's author knows,
+   * so the sample says.
+   */
+  readonly margin: readonly [number, number];
 }
 
 /**
@@ -37,15 +46,22 @@ const SAMPLES: readonly Sample[] = [
     label: "dungeon",
     url: "/examples/assets/oryx_16bit_fantasy_world_trans.png",
     frame: [24, 24],
+    margin: [24, 24],
   },
   {
     label: "creatures",
     url: "/examples/assets/oryx_16bit_fantasy_creatures_trans.png",
     frame: [24, 24],
+    margin: [24, 24],
   },
-  { label: "interface", url: "/examples/assets/schmup/ui.png", frame: [12, 13] },
-  { label: "ships", url: "/examples/assets/schmup/ships.png", frame: [8, 8] },
-  { label: "projectiles", url: "/examples/assets/schmup/projectiles.png", frame: [8, 8] },
+  { label: "interface", url: "/examples/assets/schmup/ui.png", frame: [12, 13], margin: [0, 0] },
+  { label: "ships", url: "/examples/assets/schmup/ships.png", frame: [8, 8], margin: [0, 0] },
+  {
+    label: "projectiles",
+    url: "/examples/assets/schmup/projectiles.png",
+    frame: [8, 8],
+    margin: [0, 0],
+  },
 ];
 
 type Mode = "grid" | "sprites";
@@ -69,6 +85,31 @@ interface Cut {
 function toNumber(value: string): number | undefined {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/** Whether any pixel in a cell is above the background threshold. */
+function holdsInk(
+  pixels: { readonly width: number; readonly height: number; readonly data: Uint8ClampedArray },
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  threshold: number,
+): boolean {
+  const right = Math.min(x + width, pixels.width);
+  const bottom = Math.min(y + height, pixels.height);
+  for (let row = Math.max(y, 0); row < bottom; row++) {
+    for (let column = Math.max(x, 0); column < right; column++) {
+      if ((pixels.data[(row * pixels.width + column) * 4 + 3] ?? 0) > threshold) return true;
+    }
+  }
+  return false;
+}
+
+/** Like `toNumber`, but zero counts: a grid can start at the sheet's edge. */
+function toOffset(value: string): number | undefined {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 /**
@@ -159,6 +200,8 @@ export function SlicerPage(): JSX.Element {
   const [mode, setMode] = useState<Mode>("grid");
   const [cellW, setCellW] = useState("");
   const [cellH, setCellH] = useState("");
+  const [marginX, setMarginX] = useState("");
+  const [marginY, setMarginY] = useState("");
   const [threshold, setThreshold] = useState(0);
   const [zoom, setZoom] = useState(4);
   const [region, setRegion] = useState<SliceRect | null>(null);
@@ -191,6 +234,8 @@ export function SlicerPage(): JSX.Element {
       // told it about.
       setCellW(String(sample.frame[0]));
       setCellH(String(sample.frame[1]));
+      setMarginX(String(sample.margin[0]));
+      setMarginY(String(sample.margin[1]));
       await open(sample.label, await response.blob());
     },
     [open],
@@ -222,13 +267,28 @@ export function SlicerPage(): JSX.Element {
     }
     const w = toNumber(cellW);
     const h = toNumber(cellH);
+    const mx = toOffset(marginX);
+    const my = toOffset(marginY);
+    const sized = w !== undefined && h !== undefined;
     const grid = findGridIn(pixels, {
       ...scan,
-      ...(w !== undefined && h !== undefined ? { frame: [w, h] as const } : {}),
+      ...(sized ? { frame: [w, h] as const } : {}),
+      // Both or neither: half a margin is a grid anchored on one axis and
+      // drifting on the other, which is harder to read than either.
+      ...(sized && mx !== undefined && my !== undefined ? { margin: [mx, my] as const } : {}),
     });
+    // The grid is a cross product; a sheet is not. Starfall's ships put three
+    // hulls beside a block of six, so five of the left block's ten rows are
+    // empty — and drawing a box over each is the tool reporting cells rather
+    // than art. The call below still describes the whole grid, because that is
+    // what `spritesheet` takes; only the boxes and the count are what is there.
     const boxes: SliceRect[] = [];
     for (const y of grid.rows) {
-      for (const x of grid.columns) boxes.push([x, y, grid.frame[0], grid.frame[1]]);
+      for (const x of grid.columns) {
+        if (holdsInk(pixels, x, y, grid.frame[0], grid.frame[1], threshold)) {
+          boxes.push([x, y, grid.frame[0], grid.frame[1]]);
+        }
+      }
     }
     return {
       boxes,
@@ -238,7 +298,7 @@ export function SlicerPage(): JSX.Element {
       width: pixels.width,
       height: pixels.height,
     };
-  }, [pixels, mode, cellW, cellH, threshold, region]);
+  }, [pixels, mode, cellW, cellH, marginX, marginY, threshold, region]);
 
   // Redraw whenever anything the picture depends on moves.
   useEffect(() => {
@@ -450,9 +510,25 @@ export function SlicerPage(): JSX.Element {
                 />
               </div>
             ) : null}
+            {mode === "grid" ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={marginX}
+                  onChange={(event): void => setMarginX(event.target.value)}
+                  placeholder="margin x"
+                  inputMode="numeric"
+                />
+                <Input
+                  value={marginY}
+                  onChange={(event): void => setMarginY(event.target.value)}
+                  placeholder="margin y"
+                  inputMode="numeric"
+                />
+              </div>
+            ) : null}
             <p className="text-xs text-muted-foreground">
               {mode === "grid"
-                ? "Leave the size blank to take each band whole. Give it when the cells inside a band have no gutter between them."
+                ? "Leave the size blank to take each band whole. Give it when the cells inside a band have no gutter between them. Add a margin and the grid is even from there, which is the answer for art that floats inside its cells."
                 : "Eight-way connected, so a diagonal stays part of its sprite."}
             </p>
           </section>
