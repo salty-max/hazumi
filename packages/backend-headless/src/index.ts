@@ -14,6 +14,7 @@ export interface RecordedCommand {
   readonly text?: string;
 }
 
+/** A circle as `record()` reports it, in the units the command stream carries. */
 export interface RecordedCircle {
   readonly x: number;
   readonly y: number;

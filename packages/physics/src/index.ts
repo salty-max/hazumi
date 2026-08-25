@@ -44,6 +44,7 @@ export interface PhysicsApi {
   readonly physics: PhysicsController;
 }
 
+/** Everything `createWorld` takes, plus how the plugin drives it. */
 export interface PhysicsPluginOptions extends WorldOptions {
   /**
    * Step the world after each fixed update. Defaults to true. Turn it off to
@@ -52,6 +53,13 @@ export interface PhysicsPluginOptions extends WorldOptions {
   readonly autoStep?: boolean;
 }
 
+/**
+ * One plugin instance installed twice.
+ *
+ * A plugin owns a world, and two applications sharing one would step it twice
+ * per frame — so the second install is refused rather than silently doubling
+ * everyone's gravity.
+ */
 export class PhysicsPluginInUseError extends Error {
   constructor() {
     super("This physics plugin instance is already installed in an application");

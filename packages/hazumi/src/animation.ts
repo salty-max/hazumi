@@ -61,6 +61,7 @@ export class InvalidClipError extends Error {
   }
 }
 
+/** A clip was declared with no frames in it, which has no first frame to show. */
 export class EmptyClipError extends Error {
   constructor(name: string) {
     super(`Animation clip ${JSON.stringify(name)} has no frames`);

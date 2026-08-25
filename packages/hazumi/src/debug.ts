@@ -34,6 +34,7 @@ export interface OverlayApi {
   readonly overlay: OverlayController;
 }
 
+/** What the overlay shows, and how to toggle it. */
 export interface OverlayOptions {
   readonly visible?: boolean;
   readonly stats?: boolean;
@@ -42,6 +43,7 @@ export interface OverlayOptions {
   readonly toggleKey?: string;
 }
 
+/** One overlay plugin instance installed in two applications. */
 export class OverlayPluginInUseError extends Error {
   constructor() {
     super("This overlay plugin instance is already installed in an application");

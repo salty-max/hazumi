@@ -44,6 +44,7 @@ export interface AudioApi {
   readonly audio: AudioController;
 }
 
+/** How the audio plugin is set up. Everything here has a working default. */
 export interface AudioPluginOptions {
   /** Initial master linear gain. Defaults to one. */
   readonly gain?: number;
@@ -55,6 +56,12 @@ export interface AudioPluginOptions {
   readonly fetch?: (url: string) => Promise<Response>;
 }
 
+/**
+ * The host has no Web Audio at all.
+ *
+ * Thrown on install rather than on the first sound, so a scene that cannot
+ * have audio finds out while it is still being built.
+ */
 export class AudioUnavailableError extends Error {
   constructor() {
     super("Web Audio is unavailable in this environment");
@@ -62,6 +69,7 @@ export class AudioUnavailableError extends Error {
   }
 }
 
+/** The controller was used after its application stopped. */
 export class AudioDisposedError extends Error {
   constructor() {
     super("This audio controller has been disposed");
@@ -69,6 +77,7 @@ export class AudioDisposedError extends Error {
   }
 }
 
+/** A sound loaded by one controller was played through another. */
 export class UnknownSoundError extends Error {
   constructor() {
     super("This sound was loaded by a different audio controller");
@@ -76,6 +85,7 @@ export class UnknownSoundError extends Error {
   }
 }
 
+/** Two audio plugins on one application. One owns the graph, so the second is refused. */
 export class AudioPluginInUseError extends Error {
   constructor() {
     super("This audio plugin instance is already installed in an application");

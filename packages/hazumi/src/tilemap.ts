@@ -29,6 +29,12 @@ export interface TilemapLayerOptions {
   readonly visible?: boolean;
 }
 
+/**
+ * How a map is built: its tile size, and the layers stacked on it.
+ *
+ * Dimensions are optional because a layer drawn as rows of characters already
+ * says how wide and tall it is — repeating that is one more thing to get wrong.
+ */
 export interface TilemapOptions<
   Layers extends readonly TilemapLayerOptions[] = readonly TilemapLayerOptions[],
 > {
@@ -52,6 +58,13 @@ export interface TilemapDrawContext {
   image: (source: SpriteFrame, x: number, y: number, width: number, height: number) => void;
 }
 
+/**
+ * One layer of a map: its own grid of frame indices over one sheet.
+ *
+ * Cells can be read and written by index or by frame name, and reads outside
+ * the map return empty rather than throwing — a lookup at the edge is normal
+ * for anything walking neighbours.
+ */
 export interface TilemapLayer {
   readonly name: string;
   readonly sheet: Spritesheet;
@@ -64,6 +77,12 @@ export interface TilemapLayer {
   fill: (tile: number | string) => void;
 }
 
+/**
+ * Draws the whole map, culled to what the camera can see.
+ *
+ * Two shapes: the plain call uses the running scene, and the one taking an
+ * explicit context is for tools and tests, which have no active scene.
+ */
 export interface TilemapDraw {
   /** Draw with the active scene at an optional world-space origin. */
   (x?: number, y?: number): void;
@@ -71,6 +90,13 @@ export interface TilemapDraw {
   (context: TilemapDrawContext, x?: number, y?: number): void;
 }
 
+/**
+ * A stack of tile layers over a shared grid, drawn back to front.
+ *
+ * `Layer` carries the declared layer names, so `map.layer("walls")` is checked
+ * at compile time — and a map typed that way is still assignable wherever a
+ * plain `Tilemap` is asked for.
+ */
 export interface Tilemap<Layer extends string = string> {
   readonly columns: number;
   readonly rows: number;

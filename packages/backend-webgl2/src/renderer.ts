@@ -131,6 +131,12 @@ export function pixelsToUpload(
   return output;
 }
 
+/**
+ * How the renderer is built. All optional — `webgl2()` is the usual call.
+ *
+ * `smoothing: false` is the one pixel art always wants, and the glyph atlas
+ * size under `text` is the one a title card wants.
+ */
 export interface Webgl2Options {
   readonly samples?: number;
   /**

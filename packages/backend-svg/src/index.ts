@@ -95,6 +95,13 @@ function escapeXml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Writes the command stream out as SVG, for print and for plotters.
+ *
+ * Curves stay curves — the buffer keeps control points rather than a flattened
+ * polyline, which is exactly what makes a real vector export possible. No
+ * raster, so no pixel readback.
+ */
 export class SvgRenderer {
   #width: number;
   #height: number;

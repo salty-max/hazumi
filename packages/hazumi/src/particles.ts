@@ -36,6 +36,12 @@ export interface Particle {
   readonly image: ParticleImage | undefined;
 }
 
+/**
+ * One spawn of particles, described by ranges rather than values.
+ *
+ * Every field that takes a `ParticleRange` may be a single number or a pair to
+ * pick between, so a burst is a shape rather than a loop the caller writes.
+ */
 export interface ParticleBurst {
   /** Origin. A range sprays across a segment. */
   readonly x: ParticleRange;
@@ -70,16 +76,24 @@ export interface ParticleBurst {
   readonly image?: ParticleImage;
 }
 
+/**
+ * A continuous emission: the same shape as a burst, but per second.
+ *
+ * Rate rather than count, because a trail spawning `rate * dt` particles a
+ * frame must not change density when the frame rate does.
+ */
 export interface ParticleDrip extends Omit<ParticleBurst, "count"> {
   /** Particles to spawn per second. Fractions accumulate across `update`s. */
   readonly rate: number;
 }
 
+/** Constant acceleration applied to every live particle, in units per second squared. */
 export interface ParticleGravity {
   readonly x?: number;
   readonly y?: number;
 }
 
+/** How a system is built. `capacity` is the only thing it must be told. */
 export interface ParticleSystemOptions {
   /** Maximum live particles. Preallocated. */
   readonly capacity: number;
@@ -100,6 +114,13 @@ export interface ParticleSystemOptions {
   readonly random?: Rng;
 }
 
+/**
+ * A fixed pool of particles: emit into it, step it, draw it.
+ *
+ * Preallocated and never resized. A burst that would overflow drops its extra
+ * particles rather than growing the pool mid-frame, which is the trade that
+ * keeps the update allocation-free.
+ */
 export interface ParticleSystem {
   readonly capacity: number;
   /** Currently alive. */

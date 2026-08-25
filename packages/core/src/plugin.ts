@@ -38,6 +38,13 @@ export interface PluginSetupContext {
   readonly name: string;
 }
 
+/**
+ * A named unit of behaviour an application can install.
+ *
+ * `setup` returns the API the plugin adds, and that return type is what the
+ * scene context ends up carrying — which is why `definePlugin` exists: it pins
+ * `Contributes` from the returned object so nobody writes it twice.
+ */
 export interface Plugin<Contributes extends object = Record<never, never>> extends PluginLifecycle {
   readonly name: string;
   /** Returns the API this plugin adds to the application. */
@@ -54,6 +61,7 @@ export function definePlugin<Contributes extends object>(
   return plugin;
 }
 
+/** Two plugins registered under one name. Names are the addressing scheme, so they must be unique. */
 export class DuplicatePluginError extends Error {
   readonly pluginName: string;
 
@@ -64,6 +72,12 @@ export class DuplicatePluginError extends Error {
   }
 }
 
+/**
+ * Two plugins tried to contribute the same key to the context.
+ *
+ * Refused rather than resolved by order: a scene reading `context.audio` should
+ * never have to know which plugin was installed second.
+ */
 export class DuplicateContributionError extends Error {
   readonly key: string;
 
@@ -74,6 +88,7 @@ export class DuplicateContributionError extends Error {
   }
 }
 
+/** A plugin tried to contribute a key the runtime already owns. */
 export class ReservedContributionError extends Error {
   readonly key: string;
 
@@ -124,6 +139,12 @@ export interface PluginBuilder<Api extends object> {
   build: () => PluginHost<Api> & Api;
 }
 
+/**
+ * Start building a plugin host: `.use(plugin)` for each, then `.build()`.
+ *
+ * Each `use` widens the built type by that plugin's contribution, so the result
+ * is typed with exactly what was installed and nothing else.
+ */
 export function createPluginHost(): PluginBuilder<Record<never, never>> {
   return builder([]);
 }

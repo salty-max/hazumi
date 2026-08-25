@@ -23,6 +23,7 @@ import { ClipEnd } from "./animation";
 /** How a tween behaves once its duration has elapsed. Shared with clips. */
 export { ClipEnd };
 
+/** How one tween runs. */
 export interface TweenOptions {
   /** Value at t = 0. */
   readonly from: number;
@@ -38,6 +39,12 @@ export interface TweenOptions {
   readonly end?: ClipEnd;
 }
 
+/**
+ * A value over time, sampled rather than ticked.
+ *
+ * `at(seconds)` is a pure function of elapsed time, so a tween holds no state
+ * of its own: it survives a pause, a rewind, and being asked out of order.
+ */
 export interface Tween {
   /** Seconds for one pass, not counting `delay`. */
   readonly duration: number;
@@ -49,6 +56,7 @@ export interface Tween {
   finished: (seconds: number) => boolean;
 }
 
+/** A tween was built with a duration that is not a positive number. */
 export class InvalidTweenError extends Error {
   constructor(message: string) {
     super(message);

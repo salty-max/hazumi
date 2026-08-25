@@ -9,12 +9,19 @@
  * names collide by design.
  */
 
+/** Two-component vectors: `vec2.add`, `vec2.dot`, and the rest. */
 export * as vec2 from "./vec2";
+/** Three-component vectors. Same operation names as `vec2`, hence the namespace. */
 export * as vec3 from "./vec3";
+/** 4x4 matrices. 2D is a constrained use of these — see the module note above. */
 export * as mat4 from "./mat4";
+/** Easing curves, each mapping 0–1 to 0–1. What `tween` interpolates through. */
 export * as easing from "./easing";
+/** Overlap, raycast and sweep queries. Pure functions over shapes, no world. */
 export * as collision from "./collision";
+/** A* over a grid, with a reusable path buffer so a search allocates nothing. */
 export * as pathfind from "./pathfind";
+/** A rigid-body world: bodies, joints, and a sequential-impulse solver. */
 export * as physics from "./physics";
 
 export type { Vec2 } from "./vec2";

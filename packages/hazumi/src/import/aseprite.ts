@@ -29,6 +29,7 @@ export interface AsepriteFrameRect {
   readonly h: number;
 }
 
+/** One frame of an Aseprite export: where it is on the sheet, and how long it is held. */
 export interface AsepriteFrame {
   /** Present in the array export; the hash export puts it in the key instead. */
   readonly filename?: string;
@@ -37,6 +38,12 @@ export interface AsepriteFrame {
   readonly duration?: number;
 }
 
+/**
+ * An Aseprite tag, which becomes a clip.
+ *
+ * `from` and `to` are inclusive frame indices, so a one-frame tag has them
+ * equal rather than one apart.
+ */
 export interface AsepriteTag {
   readonly name: string;
   /** Inclusive frame indices. */
@@ -46,6 +53,13 @@ export interface AsepriteTag {
   readonly repeat?: string;
 }
 
+/**
+ * An Aseprite JSON export.
+ *
+ * Both export shapes are accepted: `frames` may be an array or an object keyed
+ * by filename, and which one you get depends on a checkbox in the export
+ * dialog rather than on anything the file says about itself.
+ */
 export interface AsepriteSheet {
   /** Array export, or hash export keyed by filename. */
   readonly frames: readonly AsepriteFrame[] | Readonly<Record<string, AsepriteFrame>>;

@@ -27,6 +27,12 @@ export type {
   PluginSetupContext,
 } from "@hazumi/core";
 
+/**
+ * How an application is started: which backend, how big, and what it plugs in.
+ *
+ * `backend` is the only thing required — everything else has a default that
+ * works, including the canvas, which `start` creates if none is handed to it.
+ */
 export interface AppOptions<Api extends object = Record<never, never>> {
   readonly backend: BackendFactory;
   readonly width?: number;
@@ -176,6 +182,12 @@ function supportsPixels(renderer: Renderer): renderer is PixelCapableRenderer {
   return typeof renderer.readPixels === "function" && typeof renderer.writePixels === "function";
 }
 
+/**
+ * A running application: its canvas, its context, and the handles to control it.
+ *
+ * Returned by `start`. `Api` carries whatever the installed plugins added, so
+ * `app.context` is typed with them rather than needing a cast.
+ */
 export interface HazumiApp<Api extends object = Record<never, never>> {
   readonly context: HazumiContext & Api;
   readonly canvas: HTMLCanvasElement;

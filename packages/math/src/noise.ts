@@ -28,6 +28,12 @@ const GRAD3: ReadonlyArray<readonly [number, number, number]> = [
   [0, -1, -1],
 ];
 
+/**
+ * A seeded gradient-noise field, sampled in 2D or 3D.
+ *
+ * The same seed gives the same field forever, which is what makes a generated
+ * level or a wind pattern reproducible between runs.
+ */
 export interface Noise {
   /** 2D noise, output roughly in [-1, 1]. */
   noise2: (x: number, y: number) => number;
@@ -37,6 +43,12 @@ export interface Noise {
   fbm2: (x: number, y: number, octaves?: number, persistence?: number) => number;
 }
 
+/**
+ * Build a noise field from a seed, or from an existing generator.
+ *
+ * Passing the scene's own `random` keeps one stream of randomness rather than
+ * two that drift apart.
+ */
 export function createNoise(source: Rng | number = 0): Noise {
   const rng = typeof source === "number" ? seeded(source) : source;
 
