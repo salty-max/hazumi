@@ -16,3 +16,6 @@ coverage/
 .vercel
 apps/*/dist/
 .env*
+
+# Editor and tool config, not the project's.
+.claude/
